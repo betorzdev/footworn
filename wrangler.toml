@@ -1,0 +1,26 @@
+# Footworn: a cookie-free visit counter. One Worker: the collector (/c), the tracker (/footworn.js),
+# the read API (/api/*) and the dashboard (/). Free plan is enough: see README.
+name = "footworn"
+main = "src/index.js"
+compatibility_date = "2026-09-01"
+
+# The dashboard, the tracker and the privacy page: plain files, served before the Worker runs.
+[assets]
+directory = "public"
+binding = "ASSETS"
+not_found_handling = "none"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "footworn"
+# Replace with the id `wrangler d1 create footworn --location weur` prints (keep weur: data in Europe).
+database_id = "00000000-0000-0000-0000-000000000000"
+migrations_dir = "migrations"
+
+# Nightly: rotate the salt, forget today's visitor hashes, drop hits past the retention.
+[triggers]
+crons = ["0 0 * * *"]
+
+[vars]
+# The AEPD's audience-measurement guide (January 2024) caps retention at 25 months.
+RETENTION_MONTHS = "25"

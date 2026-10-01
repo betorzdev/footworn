@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Footworn demo</title>
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="style.css">
+<!-- Counts on localhost too (data-local), for `npm run dev`. Add the "demo" site first:
+     npm run site:add -- demo Demo http://localhost:8787 -->
+<script async src="footworn.js" data-site="demo" data-local="1"></script>
+</head>
+<body class="demo">
+<main class="wrap">
+  <h1>Footworn demo</h1>
+  <p>This page counted one pageview when it loaded. Each button sends an event; then open the <a href="./">dashboard</a>.</p>
+  <p class="row">
+    <button class="btn" onclick="footworn.event('screen', { view: 'combat', lang: 'en' })">screen · combat</button>
+    <button class="btn" onclick="footworn.event('screen', { view: 'map', lang: 'es' })">screen · map</button>
+    <button class="btn" onclick="footworn.event('share')">share</button>
+    <button class="btn" onclick="footworn.count('/other-page/')">pageview /other-page/</button>
+  </p>
+</main>
+</body>
+</html>

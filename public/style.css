@@ -1,0 +1,72 @@
+*, *::before, *::after { box-sizing: border-box; }
+html { font-family: var(--font); font-size: var(--fs-m); color: var(--text); background: var(--bg); }
+body { margin: 0; }
+a { color: var(--accent); }
+h1 { font-size: var(--fs-l); margin: 0; }
+h2 { font-size: var(--fs-s); text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin: 0 0 var(--s-2); font-weight: 600; }
+.wrap { max-width: 1100px; margin: 0 auto; padding: var(--s-4); }
+.num { font-family: var(--font-num); font-variant-numeric: tabular-nums; }
+.muted { color: var(--muted); }
+
+/* Header: site, range, token */
+.top { display: flex; flex-wrap: wrap; gap: var(--s-3); align-items: center; margin-bottom: var(--s-4); }
+.top .grow { flex: 1 1 auto; }
+select, input, .btn {
+  font: inherit; color: var(--text); background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: var(--s-2) var(--s-3); min-height: 40px;
+}
+input[type="date"] { color-scheme: dark; }
+.btn { cursor: pointer; }
+.btn:hover { background: var(--surface-2); }
+.btn[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); font-weight: 600; }
+.row { display: flex; flex-wrap: wrap; gap: var(--s-2); }
+.seg { display: inline-flex; gap: var(--s-1); }
+
+/* Totals */
+.tiles { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--s-3); margin-bottom: var(--s-4); }
+.tile { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: var(--s-3) var(--s-4); }
+.tile .v { font-size: var(--fs-xl); font-weight: 600; line-height: 1.1; }
+.tile .k { color: var(--muted); font-size: var(--fs-s); }
+
+/* Chart */
+.chart { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: var(--s-3); margin-bottom: var(--s-4); }
+.chart svg { width: 100%; height: auto; display: block; }
+.chart .legend { display: flex; gap: var(--s-4); font-size: var(--fs-s); color: var(--muted); margin-top: var(--s-2); }
+.legend i { display: inline-block; width: 12px; height: 12px; border-radius: 2px; vertical-align: -1px; margin-right: var(--s-1); }
+.legend .bar i { background: var(--bar); }
+.legend .line i { background: var(--line); }
+
+/* Tables */
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: var(--s-3); }
+.panel { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: var(--s-3) var(--s-4); min-width: 0; }
+table { width: 100%; border-collapse: collapse; font-size: var(--fs-s); }
+td { padding: var(--s-1) 0; border-top: 1px solid var(--border); vertical-align: top; }
+tr:first-child td { border-top: 0; }
+td.v { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 0; width: 100%; position: relative; }
+td.v .fill { position: absolute; left: 0; top: 2px; bottom: 2px; background: var(--surface-2); border-radius: 2px; z-index: 0; }
+td.v span { position: relative; z-index: 1; padding-left: var(--s-1); }
+td.n { text-align: right; padding-left: var(--s-3); }
+.panel .empty { color: var(--muted); font-size: var(--fs-s); }
+.evt { cursor: pointer; }
+.evt:hover span { color: var(--accent); }
+
+/* Event detail */
+.detail { margin-top: var(--s-4); border-color: var(--accent); }
+.detail header { display: flex; align-items: baseline; gap: var(--s-3); margin-bottom: var(--s-3); }
+.detail header h2 { margin: 0; color: var(--text); text-transform: none; font-size: var(--fs-m); letter-spacing: 0; }
+.detail .grid { margin-top: var(--s-3); }
+.detail .panel { background: var(--surface-2); }
+
+/* Token form */
+.gate { max-width: 420px; margin: 20vh auto 0; }
+.gate form { display: flex; gap: var(--s-2); margin-top: var(--s-3); }
+.gate input { flex: 1; }
+.error { color: var(--danger); font-size: var(--fs-s); margin-top: var(--s-2); }
+[hidden] { display: none !important; }
+
+@media (max-width: 600px) {
+  .tiles { grid-template-columns: 1fr 1fr 1fr; gap: var(--s-2); }
+  .tile { padding: var(--s-2) var(--s-3); }
+  .tile .v { font-size: var(--fs-l); }
+  .grid { grid-template-columns: 1fr; }
+}

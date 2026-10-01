@@ -1,0 +1,9 @@
+# Served with the assets (Workers static assets read this file and never serve it).
+/*
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: no-referrer
+
+# The dashboard holds the admin token in the browser: no inline code, no framing, same origin only.
+/
+  Content-Security-Policy: default-src 'self'; connect-src 'self'; img-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'
+  X-Frame-Options: DENY

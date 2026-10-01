@@ -1,0 +1,19 @@
+/* Every colour, typeface and spacing of the dashboard lives here. */
+:root {
+  --bg: #0f1115;
+  --surface: #171a21;
+  --surface-2: #1f232c;
+  --border: #2a2f3a;
+  --text: #e8e9ec;
+  --muted: #9aa0ab;
+  --accent: #7cc4ff;
+  --accent-ink: #0b2a44;
+  --bar: #3b6ea8;
+  --line: #ffd166;
+  --danger: #ff7b7b;
+  --font: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-num: var(--font);
+  --s-1: 4px; --s-2: 8px; --s-3: 12px; --s-4: 16px; --s-5: 24px; --s-6: 32px;
+  --radius: 8px;
+  --fs-s: 13px; --fs-m: 15px; --fs-l: 20px; --fs-xl: 28px;
+}

@@ -1,0 +1,19 @@
+{
+  "name": "footworn",
+  "version": "0.1.0",
+  "description": "A small, cookie-free visit counter for static sites: a Cloudflare Worker, a D1 database, a 1 KB script and a dashboard.",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "test": "node --test test/*.test.js",
+    "migrate:local": "wrangler d1 migrations apply DB --local",
+    "migrate": "wrangler d1 migrations apply DB --remote",
+    "site:add": "node tools/site-add.js",
+    "smoke": "node tools/smoke.js"
+  },
+  "devDependencies": {
+    "wrangler": "^4"
+  }
+}
