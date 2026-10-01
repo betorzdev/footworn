@@ -142,8 +142,6 @@ an event one, so about 50 000 pageviews a day. Retention is `RETENTION_MONTHS` i
 
 ## Privacy
 
-<img align="right" width="360" alt="The public notice at /privacy: What Footworn counts, with the lists It keeps and It never keeps." src="docs/screenshots/privacy.png">
-
 | Stored, per hit | Why it is allowed |
 |---|---|
 | `path`, `day` | audience, page by page |
@@ -158,7 +156,9 @@ Not stored, ever: cookies, local storage, IP, User-Agent, any hash or id, any se
 one person saw. `/privacy` is the notice a host site links to;
 [`docs/privacy.md`](docs/privacy.md) is the full record, and it changes together with the schema.
 
-<br clear="right">
+<p align="center">
+  <img alt="The public notice at /privacy: What Footworn counts, with the lists It keeps and It never keeps." src="docs/screenshots/privacy.png" width="360">
+</p>
 
 ## API
 
