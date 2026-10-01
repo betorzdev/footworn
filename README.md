@@ -16,10 +16,6 @@
 
 <p align="center"><sub>The dashboard, on a month of one site. It follows your system’s light or dark scheme.</sub></p>
 
-Made for the [Hallownest](https://github.com/betorzdev/hallownest-calculator) and
-[Pharloom](https://github.com/betorzdev/pharloom-calculator) calculators, with nothing of them in
-it: any site with an id and an allowed origin can use it.
-
 ## Why
 
 - **No banner.** Its whole data model is the regulator’s list of what audience measurement may
@@ -46,7 +42,7 @@ desktop cut-offs drawn in.
 
 **One event, opened.** An event name in the Events table opens its own panel: a day chart, the
 pages it fired on, and every property with its values. The view lives in the URL, so
-`/?site=hallownest&days=30&event=screen` is a link straight to it.
+`/?site=your-site&days=30&event=screen` is a link straight to it.
 
 ![The screen event opened: 8,166 times over the month, a bar per day, the pages it fired on, and two properties, lang and view, each with its values and counts.](docs/screenshots/event.png)
 
@@ -86,7 +82,7 @@ Without the script (blocked, offline) `window.footworn` is undefined, so call it
 The site has to be registered with its allowed origins, or its hits are dropped:
 
 ```sh
-npm run site:add -- hallownest "Hallownest Calculator" https://betorzdev.github.io --remote
+npm run site:add -- your-site "Your Site" https://your-site.example --remote
 ```
 
 ## How a visit flows
