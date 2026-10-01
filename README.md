@@ -39,16 +39,22 @@ npm run site:add -- hallownest "Hallownest Calculator" https://betorzdev.github.
 
 ```sh
 npm install
-cp .dev.vars.example .dev.vars        # the dashboard's token
-npm run migrate:local                 # creates the local D1
-npm run site:add -- demo Demo http://localhost:8787
 npm run dev                           # http://localhost:8787
 ```
 
+`npm run dev` prepares what is missing (a `.dev.vars` with a random token, the local D1, the
+`demo` site) and prints the dashboard link with the token; `tools/dev.js` is the recipe.
+
 `/demo` fires a pageview and has buttons for events; `/` is the dashboard (paste the token from
-`.dev.vars`, or open `/#token=…` once: it's saved in the browser and the URL is cleaned;
-`&site=<id>&event=<name>` pick what opens first); `/privacy` is the public notice. `curl http://localhost:8787/cdn-cgi/local/scheduled`
+`.dev.vars`, or open `/#token=…` once: it's saved in the browser and the URL is cleaned); the view
+lives in the query, so `/?site=<id>&days=7` or `/?site=<id>&from=…&to=…&event=<name>` is a link
+to it; `/privacy` is the public notice. `curl http://localhost:8787/cdn-cgi/local/scheduled`
 runs the nightly cron by hand.
+
+`npm test` is the unit suite, `npm run smoke` the end-to-end run; `.github/workflows/ci.yml`
+runs both on every push. `.claude/` holds the hooks that keep the rules in `CLAUDE.md`
+(tests after every edit under `src/`, no deploys or commits from the agent, `docs/privacy.md`
+changes with what is stored) and the skill that runs the app locally for `/verify`.
 
 ## Deploy (once)
 

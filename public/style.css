@@ -1,72 +1,174 @@
 *, *::before, *::after { box-sizing: border-box; }
-html { font-family: var(--font); font-size: var(--fs-m); color: var(--text); background: var(--bg); }
-body { margin: 0; }
-a { color: var(--accent); }
-h1 { font-size: var(--fs-l); margin: 0; }
-h2 { font-size: var(--fs-s); text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin: 0 0 var(--s-2); font-weight: 600; }
-.wrap { max-width: 1100px; margin: 0 auto; padding: var(--s-4); }
+:root { color-scheme: light; }
+/* The paper: ruled every --lh from the top of the document, so every row sits on a line. */
+html { font-family: var(--font); font-size: var(--fs-m); line-height: var(--lh); color: var(--text); background: var(--bg); -webkit-tap-highlight-color: transparent; -webkit-text-size-adjust: 100%; caret-color: var(--accent); accent-color: var(--accent); scrollbar-color: var(--rule) var(--bg); }
+body { margin: 0; min-height: 100vh; background: repeating-linear-gradient(to bottom, transparent 0 calc(var(--lh) - 1px), var(--rule) calc(var(--lh) - 1px) var(--lh)); }
+/* The browser's own surfaces take the palette too: selection, placeholders, date-picker controls. */
+::selection { background: var(--accent); color: var(--accent-ink); }
+::placeholder { color: var(--muted); opacity: 1; }
+a { color: var(--text); text-decoration-color: var(--accent); text-underline-offset: 3px; text-decoration-thickness: 1px; }
+button, select, input, summary, a { touch-action: manipulation; }
+/* Controls are not text: no long-press selection or callout on a phone. Content stays selectable. */
+button, summary { user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
+/* Hover only where a pointer can hover; on touch the first tap would leave it stuck. Press feedback is :active. */
+@media (hover: hover) and (pointer: fine) {
+  a:hover { text-decoration-thickness: 2px; }
+  .btn:hover { background: var(--hover); }
+  input:hover, select:hover { border-bottom-color: var(--text); }
+  .evt:hover { color: var(--accent); }
+}
+
+/* Keyboard users jump past the header controls; visible only while focused. */
+.skip { position: absolute; left: var(--s-4); top: -100px; padding: 0 var(--s-3); background: var(--accent); color: var(--accent-ink); border-radius: var(--radius); z-index: 1; }
+.skip:focus { top: var(--s-2); }
+/* The page, with the pad's double red margin down its left. */
+/* flow-root: a child's top margin (the token form, a page title) must not collapse through and push the paper down. */
+.wrap { display: flow-root; position: relative; max-width: 1240px; min-height: 100vh; margin: 0 auto; padding: 0 var(--s-4) var(--lh) var(--gutter); padding-right: max(var(--s-4), env(safe-area-inset-right)); padding-bottom: max(var(--lh), env(safe-area-inset-bottom)); }
+.wrap::before { content: ""; position: absolute; top: 0; bottom: 0; left: max(16px, env(safe-area-inset-left)); width: 6px; border-left: 1.5px solid var(--accent); border-right: 1.5px solid var(--accent); pointer-events: none; }
 .num { font-family: var(--font-num); font-variant-numeric: tabular-nums; }
 .muted { color: var(--muted); }
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
-/* Header: site, range, token */
-.top { display: flex; flex-wrap: wrap; gap: var(--s-3); align-items: center; margin-bottom: var(--s-4); }
+/* Type: titles in ink, two rules high; printed labels small, tracked, in pencil; figures typed. */
+h1 { font-size: var(--fs-title); line-height: calc(var(--lh) * 2); font-weight: 700; letter-spacing: -.01em; margin: 0; text-wrap: balance; }
+h2, .label, .tile .k, .legend, .data summary, .data th { font: 600 var(--fs-xs)/var(--lh) var(--font); letter-spacing: var(--track); text-transform: uppercase; color: var(--muted); }
+/* A heading's ink rule overdraws the paper's feint one, so the block stays one rule high. */
+h2 { margin: 0; box-shadow: inset 0 -1px var(--text); text-wrap: balance; }
+
+/* Prose pages (privacy): one readable measure, every paragraph on the lines. */
+.narrow { max-width: 68ch; }
+.narrow h1 { padding-top: var(--lh); }
+.narrow p { margin: 0 0 var(--lh); }
+.narrow h2 { margin-bottom: 0; }
+.narrow ul { margin: 0 0 var(--lh); padding-left: 1.2em; }
+
+/* Header: brand, account (the site), range, token */
+/* Three rules high when it fits on one line; each extra line adds two rules (control plus row gap). */
+.top { display: flex; flex-wrap: wrap; gap: calc(var(--lh) * 2 - var(--tap)) var(--s-4); align-items: center; padding: calc((var(--lh) * 3 - var(--tap)) / 2) 0; }
+.top h1 { font: 600 var(--fs-xs)/var(--lh) var(--font); letter-spacing: .16em; text-transform: uppercase; color: var(--muted); }
 .top .grow { flex: 1 1 auto; }
-select, input, .btn {
-  font: inherit; color: var(--text); background: var(--surface); border: 1px solid var(--border);
-  border-radius: var(--radius); padding: var(--s-2) var(--s-3); min-height: 40px;
+/* Controls: a typed box in ink. The live range is the box the pen ringed. */
+.btn {
+  position: relative; font: 600 var(--fs-s)/1 var(--font-num); color: var(--text); background: transparent;
+  border: 1px solid var(--text); border-radius: var(--radius); padding: 0 var(--s-4); min-height: var(--tap);
+  cursor: pointer; transition: transform var(--t-fast) ease-out, background var(--t-fast) ease-out;
 }
-input[type="date"] { color-scheme: dark; }
-.btn { cursor: pointer; }
-.btn:hover { background: var(--surface-2); }
-.btn[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); font-weight: 600; }
+.btn:active { transform: scale(.97); }
+.btn:disabled { opacity: .55; cursor: progress; transform: none; }
+.btn[aria-pressed="true"]::after { content: ""; position: absolute; inset: calc(-1 * var(--s-2)) calc(-1 * var(--s-1) - 2px); border: 2px solid var(--accent); border-radius: 50%; transform: rotate(-5deg); pointer-events: none; animation: ring var(--t-base) cubic-bezier(.2, .9, .3, 1.2); }
+@keyframes ring { from { transform: rotate(-5deg) scale(1.12); opacity: 0; } }
+input {
+  font: var(--fs-s)/1 var(--font-num); color: var(--muted); background: transparent; border: 0; border-bottom: 1px solid var(--text);
+  border-radius: 0; padding: 0 var(--s-2); min-height: var(--tap); font-variant-numeric: tabular-nums;
+}
+select {
+  font: 700 var(--fs-l)/var(--lh) var(--font); letter-spacing: -.01em; color: var(--text); background: transparent;
+  border: 0; border-bottom: 1px solid transparent; border-radius: 0; padding: 0; min-height: var(--tap); max-width: 100%;
+}
+select option { font-size: var(--fs-m); background: var(--surface); }
 .row { display: flex; flex-wrap: wrap; gap: var(--s-2); }
-.seg { display: inline-flex; gap: var(--s-1); }
+.seg { display: inline-flex; gap: var(--s-2); }
 
-/* Totals */
-.tiles { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--s-3); margin-bottom: var(--s-4); }
-.tile { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: var(--s-3) var(--s-4); }
-.tile .v { font-size: var(--fs-xl); font-weight: 600; line-height: 1.1; }
-.tile .k { color: var(--muted); font-size: var(--fs-s); }
+/* Loading: the numbers on screen are the previous range's, pencilled in until the new ones arrive. */
+.tile .v, .tile .u { transition: color var(--t-fast) ease-out; }
+[aria-busy="true"] .tile .v { color: var(--muted); }
+[aria-busy="true"] .chart, [aria-busy="true"] .grid, [aria-busy="true"] .detail { opacity: .55; transition: opacity var(--t-fast) ease-out; }
 
-/* Chart */
-.chart { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: var(--s-3); margin-bottom: var(--s-4); }
-.chart svg { width: 100%; height: auto; display: block; }
-.chart .legend { display: flex; gap: var(--s-4); font-size: var(--fs-s); color: var(--muted); margin-top: var(--s-2); }
-.legend i { display: inline-block; width: 12px; height: 12px; border-radius: 2px; vertical-align: -1px; margin-right: var(--s-1); }
+/* Totals: three column foots, four rules high, divided by the pad's vertical rules and footed with the
+   accountant's double rule (3px, so the band's bottom margin gives them back). */
+.tiles { display: grid; grid-template-columns: 1fr 1fr 1fr; margin: var(--lh) 0 calc(var(--lh) - 3px); border-bottom: 3px double var(--text); }
+.tile { padding-left: var(--s-4); border-left: 1px solid var(--rule); min-width: 0; }
+.tile:first-child { padding-left: 0; border-left: 0; }
+.tile .v { font: 700 var(--fs-xl)/calc(var(--lh) * 2) var(--font-num); letter-spacing: -.03em; overflow: hidden; text-overflow: ellipsis; }
+.tile .u { color: var(--muted); font-size: var(--fs-s); min-height: var(--lh); }
+
+/* Chart: drawn on the page, eight rules high (224px), at the box's pixel width so its text is real CSS pixels. */
+.chart { margin-bottom: var(--lh); }
+svg.days { width: 100%; height: auto; display: block; }
+svg.days text { font-family: var(--font-num); font-size: var(--fs-xs); font-variant-numeric: tabular-nums; }
+.chart .legend { display: flex; gap: var(--s-5); }
+.legend i { display: inline-block; width: 14px; height: 3px; vertical-align: 2px; margin-right: var(--s-2); }
 .legend .bar i { background: var(--bar); }
 .legend .line i { background: var(--line); }
+.data { font-size: var(--fs-s); }
+.data summary { cursor: pointer; width: max-content; }
+.data table { width: auto; }
+.data th { text-align: right; padding: 0 0 0 var(--s-5); }
+.data th:first-child, .data td:first-child { text-align: left; padding-left: 0; }
+.data td { text-align: right; padding-left: var(--s-5); }
 
-/* Tables */
-.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: var(--s-3); }
-.panel { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: var(--s-3) var(--s-4); min-width: 0; }
+/* Dimensions: ruled columns, four across, then two, then one. Each row is one rule high; the paper draws the dividers. */
+.grid { display: grid; grid-template-columns: repeat(4, 1fr); }
+.panel { padding: 0 var(--s-5) var(--lh) var(--s-4); border-left: 1px solid var(--rule); min-width: 0; }
+.panel:nth-child(4n+1) { border-left: 0; padding-left: 0; }
 table { width: 100%; border-collapse: collapse; font-size: var(--fs-s); }
-td { padding: var(--s-1) 0; border-top: 1px solid var(--border); vertical-align: top; }
-tr:first-child td { border-top: 0; }
+td { padding: 0; height: var(--lh); line-height: var(--lh); vertical-align: baseline; }
+/* Column headers for screen readers only: the panel's title names the dimension on screen. */
+.dim th { padding: 0; border: 0; height: 0; line-height: 0; }
 td.v { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 0; width: 100%; position: relative; }
-td.v .fill { position: absolute; left: 0; top: 2px; bottom: 2px; background: var(--surface-2); border-radius: 2px; z-index: 0; }
-td.v span { position: relative; z-index: 1; padding-left: var(--s-1); }
-td.n { text-align: right; padding-left: var(--s-3); }
-.panel .empty { color: var(--muted); font-size: var(--fs-s); }
-.evt { cursor: pointer; }
-.evt:hover span { color: var(--accent); }
+/* The share of the top value, as a pencil bar under the text. */
+td.v .fill { position: absolute; left: 0; bottom: 5px; height: 2px; background: var(--bar-soft); }
+td.v span, td.v .evt { position: relative; display: block; overflow: hidden; text-overflow: ellipsis; }
+td.n { text-align: right; padding-left: var(--s-3); font-family: var(--font-num); font-size: var(--fs-num); font-variant-numeric: tabular-nums; }
+.panel .empty { color: var(--muted); font-size: var(--fs-s); margin: 0; }
+.evt { font: inherit; line-height: inherit; color: inherit; background: none; border: 0; padding: 0; margin: 0; cursor: pointer; text-align: left; width: 100%; white-space: nowrap; text-decoration: underline; text-decoration-color: var(--accent); text-underline-offset: 3px; }
 
-/* Event detail */
-.detail { margin-top: var(--s-4); border-color: var(--accent); }
-.detail header { display: flex; align-items: baseline; gap: var(--s-3); margin-bottom: var(--s-3); }
-.detail header h2 { margin: 0; color: var(--text); text-transform: none; font-size: var(--fs-m); letter-spacing: 0; }
-.detail .grid { margin-top: var(--s-3); }
-.detail .panel { background: var(--surface-2); }
+/* Event detail: a sub-ledger under the columns. */
+.panel.detail { border-left: 0; padding: var(--lh) 0 0; }
+.detail:not([hidden]) { animation: rise var(--t-base) ease-out; }
+@keyframes rise { from { opacity: 0; transform: translateY(6px); } }
+.detail header { display: flex; align-items: center; gap: var(--s-3) var(--s-4); flex-wrap: wrap; }
+.detail header h2 { color: var(--text); text-transform: none; letter-spacing: -.01em; font-size: var(--fs-l); font-weight: 700; box-shadow: none; overflow-wrap: anywhere; min-width: 0; }
+.detail header .grow { flex: 1 1 auto; }
+.detail .grid { margin-top: var(--lh); }
 
-/* Token form */
-.gate { max-width: 420px; margin: 20vh auto 0; }
-.gate form { display: flex; gap: var(--s-2); margin-top: var(--s-3); }
-.gate input { flex: 1; }
-.error { color: var(--danger); font-size: var(--fs-s); margin-top: var(--s-2); }
+/* Token form, errors */
+.gate { max-width: var(--gate-w); margin: 20vh auto 0; }
+.gate p { color: var(--muted); margin: 0; }
+.gate form { display: flex; gap: var(--s-3); margin-top: var(--lh); }
+.gate input { flex: 1; min-width: 0; font: inherit; color: var(--text); background: var(--surface); padding: 0 var(--s-3); }
+.error { color: var(--danger); font-size: var(--fs-s); margin: 0; }
+#error { display: flex; flex-wrap: wrap; gap: var(--s-2) var(--s-3); align-items: center; }
+#error .btn { min-height: var(--lh); padding: 0 var(--s-3); }
 [hidden] { display: none !important; }
 
+@media (max-width: 1000px) {
+  .grid { grid-template-columns: 1fr 1fr; }
+  .panel:nth-child(4n+1) { border-left: 1px solid var(--rule); padding-left: var(--s-4); }
+  .panel:nth-child(2n+1) { border-left: 0; padding-left: 0; }
+}
 @media (max-width: 600px) {
-  .tiles { grid-template-columns: 1fr 1fr 1fr; gap: var(--s-2); }
-  .tile { padding: var(--s-2) var(--s-3); }
-  .tile .v { font-size: var(--fs-l); }
+  .wrap { padding-left: var(--gutter-phone); }
+  .wrap::before { left: var(--s-2); }
+  /* Four rows: brand and lock, the account, the ranges, the dates; 44 + 12 each, so the lines below still align. */
+  .top .grow { display: none; }
+  .top #logout { order: 1; margin-left: auto; }
+  .top select { order: 2; flex: 1 1 100%; }
+  .top #ranges { order: 3; flex: 1 1 100%; }
+  .top #ranges .btn { flex: 1; padding: 0; }
+  .top .seg:not(#ranges) { order: 4; flex: 1 1 100%; }
+  .top .seg:not(#ranges) input { flex: 1; min-width: 0; }
+  .tiles { grid-template-columns: 1fr 1fr; }
+  .tile:first-child { grid-column: 1 / -1; }
+  .tile:nth-child(2) { border-left: 0; padding-left: 0; }
+  .tile .v { font-size: var(--fs-xl-phone); }
   .grid { grid-template-columns: 1fr; }
+  .panel, .panel:nth-child(4n+1) { border-left: 0; padding-left: 0; padding-right: 0; }
+  .gate { margin-top: 12vh; }
+  /* The event header stays on one rule: the count gives way before Close wraps. */
+  .detail header .grow { display: none; }
+  .detail header .muted { flex: 1 1 0; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .detail header .btn { margin-left: auto; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .btn, .tile .v, .tile .u, [aria-busy="true"] .chart, [aria-busy="true"] .grid, [aria-busy="true"] .detail { transition: none; }
+  .btn:active { transform: none; }
+  .btn[aria-pressed="true"]::after, .detail:not([hidden]) { animation: none; }
+}
+
+/* After the control reset above, so it wins: under 16px iOS zooms the page into a focused input. */
+@media (pointer: coarse) {
+  select, input { font-size: var(--fs-touch); }
 }

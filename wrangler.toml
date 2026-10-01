@@ -4,6 +4,12 @@ name = "footworn"
 main = "src/index.js"
 compatibility_date = "2026-09-01"
 
+# Workers Logs and traces (both flags: the first alone enables no traces). Free plan included.
+[observability]
+enabled = true
+[observability.traces]
+enabled = true
+
 # The dashboard, the tracker and the privacy page: plain files, served before the Worker runs.
 [assets]
 directory = "public"

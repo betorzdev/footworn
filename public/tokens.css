@@ -1,19 +1,33 @@
-/* Every colour, typeface and spacing of the dashboard lives here. */
+/* Every colour, typeface and spacing of the dashboard lives here.
+   The world: the accountant's green columnar pad. Ruled paper, ink figures, a red margin,
+   pencil for what is secondary, a red pen ring on the live control. No cards, no chrome. */
 :root {
-  --bg: #0f1115;
-  --surface: #171a21;
-  --surface-2: #1f232c;
-  --border: #2a2f3a;
-  --text: #e8e9ec;
-  --muted: #9aa0ab;
-  --accent: #7cc4ff;
-  --accent-ink: #0b2a44;
-  --bar: #3b6ea8;
-  --line: #ffd166;
-  --danger: #ff7b7b;
+  --bg: #dde9d5;        /* the paper */
+  --rule: #b7cbae;      /* the feint ruled line, every --lh */
+  --border: var(--rule);
+  --surface: #eef4ea;   /* a field that stands apart: the token input */
+  --surface-2: #d2e0ca;
+  --hover: #d3dfcb;     /* a control under the pointer: the paper, pressed */
+  --text: #1e211c;      /* ink */
+  --muted: #434c40;     /* pencil; 7:1 on the paper, 5.1:1 even on a rule */
+  --accent: #b8281f;    /* red pen: the live range, the visitors line, focus, selection, the caret */
+  --accent-ink: #f6f3e9;
+  --bar: #555b52;       /* the chart's bars: an ink wash */
+  --bar-soft: #a9bf9f;  /* the share bar under a table value */
+  --line: var(--accent);
+  --danger: var(--accent);
   --font: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-  --font-num: var(--font);
+  --font-num: ui-monospace, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace; /* the typed figures */
+  --lh: 28px;           /* the rule pitch: every line of text and every table row is one rule high; the chart is 8 rules */
+  --gutter: 56px;       /* the page's left margin, past the red rule; --gutter-phone under 600px */
+  --gutter-phone: 32px;
+  --gate-w: 440px;      /* the token form */
   --s-1: 4px; --s-2: 8px; --s-3: 12px; --s-4: 16px; --s-5: 24px; --s-6: 32px;
-  --radius: 8px;
-  --fs-s: 13px; --fs-m: 15px; --fs-l: 20px; --fs-xl: 28px;
+  --radius: 2px;
+  --tap: 44px; /* the smallest control a finger can hit reliably */
+  --fs-xs: 12px; --fs-s: 13px; --fs-m: 15px; --fs-l: 22px; --fs-title: 32px; --fs-xl: 48px; --fs-xl-phone: 40px;
+  --fs-num: 14px;   /* the typed figures in the tables */
+  --fs-touch: 16px; /* inputs on touch screens: under 16px iOS zooms the page on focus */
+  --track: .12em;   /* the tracking of every printed label */
+  --t-fast: 150ms; --t-base: 200ms;
 }

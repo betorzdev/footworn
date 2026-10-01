@@ -23,10 +23,11 @@ and why that is exempt from consent; these are the rules for working on it.
 
 ## When you finish
 
-- `npm test` (`node --test`, no dependencies) for `src/`.
+- `npm test` (`node --test`, no dependencies) for `src/`. A hook runs it after every edit there.
+- `/code-review` on the diff before proposing a commit message.
 - `npm run smoke`: boots `wrangler dev` on a throwaway local D1 (`.wrangler/smoke`), posts hits
   as two sites and a bot would, runs the cron, and checks the API's numbers end to end.
-- To look at it: `npm run dev`, add the demo site once
-  (`npm run site:add -- demo Demo http://localhost:8787`), open `http://localhost:8787/demo`
-  to fire hits and `http://localhost:8787/` with the token from `.dev.vars`.
-- Deploys are the user's call (`npm run deploy`); never deploy or commit without being asked.
+- To look at it: `npm run dev` (prepares the local D1, the demo site and `.dev.vars` itself,
+  and prints the dashboard link with the token); `http://localhost:8787/demo` fires hits.
+- Deploys, commits and pushes are the user's (a hook blocks them); propose the command instead.
+- `docs/backlog.md` lists what is agreed but not done yet; add to it rather than doing it unasked.

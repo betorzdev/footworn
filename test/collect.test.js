@@ -87,3 +87,13 @@ test('origin allowlist', () => {
   assert.equal(originAllowed('https://betorzdev.github.io', 'https://betorzdev.github.io/hallownest-calculator/'), true);
   assert.equal(originAllowed('http://betorzdev.github.io', site.origins), false, 'the scheme counts');
 });
+
+test('readCapped stops at the cap, with or without Content-Length', async () => {
+  const { readCapped } = await import('../src/index.js');
+  const small = new Request('http://x/c', { method: 'POST', body: '{"s":"a"}' });
+  assert.equal(await readCapped(small, 64), '{"s":"a"}');
+  const big = new Request('http://x/c', { method: 'POST', body: 'x'.repeat(100) });
+  assert.equal(await readCapped(big, 64), null);
+  const lying = new Request('http://x/c', { method: 'POST', body: 'x', headers: { 'Content-Length': '999999' } });
+  assert.equal(await readCapped(lying, 64), null);
+});

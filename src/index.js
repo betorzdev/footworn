@@ -28,12 +28,32 @@ function json(data, status = 200) {
   });
 }
 
+/* The body, or null past `max` bytes: read from the stream, so a body without Content-Length
+   (or lying about it) never gets buffered whole. */
+export async function readCapped(request, max) {
+  if (Number(request.headers.get('Content-Length')) > max) return null;
+  if (!request.body) return '';
+  const reader = request.body.getReader();
+  const chunks = [];
+  let size = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    size += value.byteLength;
+    if (size > max) { await reader.cancel(); return null; }
+    chunks.push(value);
+  }
+  const all = new Uint8Array(size);
+  let at = 0;
+  for (const c of chunks) { all.set(c, at); at += c.byteLength; }
+  return new TextDecoder().decode(all);
+}
+
 async function collect(request, env) {
-  if (Number(request.headers.get('Content-Length')) > MAX_BODY) return empty();
   let body;
   try {
-    const text = await request.text();
-    if (text.length > MAX_BODY) return empty();
+    const text = await readCapped(request, MAX_BODY);
+    if (text === null) return empty();
     body = JSON.parse(text);
   } catch (e) { return empty(); }
   if (!body || typeof body.s !== 'string') return empty();
@@ -89,17 +109,23 @@ export async function nightly(env, now = new Date()) {
   await env.DB.prepare('DELETE FROM hits WHERE day < ?').bind(cutoff).run();
 }
 
+/* One structured line per failure; Workers Logs indexes the fields. Nothing about the visitor. */
+function logError(route, e) {
+  console.error(JSON.stringify({ level: 'error', route, error: e && e.message ? e.message : String(e) }));
+}
+
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
     if (url.pathname === '/c') {
       if (request.method === 'OPTIONS') return empty();
-      if (request.method === 'POST') return collect(request, env);
-      return empty(405);
+      if (request.method !== 'POST') return empty(405);
+      /* A failure here (D1 down, say) is still a 204: the tracker must never see an error. */
+      try { return await collect(request, env); } catch (e) { logError('/c', e); return empty(); }
     }
     if (url.pathname.startsWith('/api/')) {
       if (request.method !== 'GET') return json({ error: 'method' }, 405);
-      return api(request, env, url);
+      try { return await api(request, env, url); } catch (e) { logError(url.pathname, e); return json({ error: 'internal' }, 500); }
     }
     return new Response('Not found', { status: 404 });
   },

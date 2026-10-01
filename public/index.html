@@ -2,51 +2,56 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex">
+<meta name="theme-color" content="">
 <title>Footworn</title>
 <link rel="stylesheet" href="tokens.css">
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
+<a class="skip" href="#content">Skip to the numbers</a>
 <main class="wrap">
   <section id="gate" class="gate" hidden>
     <h1>Footworn</h1>
-    <p class="muted">The dashboard needs the admin token (the Worker's <code>ADMIN_TOKEN</code> secret).</p>
+    <p class="muted">The dashboard needs the admin token (the Worker’s <code translate="no">ADMIN_TOKEN</code> secret).</p>
     <form id="gate-form">
-      <input id="token" type="password" placeholder="Token" autocomplete="current-password" required>
+      <label for="token" class="sr-only">Token</label>
+      <input id="token" name="token" type="password" placeholder="Paste the admin token…" autocomplete="current-password" spellcheck="false" required>
       <button class="btn" type="submit">Open</button>
     </form>
-    <p id="gate-error" class="error" hidden></p>
+    <p id="gate-error" class="error" role="alert" hidden></p>
   </section>
 
   <section id="dash" hidden>
     <header class="top">
       <h1>Footworn</h1>
-      <select id="site" aria-label="Site"></select>
+      <select id="site" name="site" aria-label="Site"></select>
       <span class="grow"></span>
       <span class="seg" id="ranges" role="group" aria-label="Range">
+        <button class="btn" data-days="1" type="button">1 d</button>
         <button class="btn" data-days="7" type="button">7 d</button>
         <button class="btn" data-days="30" type="button" aria-pressed="true">30 d</button>
         <button class="btn" data-days="90" type="button">90 d</button>
       </span>
       <span class="seg">
-        <input id="from" type="date" aria-label="From">
-        <input id="to" type="date" aria-label="To">
+        <input id="from" name="from" type="date" aria-label="From" autocomplete="off">
+        <input id="to" name="to" type="date" aria-label="To" autocomplete="off">
       </span>
       <button class="btn" id="logout" type="button" title="Forget the token">Lock</button>
     </header>
 
-    <div class="tiles">
-      <div class="tile"><div class="v num" id="t-visitors">–</div><div class="k">Visitors</div></div>
-      <div class="tile"><div class="v num" id="t-hits">–</div><div class="k">Pageviews</div></div>
-      <div class="tile"><div class="v num" id="t-events">–</div><div class="k">Events</div></div>
+    <p id="error" class="error" role="alert" hidden></p>
+
+    <div class="tiles" id="content" aria-live="polite">
+      <div class="tile"><div class="k">Visitors</div><div class="v num" id="t-visitors">–</div><div class="u num" id="u-visitors"></div></div>
+      <div class="tile"><div class="k">Pageviews</div><div class="v num" id="t-hits">–</div><div class="u num" id="u-hits"></div></div>
+      <div class="tile"><div class="k">Events</div><div class="v num" id="t-events">–</div><div class="u num" id="u-events"></div></div>
     </div>
 
     <div class="chart">
       <h2>By day</h2>
       <div id="chart"></div>
-      <div class="legend"><span class="bar"><i></i>Pageviews</span><span class="line"><i></i>Visitors</span></div>
     </div>
 
     <div class="grid" id="tables"></div>
