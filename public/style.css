@@ -1,5 +1,4 @@
 *, *::before, *::after { box-sizing: border-box; }
-:root { color-scheme: light; }
 /* The paper: ruled every --lh from the top of the document, so every row sits on a line. */
 html { font-family: var(--font); font-size: var(--fs-m); line-height: var(--lh); color: var(--text); background: var(--bg); -webkit-tap-highlight-color: transparent; -webkit-text-size-adjust: 100%; caret-color: var(--accent); accent-color: var(--accent); scrollbar-color: var(--rule) var(--bg); }
 body { margin: 0; min-height: 100vh; background: repeating-linear-gradient(to bottom, transparent 0 calc(var(--lh) - 1px), var(--rule) calc(var(--lh) - 1px) var(--lh)); }
@@ -81,12 +80,22 @@ select option { font-size: var(--fs-m); background: var(--surface); }
 .tile { padding-left: var(--s-4); border-left: 1px solid var(--rule); min-width: 0; }
 .tile:first-child { padding-left: 0; border-left: 0; }
 .tile .v { font: 700 var(--fs-xl)/calc(var(--lh) * 2) var(--font-num); letter-spacing: -.03em; overflow: hidden; text-overflow: ellipsis; }
-.tile .u { color: var(--muted); font-size: var(--fs-s); min-height: var(--lh); }
+.tile .u { color: var(--muted); font-size: var(--fs-s); min-height: var(--lh); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* The change against the previous period: a fall is written in red pen. */
+.delta { white-space: nowrap; }
+.delta.down { color: var(--accent); }
 
 /* Chart: drawn on the page, eight rules high (224px), at the box's pixel width so its text is real CSS pixels. */
 .chart { margin-bottom: var(--lh); }
-svg.days { width: 100%; height: auto; display: block; }
-svg.days text { font-family: var(--font-num); font-size: var(--fs-xs); font-variant-numeric: tabular-nums; }
+svg.days, svg.cols { width: 100%; height: auto; display: block; }
+svg.days text, svg.cols text { font-family: var(--font-num); font-size: var(--fs-xs); font-variant-numeric: tabular-nums; }
+/* The rhythm row: when people come (by hour or by weekday) and on what screen widths, two columns. */
+.grid.rhythm { grid-template-columns: 1fr 1fr; margin-bottom: var(--lh); }
+.rhythm .panel { padding-bottom: 0; }
+.rhythm .panel:nth-child(2) { border-left: 1px solid var(--rule); padding-left: var(--s-4); }
+.panel .hdr { display: flex; align-items: baseline; gap: var(--s-4); min-width: 0; }
+.panel .hdr h2 { flex: none; white-space: nowrap; }
+.panel .sub { color: var(--muted); font-size: var(--fs-xs); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .chart .legend { display: flex; gap: var(--s-5); }
 .legend i { display: inline-block; width: 14px; height: 3px; vertical-align: 2px; margin-right: var(--s-2); }
 .legend .bar i { background: var(--bar); }
@@ -134,16 +143,17 @@ td.n { text-align: right; padding-left: var(--s-3); font-family: var(--font-num)
 [hidden] { display: none !important; }
 
 @media (max-width: 1000px) {
-  .grid { grid-template-columns: 1fr 1fr; }
+  .grid:not(.rhythm) { grid-template-columns: 1fr 1fr; }
   .panel:nth-child(4n+1) { border-left: 1px solid var(--rule); padding-left: var(--s-4); }
   .panel:nth-child(2n+1) { border-left: 0; padding-left: 0; }
 }
 @media (max-width: 600px) {
   .wrap { padding-left: var(--gutter-phone); }
   .wrap::before { left: var(--s-2); }
-  /* Four rows: brand and lock, the account, the ranges, the dates; 44 + 12 each, so the lines below still align. */
+  /* Four rows: brand with theme and lock, the account, the ranges, the dates; 44 + 12 each, so the lines below still align. */
   .top .grow { display: none; }
-  .top #logout { order: 1; margin-left: auto; }
+  .top #theme { order: 1; margin-left: auto; }
+  .top #logout { order: 1; }
   .top select { order: 2; flex: 1 1 100%; }
   .top #ranges { order: 3; flex: 1 1 100%; }
   .top #ranges .btn { flex: 1; padding: 0; }
@@ -153,8 +163,13 @@ td.n { text-align: right; padding-left: var(--s-3); font-family: var(--font-num)
   .tile:first-child { grid-column: 1 / -1; }
   .tile:nth-child(2) { border-left: 0; padding-left: 0; }
   .tile .v { font-size: var(--fs-xl-phone); }
-  .grid { grid-template-columns: 1fr; }
-  .panel, .panel:nth-child(4n+1) { border-left: 0; padding-left: 0; padding-right: 0; }
+  .grid, .grid.rhythm { grid-template-columns: 1fr; }
+  .tile .u { white-space: normal; } /* the rate and the delta on two rules rather than cut */
+  .panel, .panel:nth-child(4n+1), .rhythm .panel:nth-child(2) { border-left: 0; padding-left: 0; padding-right: 0; }
+  .rhythm .panel + .panel { margin-top: var(--lh); }
+  .panel .hdr { flex-wrap: wrap; gap: 0 var(--s-4); }
+  .panel .sub { white-space: normal; }
+  .delta .vs { display: none; }
   .gate { margin-top: 12vh; }
   /* The event header stays on one rule: the count gives way before Close wraps. */
   .detail header .grow { display: none; }

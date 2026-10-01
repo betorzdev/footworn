@@ -10,29 +10,51 @@ export async function sites(db) {
 
 const DIMS = ['path', 'ref', 'browser', 'os', 'device', 'country', 'lang'];
 
+const DAY_MS = 86400000;
+const addDays = (iso, n) => new Date(Date.parse(iso) + n * DAY_MS).toISOString().slice(0, 10);
+
+/* Totals, by day, each dimension's top values, the events, and three profiles the dashboard
+   draws as columns: hour of the day (UTC; the dashboard shifts it), weekday (SQLite's %w, 0 is
+   Sunday) and screen width in 100 px buckets. `previous` is the same totals for the period of
+   the same length just before, for the change under each total. */
 export async function stats(db, { site, from, to }) {
   const where = 'site = ?1 AND day BETWEEN ?2 AND ?3';
   const q = sql => db.prepare(sql).bind(site, from, to);
   const dim = d => q(`SELECT ${d} AS value, COUNT(*) AS hits, SUM(first) AS visitors FROM hits
                       WHERE ${where} AND event IS NULL AND ${d} IS NOT NULL
                       GROUP BY ${d} ORDER BY hits DESC LIMIT ${TOP}`);
+  const pages = `SELECT COUNT(*) AS hits, SUM(first) AS visitors FROM hits WHERE ${where} AND event IS NULL`;
+  const events = `SELECT COUNT(*) AS events FROM hits WHERE ${where} AND event IS NOT NULL`;
+  const len = Math.round((Date.parse(to) - Date.parse(from)) / DAY_MS) + 1;
+  const previous = { from: addDays(from, -len), to: addDays(from, -1) };
+  const pq = sql => db.prepare(sql).bind(site, previous.from, previous.to);
   const rows = await db.batch([
-    q(`SELECT COUNT(*) AS hits, SUM(first) AS visitors FROM hits WHERE ${where} AND event IS NULL`),
-    q(`SELECT COUNT(*) AS events FROM hits WHERE ${where} AND event IS NOT NULL`),
+    q(pages),
+    q(events),
     q(`SELECT day, SUM(event IS NULL) AS hits, SUM(first) AS visitors, SUM(event IS NOT NULL) AS events
        FROM hits WHERE ${where} GROUP BY day ORDER BY day`),
     ...DIMS.map(dim),
     q(`SELECT event AS value, COUNT(*) AS hits FROM hits
        WHERE ${where} AND event IS NOT NULL GROUP BY event ORDER BY hits DESC LIMIT ${TOP}`),
+    q(`SELECT CAST(strftime('%H', ts, 'unixepoch') AS INTEGER) AS hour, COUNT(*) AS hits FROM hits
+       WHERE ${where} AND event IS NULL GROUP BY hour ORDER BY hour`),
+    q(`SELECT CAST(strftime('%w', day) AS INTEGER) AS weekday, COUNT(*) AS hits FROM hits
+       WHERE ${where} AND event IS NULL GROUP BY weekday ORDER BY weekday`),
+    q(`SELECT (width / 100) * 100 AS bucket, COUNT(*) AS hits FROM hits
+       WHERE ${where} AND event IS NULL AND width IS NOT NULL GROUP BY bucket ORDER BY bucket`),
+    pq(pages),
+    pq(events),
   ]);
   const res = rows.map(r => r.results || []);
-  const out = {
-    site, from, to,
-    totals: { hits: res[0][0].hits || 0, visitors: res[0][0].visitors || 0, events: res[1][0].events || 0 },
-    days: res[2],
-  };
+  const totals = (p, e) => ({ hits: p[0].hits || 0, visitors: p[0].visitors || 0, events: e[0].events || 0 });
+  const out = { site, from, to, totals: totals(res[0], res[1]), days: res[2] };
   DIMS.forEach((d, i) => { out[d] = res[3 + i]; });
-  out.events = res[3 + DIMS.length];
+  let i = 3 + DIMS.length;
+  out.events = res[i++];
+  out.hours = res[i++];
+  out.weekdays = res[i++];
+  out.widths = res[i++];
+  out.previous = { ...previous, ...totals(res[i], res[i + 1]) };
   return out;
 }
 

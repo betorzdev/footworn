@@ -1,11 +1,11 @@
-/* Footworn's dashboard. One classic script: asks the token once, reads /api/*, draws the day chart
+/* Footworn's dashboard. One classic script: asks the token once, reads /api/*, draws the charts
    as inline SVG and the tables. No framework, no build. Site, range and open event live in the
    query string (a link reopens the same view); the token only ever travels in the hash. */
 (function () {
   'use strict';
   var TOKEN_KEY = 'footworn.token', RANGES = [1, 7, 30, 90];
   var $ = function (id) { return document.getElementById(id); };
-  var state = { token: null, site: null, days: 30, from: null, to: null, sites: [], stats: null, event: null, eventStats: null, openEvent: null };
+  var state = { token: null, site: null, days: 30, from: null, to: null, sites: [], event: null, openEvent: null };
 
   function load(key) { try { return localStorage.getItem(key); } catch (e) { return null; } }
   function save(key, v) { try { if (v === null) localStorage.removeItem(key); else localStorage.setItem(key, v); } catch (e) { /* no storage */ } }
@@ -15,13 +15,23 @@
   /* Totals past a million go compact ("1.2M") so the tile never overflows; the exact number is the title. */
   var compact = new Intl.NumberFormat('en', { notation: 'compact', maximumFractionDigits: 1 });
   function tile(id, n) { var el = $(id); el.textContent = n >= 1e6 ? compact.format(n) : fmt(n); el.title = n >= 1e6 ? fmt(n) : ''; }
-  /* The rates under the totals: per day of the range, and pageviews per visitor. Derived on screen, never stored. */
+  /* The rates under the totals: per day of the range, pageviews per visitor, and the change against
+     the previous period of the same length. Derived on screen, never stored. */
   var oneDecimal = new Intl.NumberFormat('en', { maximumFractionDigits: 1 });
   function rates(st) {
-    var days = Math.round((Date.parse(st.to) - Date.parse(st.from)) / 86400000) + 1, t = st.totals;
-    $('u-visitors').textContent = oneDecimal.format(t.visitors / days) + ' a day';
-    $('u-hits').textContent = t.visitors ? oneDecimal.format(t.hits / t.visitors) + ' per visitor' : '';
-    $('u-events').textContent = oneDecimal.format(t.events / days) + ' a day';
+    var days = span(st), t = st.totals, p = st.previous;
+    $('u-visitors').innerHTML = line([oneDecimal.format(t.visitors / days) + ' a day', delta(t.visitors, p, 'visitors', days)]);
+    $('u-hits').innerHTML = line([t.visitors ? oneDecimal.format(t.hits / t.visitors) + ' per visitor' : '', delta(t.hits, p, 'hits', days)]);
+    $('u-events').innerHTML = line([oneDecimal.format(t.events / days) + ' a day', delta(t.events, p, 'events', days)]);
+  }
+  function span(st) { return Math.round((Date.parse(st.to) - Date.parse(st.from)) / 86400000) + 1; }
+  function line(parts) { return parts.filter(Boolean).join(' · '); }
+  /* "▲ 12% vs previous 30 d"; a fall is red pen. Nothing when the previous period had nothing to compare with. */
+  function delta(now, p, key, days) {
+    if (!p || !p[key]) return '';
+    var pct = Math.round(100 * (now - p[key]) / p[key]), down = pct < 0;
+    return '<span class="delta' + (down ? ' down' : '') + '" title="' + esc(p.from + ' to ' + p.to + ': ' + fmt(p[key])) + '">' +
+      (pct ? (down ? '▼' : '▲') + ' ' + Math.abs(pct) + '%' : 'no change') + '<span class="vs"> vs previous ' + days + ' d</span></span>';
   }
   /* Axis labels: "Sep 25". The ISO day stays in the tables and the URL, where it is the key. */
   var shortDay = new Intl.DateTimeFormat('en', { month: 'short', day: 'numeric', timeZone: 'UTC' });
@@ -147,12 +157,12 @@
 
   function render(st) {
     showError(null); busy(false);
-    state.stats = st;
     tile('t-visitors', st.totals.visitors);
     tile('t-hits', st.totals.hits);
     tile('t-events', st.totals.events);
     rates(st);
-    $('chart').innerHTML = chartBlock(st.days, st.from, st.to, false, $('chart'));
+    $('chart').innerHTML = chartBlock('days', st.days, st.from, st.to, false, $('chart'));
+    rhythm(st);
     $('tables').innerHTML = [
       table('Pages', st.path, 'hits', 'Pageviews'),
       table('Referrers', st.ref, 'hits', 'Pageviews', 'Direct or none'),
@@ -193,7 +203,7 @@
       (rows.length ? '<table class="dim">' + head + '<tbody>' + body + '</tbody></table>' : '<p class="empty">' + esc(empty || 'Nothing yet') + '</p>') + '</section>';
   }
 
-  /* --- the day chart --- */
+  /* --- the charts --- */
   /* Every day of the range, even the empty ones. */
   function fillDays(days, from, to) {
     var byDay = {}; days.forEach(function (d) { byDay[d.day] = d; });
@@ -202,33 +212,47 @@
     return list;
   }
 
+  /* The charts on screen, by key, so a box that changes width gets its chart drawn again. */
+  var charts = {};
+
   /* Bars for pageviews, a line for visitors (events: bars only), plus the same numbers as a table. */
-  function chartBlock(days, from, to, bars, box) {
+  function chartBlock(key, days, from, to, bars, box) {
     var list = fillDays(days, from, to);
+    charts[key] = { box: box, draw: function () { return chart(list, bars, box); } };
     return chart(list, bars, box) +
       (bars ? '' : '<div class="legend"><span class="bar"><i></i>Pageviews</span><span class="line"><i></i>Visitors</span></div>') +
-      '<details class="data"><summary>Data</summary><table><thead><tr><th scope="col">Day</th><th scope="col">' + (bars ? 'Times' : 'Pageviews') + '</th>' +
-      (bars ? '' : '<th scope="col">Visitors</th>') + '</tr></thead><tbody>' +
-      list.map(function (d) {
-        return '<tr><td class="num">' + d.day + '</td><td class="num">' + fmt(d.hits) + '</td>' + (bars ? '' : '<td class="num">' + fmt(d.visitors) + '</td>') + '</tr>';
-      }).join('') + '</tbody></table></details>';
+      dataTable(bars ? ['Day', 'Times'] : ['Day', 'Pageviews', 'Visitors'], list.map(function (d) {
+        return bars ? [d.day, fmt(d.hits)] : [d.day, fmt(d.hits), fmt(d.visitors)];
+      }));
   }
 
-  /* The page's rule pitch (tokens.css --lh): the chart is drawn eight rules high so its baseline sits on a line. */
+  /* A chart's numbers, folded under "Data": the same figures for a screen reader or a copy. */
+  function dataTable(headers, rows) {
+    return '<details class="data"><summary>Data</summary><table><thead><tr>' +
+      headers.map(function (h) { return '<th scope="col">' + esc(h) + '</th>'; }).join('') + '</tr></thead><tbody>' +
+      rows.map(function (r) { return '<tr>' + r.map(function (c) { return '<td class="num">' + esc(c) + '</td>'; }).join('') + '</tr>'; }).join('') +
+      '</tbody></table></details>';
+  }
+
+  /* The page's rule pitch (tokens.css --lh): a chart is drawn a whole number of rules high so its baseline sits on a line. */
   function rule() { return parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--lh')) || 28; }
   /* Drawn at its box's pixel width so the labels are real CSS pixels; redrawn on resize. */
   function width(box) {
     var cs = getComputedStyle(box), w = box.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
     return Math.round(Math.max(280, w > 0 ? w : $('chart').clientWidth || 1000));
   }
-  function chart(list, bars, box) {
-    var W = width(box), H = 8 * rule(), L = 44, B = 28, T = 10, R = 8; /* eight rules of the page */
+  /* The frame every chart shares: ticks at 0, half and the top, one ink column per item (`hits`,
+     `title` as its tooltip), the item's `label` under it (opts.label(d, i, W) may return ''),
+     and opts.marks: dashed red-pen verticals at a column position (`at`, fractional) with a note.
+     Returns the open SVG with x(i) (a column's centre) and y(v), for a caller that draws more. */
+  function frame(list, box, opts) {
+    var W = width(box), H = opts.rules * rule(), L = opts.L, B = 28, T = 10, R = 8;
     var iw = W - L - R, ih = H - T - B;
     var max = Math.max(1, Math.max.apply(null, list.map(function (d) { return d.hits; })));
     var step = iw / list.length;
+    var x = function (i) { return L + i * step + step / 2; };
     var y = function (v) { return T + ih - ih * v / max; };
-    var label = bars ? 'Times by day' : 'Pageviews and visitors by day';
-    var out = '<svg class="days" data-w="' + W + '" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="' + label + '">';
+    var out = '<svg class="' + opts.cls + '" data-w="' + W + '" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="' + esc(opts.aria) + '">';
     var ticks = [];
     [0, 0.5, 1].forEach(function (f) { var v = Math.round(max * f); if (ticks.indexOf(v) < 0) ticks.push(v); });
     ticks.forEach(function (v) {
@@ -236,20 +260,102 @@
              '<text x="' + (L - 6) + '" y="' + (y(v) + 4) + '" text-anchor="end" fill="var(--muted)">' + v + '</text>';
     });
     list.forEach(function (d, i) {
-      var x = L + i * step, bw = Math.max(1, step * 0.6);
-      out += '<rect x="' + (x + (step - bw) / 2) + '" y="' + y(d.hits) + '" width="' + bw + '" height="' + (T + ih - y(d.hits)) + '" fill="var(--bar)">' +
-             '<title>' + d.day + ': ' + d.hits + (bars ? ' times' : ' pageviews, ' + d.visitors + ' visitors') + '</title></rect>';
+      var bw = Math.max(1, step * 0.6);
+      out += '<rect x="' + (x(i) - bw / 2) + '" y="' + y(d.hits) + '" width="' + bw + '" height="' + (T + ih - y(d.hits)) + '" fill="var(--bar)">' +
+             '<title>' + esc(d.title) + '</title></rect>';
     });
+    list.forEach(function (d, i) {
+      var l = opts.label(d, i, W);
+      if (l) out += '<text x="' + x(i) + '" y="' + (H - 8) + '" text-anchor="middle" fill="var(--muted)">' + esc(l) + '</text>';
+    });
+    (opts.marks || []).forEach(function (m) {
+      var mx = L + m.at * step;
+      out += '<line x1="' + mx + '" x2="' + mx + '" y1="' + T + '" y2="' + (T + ih) + '" stroke="var(--line)" stroke-dasharray="2 3"/>' +
+             '<text x="' + (mx + 4) + '" y="' + (T + 10) + '" fill="var(--accent)" stroke="var(--bg)" stroke-width="3" paint-order="stroke">' + esc(m.text) + '</text>';
+    });
+    return { out: out, x: x, y: y };
+  }
+  /* The day chart: eight rules, a date under every nth column, the visitors line over the bars. */
+  function chart(list, bars, box) {
+    var items = list.map(function (d) {
+      return { day: d.day, hits: d.hits, visitors: d.visitors, title: d.day + ': ' + d.hits + (bars ? ' times' : ' pageviews, ' + d.visitors + ' visitors') };
+    });
+    var f = frame(items, box, {
+      rules: 8, L: 44, cls: 'days', aria: bars ? 'Times by day' : 'Pageviews and visitors by day',
+      label: function (d, i, W) { var every = Math.ceil(items.length / Math.max(2, Math.floor(W / 120))); return i % every ? '' : fmtDay(d.day); },
+    });
+    var out = f.out;
     if (!bars) {
-      var pts = list.map(function (d, i) { return (L + i * step + step / 2).toFixed(1) + ',' + y(d.visitors).toFixed(1); });
+      var pts = items.map(function (d, i) { return f.x(i).toFixed(1) + ',' + f.y(d.visitors).toFixed(1); });
       out += '<polyline points="' + pts.join(' ') + '" fill="none" stroke="var(--line)" stroke-width="2" stroke-linejoin="round"/>';
     }
-    var every = Math.ceil(list.length / Math.max(2, Math.floor(W / 120)));
-    list.forEach(function (d, i) {
-      if (i % every) return;
-      out += '<text x="' + (L + i * step + step / 2) + '" y="' + (H - 8) + '" text-anchor="middle" fill="var(--muted)">' + fmtDay(d.day) + '</text>';
-    });
     return out + '</svg>';
+  }
+  /* A single-series column chart six rules high: the hour, weekday and width profiles. */
+  function columns(list, box, aria, marks) {
+    return frame(list, box, { rules: 6, L: 36, cls: 'cols', aria: aria, marks: marks, label: function (d) { return d.label; } }).out + '</svg>';
+  }
+
+  /* --- the rhythm row: when people come, and on what screens --- */
+  function pad(n) { return (n < 10 ? '0' : '') + n; }
+  /* The API's 24 UTC buckets turned to the viewer's clock. Whole hours, by today's offset: a
+     half-hour zone lands on the nearest hour, and a range across a clock change is off by one.
+     The range itself is still cut on UTC days (the API's key), which the subtitle says. */
+  function hourList(hours) {
+    var utc = [], i; for (i = 0; i < 24; i++) utc[i] = 0;
+    hours.forEach(function (h) { utc[h.hour] = h.hits; });
+    var shift = Math.round(-new Date().getTimezoneOffset() / 60), list = [];
+    for (i = 0; i < 24; i++) {
+      var n = utc[((i - shift) % 24 + 24) % 24];
+      list.push({ label: i % 6 ? '' : pad(i) + 'h', hits: n, title: pad(i) + ':00–' + pad(i) + ':59: ' + n + ' pageviews', row: [pad(i) + ':00', fmt(n)] });
+    }
+    return list;
+  }
+  /* SQLite's %w (0 is Sunday), Monday first. Pageviews per occurrence of the weekday in the range:
+     a 30-day range holds some weekdays five times and others four, so raw sums would not compare. */
+  var DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  function weekdayList(weekdays, from, to) {
+    var by = {}, times = {}; weekdays.forEach(function (w) { by[w.weekday] = w.hits; });
+    for (var d = from; d <= to; d = addDays(d, 1)) { var w = new Date(Date.parse(d)).getUTCDay(); times[w] = (times[w] || 0) + 1; }
+    return [1, 2, 3, 4, 5, 6, 0].map(function (w) {
+      var n = by[w] || 0, k = times[w] || 1, avg = n / k;
+      return { label: DAYS[w], hits: avg, title: DAYS[w] + ': ' + oneDecimal.format(avg) + ' pageviews a day (' + n + ' over ' + k + ')', row: [DAYS[w], oneDecimal.format(avg)] };
+    });
+  }
+  /* 100 px buckets from 300 (or lower, if a screen is) to 1900, every one present, then "2000+". */
+  var WIDTH_FLOOR = 300, WIDTH_CAP = 2000, BUCKET = 100;
+  function widthList(widths) {
+    var by = {}, floor = WIDTH_FLOOR, over = 0;
+    widths.forEach(function (w) { if (w.bucket >= WIDTH_CAP) over += w.hits; else { by[w.bucket] = w.hits; floor = Math.min(floor, w.bucket); } });
+    var list = [];
+    for (var b = floor; b < WIDTH_CAP; b += BUCKET) {
+      var n = by[b] || 0, range = b + '–' + (b + BUCKET - 1);
+      list.push({ label: list.length % 3 ? '' : String(b), hits: n, title: range + ' px: ' + n + ' pageviews', row: [range, fmt(n)] });
+    }
+    list.push({ label: '', hits: over, title: WIDTH_CAP + ' px and up: ' + over + ' pageviews', row: [WIDTH_CAP + '+', fmt(over)] });
+    list.floor = floor;
+    return list;
+  }
+  function panel(id, title, sub) {
+    return '<section class="panel" id="' + id + '"><div class="hdr"><h2>' + esc(title) + '</h2><span class="sub">' + esc(sub) + '</span></div><div class="cols-box"></div></section>';
+  }
+  /* Draws one profile into its panel's box (the box has to be on the page: it is drawn at its width). */
+  function profile(key, list, aria, marks, headers, empty) {
+    var box = $(key).querySelector('.cols-box');
+    if (empty) { box.innerHTML = '<p class="empty">Nothing yet</p>'; delete charts[key]; return; }
+    charts[key] = { box: box, draw: function () { return columns(list, box, aria, marks); } };
+    box.innerHTML = columns(list, box, aria, marks) + dataTable(headers, list.map(function (d) { return d.row; }));
+  }
+  /* Hours on a week or less, weekdays on more; widths always. The device cut-offs (600, 1024) are the collector's. */
+  function rhythm(st) {
+    var hours = span(st) <= 7, none = !st.totals.hits;
+    $('rhythm').innerHTML = (hours ? panel('when', 'By hour', 'pageviews, your local time · days cut at UTC midnight') : panel('when', 'By weekday', 'pageviews a day')) +
+      panel('widths', 'Screen widths', 'pageviews, 100 px buckets · tablet from 600, desktop from 1024');
+    if (hours) profile('when', hourList(st.hours), 'Pageviews by hour of the day', null, ['Hour', 'Pageviews'], none);
+    else profile('when', weekdayList(st.weekdays, st.from, st.to), 'Pageviews a day by weekday', null, ['Weekday', 'Pageviews a day'], none);
+    var w = widthList(st.widths);
+    profile('widths', w, 'Pageviews by screen width', [{ at: (600 - w.floor) / BUCKET, text: '600' }, { at: (1024 - w.floor) / BUCKET, text: '1024' }],
+      ['Width (px)', 'Pageviews'], !st.widths.length);
   }
 
   /* A box that changed width (window, scrollbar, first layout) gets its chart drawn again. */
@@ -257,14 +363,14 @@
   function redraw() {
     clearTimeout(drawTimer);
     drawTimer = setTimeout(function () {
-      [[$('chart'), state.stats, false], [$('detail'), state.event && state.eventStats, true]].forEach(function (b) {
-        var box = b[0], st = b[1], svg = box.querySelector('svg');
-        if (!st || !svg || box.hidden || Number(svg.dataset.w) === width(box)) return;
-        svg.outerHTML = chart(fillDays(st.days, st.from, st.to), b[2], box);
+      Object.keys(charts).forEach(function (k) {
+        var c = charts[k], svg = c.box.querySelector('svg');
+        if (!svg || c.box.closest('[hidden]') || Number(svg.dataset.w) === width(c.box)) return;
+        svg.outerHTML = c.draw();
       });
     }, 100);
   }
-  if (window.ResizeObserver) { var ro = new ResizeObserver(redraw); ro.observe($('chart')); ro.observe($('detail')); }
+  if (window.ResizeObserver) { var ro = new ResizeObserver(redraw); ro.observe($('chart')); ro.observe($('rhythm')); ro.observe($('detail')); }
   window.addEventListener('resize', redraw);
 
   /* --- one event --- */
@@ -278,12 +384,12 @@
       .then(function (ev) {
         if (id !== seq) return;
         showError(null); busy(false);
-        state.event = name; state.eventStats = ev; syncUrl();
+        state.event = name; syncUrl();
         var el = $('detail');
         el.hidden = false;
         el.innerHTML = '<header><h2><span class="sr-only">Event </span>' + esc(name) + '</h2><span class="muted num">event · ' + fmt(ev.totals.hits) + ' times</span><span class="grow"></span>' +
           '<button class="btn" type="button" id="close-event">Close</button></header>' +
-          chartBlock(ev.days, ev.from, ev.to, true, el) +
+          chartBlock('event', ev.days, ev.from, ev.to, true, el) +
           '<div class="grid">' + table('On page', ev.paths, 'hits', 'Times') +
           Object.keys(ev.props).map(function (k) { return table('Property · ' + k, ev.props[k], 'hits', 'Times'); }).join('') + '</div>';
         fills(el);
@@ -313,7 +419,22 @@
   state.openEvent = q.event || hash.event || null;
   if (RANGES.indexOf(Number(q.days)) >= 0) state.days = Number(q.days);
   else if (isDay(q.from) && isDay(q.to) && q.from <= q.to) { state.days = 0; state.from = q.from; state.to = q.to; }
-  var meta = document.querySelector('meta[name="theme-color"]');
-  if (meta) meta.content = getComputedStyle(document.documentElement).getPropertyValue('--bg').trim();
+  /* The scheme: theme.js applied it before paint; the button offers the other one, and the
+     browser's own chrome (theme-color) takes the paper's colour. Switching back to what the
+     system says clears the override, so the OS setting counts again. Cosmetic: if theme.js is
+     missing the numbers still load. */
+  var meta = document.querySelector('meta[name="theme-color"]'), theme = window.footwornTheme;
+  function other() { return theme.current() === 'dark' ? 'light' : 'dark'; }
+  function paintTheme() {
+    var b = $('theme'), o = other();
+    b.textContent = o === 'dark' ? 'Dark' : 'Light';
+    b.title = 'Switch to the ' + o + ' scheme';
+    if (meta) meta.content = getComputedStyle(document.documentElement).getPropertyValue('--bg').trim();
+  }
+  if (theme) {
+    $('theme').addEventListener('click', function () { var o = other(); theme.set(o === theme.system() ? null : o); paintTheme(); });
+    theme.onchange(paintTheme);
+    paintTheme();
+  } else $('theme').hidden = true;
   if (state.token) start(); else showGate();
 })();

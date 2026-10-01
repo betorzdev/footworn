@@ -90,6 +90,12 @@ try {
   assert.deepEqual(st.device.map(d => d.value).sort(), ['desktop', 'phone'], 'devices');
   assert.deepEqual(st.lang.map(d => [d.value, d.hits]).sort(), [['en', 1], ['es', 2], ['fr', 1]], 'langs');
   assert.deepEqual(st.events, [{ value: 'screen', hits: 2 }, { value: 'share', hits: 1 }], 'events');
+  assert.equal(st.hours.reduce((n, h) => n + h.hits, 0), 4, 'hours sum to the pageviews');
+  assert.ok(st.hours.every(h => h.hour >= 0 && h.hour < 24), 'hours are 0-23');
+  assert.deepEqual(st.weekdays, [{ weekday: new Date().getUTCDay(), hits: 4 }], 'weekdays');
+  assert.deepEqual(st.widths, [{ bucket: 300, hits: 1 }, { bucket: 1000, hits: 1 }, { bucket: 1400, hits: 2 }], 'widths');
+  const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+  assert.deepEqual(st.previous, { from: yesterday, to: yesterday, hits: 0, visitors: 0, events: 0 }, 'previous period');
 
   const ev = await api(`/api/event?site=one&name=screen&from=${today}&to=${today}`);
   assert.equal(ev.totals.hits, 2);

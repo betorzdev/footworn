@@ -1,7 +1,10 @@
 /* Every colour, typeface and spacing of the dashboard lives here.
    The world: the accountant's green columnar pad. Ruled paper, ink figures, a red margin,
-   pencil for what is secondary, a red pen ring on the live control. No cards, no chrome. */
+   pencil for what is secondary, a red pen ring on the live control. No cards, no chrome.
+   Two stocks: the pad by day, and the same pad under a desk lamp (`data-theme="dark"` on <html>,
+   set by theme.js from the system's preference unless the user's switch says otherwise). */
 :root {
+  color-scheme: light;
   --bg: #dde9d5;        /* the paper */
   --rule: #b7cbae;      /* the feint ruled line, every --lh */
   --border: var(--rule);
@@ -30,4 +33,21 @@
   --fs-touch: 16px; /* inputs on touch screens: under 16px iOS zooms the page on focus */
   --track: .12em;   /* the tracking of every printed label */
   --t-fast: 150ms; --t-base: 200ms;
+}
+/* The dark stock: deep green-grey paper, chalk-white ink, the red pen a shade brighter so it still
+   reads. Only colours change; the rules, type and spacing are the same pad. theme.js sets the
+   attribute from the system's preference or the user's switch, before first paint. */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #1a221c;        /* the paper under the lamp */
+  --rule: #303d33;
+  --surface: #232d25;
+  --surface-2: #2a372c;
+  --hover: #263128;
+  --text: #e4eadf;      /* chalk-white ink; 13:1 on the paper */
+  --muted: #a7b4a3;     /* pencil; 7.5:1 on the paper, 5.3:1 on a rule */
+  --accent: #ec5a4d;    /* red pen, brighter for the dark stock; 4.8:1 on the paper */
+  --accent-ink: #1a221c; /* on the red pen, the paper itself: cream would not read */
+  --bar: #b6c2b1;       /* the chart's bars: a chalk wash */
+  --bar-soft: #4a5b4b;
 }

@@ -58,8 +58,5 @@ errors, loading state, URL state, reduced motion, focus rings and press feedback
 
 ## Later, by anyone
 
-- **Dark scheme** via `prefers-color-scheme`: the dashboard became light paper on 2026-10-01 (the
-  columnar-pad world, chosen by the user from three rendered options); a dark variant is a
-  different stock, tokens only. Not asked for yet.
 - **`.claude/rules/` with path scoping** if `CLAUDE.md` grows past about 80 lines.
 - **Superpowers** (Jesse Vincent) is not planned: its value is in large, multi-agent projects.
