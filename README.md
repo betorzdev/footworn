@@ -12,12 +12,9 @@
   <img alt="Cloudflare Workers, free plan" src="https://img.shields.io/badge/Cloudflare_Workers-free_plan-4a5a4e">
 </p>
 
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/dashboard-dark.png">
-  <img alt="The Footworn dashboard: a month of a site on green ruled paper. Three totals with their change against the previous month, pageviews as bars and visitors as a red line by day, pageviews by weekday and by screen width, then the top pages, referrers, events and countries." src="docs/screenshots/dashboard-light.png">
-</picture>
+<img alt="The Footworn dashboard: a month of a site on green ruled paper. Three totals with their change against the previous month, pageviews as bars and visitors as a red line by day, pageviews by weekday and by screen width, then the top pages, referrers, events and countries." src="docs/screenshots/dashboard-light.png">
 
-<p align="center"><sub>The dashboard, on a month of one site. It follows your system’s light or dark scheme; so does this picture.</sub></p>
+<p align="center"><sub>The dashboard, on a month of one site. It follows your system’s light or dark scheme.</sub></p>
 
 Made for the [Hallownest](https://github.com/betorzdev/hallownest-calculator) and
 [Pharloom](https://github.com/betorzdev/pharloom-calculator) calculators, with nothing of them in
