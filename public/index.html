@@ -10,40 +10,67 @@
 <link rel="stylesheet" href="tokens.css">
 <link rel="stylesheet" href="style.css">
 </head>
-<body>
-<a class="skip" href="#content">Skip to the numbers</a>
-<main class="wrap">
-  <section id="gate" class="gate" hidden>
-    <h1>Footworn</h1>
-    <p class="muted">The dashboard needs the admin token (the Worker’s <code translate="no">ADMIN_TOKEN</code> secret).</p>
-    <form id="gate-form">
-      <label for="token" class="sr-only">Token</label>
-      <input id="token" name="token" type="password" placeholder="Paste the admin token…" autocomplete="current-password" spellcheck="false" required>
-      <button class="btn" type="submit">Open</button>
-    </form>
-    <p id="gate-error" class="error" role="alert" hidden></p>
+<body class="field">
+<a class="skip" href="#places">Skip to the sites</a>
+<canvas id="scene" role="img" aria-label="A snowfield where every visit leaves footprints"></canvas>
+
+<section id="gate" class="gate glass" hidden>
+  <h1>Footworn</h1>
+  <p class="muted">The dashboard needs the admin token (the Worker’s <code translate="no">ADMIN_TOKEN</code> secret).</p>
+  <form id="gate-form">
+    <label for="token" class="sr-only">Token</label>
+    <input id="token" name="token" type="password" placeholder="Paste the admin token…" autocomplete="current-password" spellcheck="false" required>
+    <button class="btn" type="submit">Open</button>
+  </form>
+  <p id="gate-error" class="error" role="alert" hidden></p>
+</section>
+
+<div id="ui" hidden>
+  <header class="hud glass">
+    <button class="btn" id="back" type="button" hidden aria-label="Back to the valley">← Valley</button>
+    <div class="who">
+      <p class="eyebrow">Footworn</p>
+      <h1 id="title">Your sites</h1>
+      <p id="sub" class="sub"></p>
+    </div>
+  </header>
+
+  <section class="stats glass" aria-label="Today">
+    <div><b class="num" id="s-visitors">–</b><span>visitors today</span></div>
+    <div><b class="num" id="s-hits">–</b><span>pageviews</span></div>
+    <div class="live" id="s-live-box" data-state="connecting"><b class="num"><i aria-hidden="true"></i><span id="s-live">–</span></b><span id="s-live-label">live · last 5 min</span></div>
   </section>
 
-  <section id="dash" hidden>
+  <nav class="dock glass" aria-label="Sites and tools">
+    <ul id="places" class="places"></ul>
+    <span class="grow"></span>
+    <button class="btn" id="open-ledger" type="button" hidden aria-controls="ledger">Ledger</button>
+    <button class="btn" id="theme" type="button">Dark</button>
+    <button class="btn" id="logout" type="button" title="Forget the token">Lock</button>
+  </nav>
+
+  <p id="error" class="error glass banner" role="alert" hidden></p>
+
+  <aside id="ledger" class="ledger" hidden aria-labelledby="ledger-title">
     <header class="top">
-      <h1>Footworn</h1>
-      <select id="site" name="site" aria-label="Site"></select>
+      <h2 id="ledger-title" class="ledger-title">Ledger</h2>
       <span class="grow"></span>
+      <button class="btn" id="close-ledger" type="button">Close</button>
+    </header>
+    <div class="top">
       <span class="seg" id="ranges" role="group" aria-label="Range">
         <button class="btn" data-days="1" type="button">1 d</button>
         <button class="btn" data-days="7" type="button">7 d</button>
         <button class="btn" data-days="30" type="button" aria-pressed="true">30 d</button>
         <button class="btn" data-days="90" type="button">90 d</button>
       </span>
-      <span class="seg">
+      <span class="seg dates">
         <input id="from" name="from" type="date" aria-label="From" autocomplete="off">
         <input id="to" name="to" type="date" aria-label="To" autocomplete="off">
       </span>
-      <button class="btn" id="theme" type="button">Dark</button>
-      <button class="btn" id="logout" type="button" title="Forget the token">Lock</button>
-    </header>
+    </div>
 
-    <p id="error" class="error" role="alert" hidden></p>
+    <p id="ledger-error" class="error" role="alert" hidden></p>
 
     <div class="tiles" id="content" aria-live="polite">
       <div class="tile"><div class="k">Visitors</div><div class="v num" id="t-visitors">–</div><div class="u num" id="u-visitors"></div></div>
@@ -61,8 +88,14 @@
     <div class="grid" id="tables"></div>
 
     <section id="detail" class="panel detail" hidden></section>
-  </section>
-</main>
+  </aside>
+</div>
+
+<div id="tip" class="tip glass" role="tooltip" hidden></div>
+
+<script src="scene.js"></script>
+<script src="live.js"></script>
+<script src="ledger.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

@@ -1,11 +1,15 @@
 /* Footworn's Worker. Static files (the dashboard, footworn.js, privacy) are served by the assets
-   binding before this runs; here live the collector (POST /c), the read API (GET /api/*) and
-   the nightly cron. */
+   binding before this runs; here live the collector (POST /c), the read API (GET /api/*), the
+   live view's socket (GET /live, relayed to the `Live` Durable Object) and the nightly cron. */
 
 import { makeHit, originAllowed } from './collect.js';
 import { firstToday, rotateSalt } from './visitor.js';
 import { authorized } from './auth.js';
-import { sites, stats, eventStats } from './stats.js';
+import { sites, stats, eventStats, scene } from './stats.js';
+import { publish } from './live.js';
+import { makeTicket, checkTicket } from './ticket.js';
+
+export { Live } from './live.js';
 
 const DAY = /^\d{4}-\d{2}-\d{2}$/;
 const MAX_BODY = 8192; // a real hit is under 1 KB; anything bigger is not one
@@ -49,7 +53,7 @@ export async function readCapped(request, max) {
   return new TextDecoder().decode(all);
 }
 
-async function collect(request, env) {
+async function collect(request, env, ctx) {
   let body;
   try {
     const text = await readCapped(request, MAX_BODY);
@@ -74,6 +78,8 @@ async function collect(request, env) {
     .bind(hit.site, hit.ts, hit.day, hit.path, hit.event, hit.props ? JSON.stringify(hit.props) : null, hit.ref,
           hit.browser, hit.os, hit.device, hit.width, hit.country, hit.lang, hit.first)
     .run();
+  /* After the write, never instead of it: a live view that is down costs nothing but the show. */
+  if (env.LIVE && ctx) ctx.waitUntil(publish(env, hit).catch(e => logError('live', e)));
   return empty();
 }
 
@@ -89,9 +95,11 @@ function range(url) {
 async function api(request, env, url) {
   if (!authorized(request, env)) return json({ error: 'unauthorized' }, 401);
   if (url.pathname === '/api/sites') return json(await sites(env.DB));
+  if (url.pathname === '/api/live-ticket') return json({ ticket: await makeTicket(env.ADMIN_TOKEN) });
   const site = url.searchParams.get('site');
   if (!site) return json({ error: 'site' }, 400);
   if (url.pathname === '/api/stats') return json(await stats(env.DB, { site, ...range(url) }));
+  if (url.pathname === '/api/scene') return json(await scene(env.DB, { site }));
   if (url.pathname === '/api/event') {
     const name = url.searchParams.get('name');
     if (!name) return json({ error: 'name' }, 400);
@@ -115,13 +123,19 @@ function logError(route, e) {
 }
 
 export default {
-  async fetch(request, env) {
+  async fetch(request, env, ctx) {
     const url = new URL(request.url);
     if (url.pathname === '/c') {
       if (request.method === 'OPTIONS') return empty();
       if (request.method !== 'POST') return empty(405);
       /* A failure here (D1 down, say) is still a 204: the tracker must never see an error. */
-      try { return await collect(request, env); } catch (e) { logError('/c', e); return empty(); }
+      try { return await collect(request, env, ctx); } catch (e) { logError('/c', e); return empty(); }
+    }
+    /* The live view's socket: the ticket from /api/live-ticket, then the Durable Object. */
+    if (url.pathname === '/live') {
+      if (request.headers.get('Upgrade') !== 'websocket') return new Response('Expected a WebSocket', { status: 426 });
+      if (!env.LIVE || !(await checkTicket(url.searchParams.get('ticket'), env.ADMIN_TOKEN))) return new Response('Unauthorized', { status: 401 });
+      return env.LIVE.get(env.LIVE.idFromName('live')).fetch(request);
     }
     if (url.pathname.startsWith('/api/')) {
       if (request.method !== 'GET') return json({ error: 'method' }, 405);

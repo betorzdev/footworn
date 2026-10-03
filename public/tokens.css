@@ -1,53 +1,105 @@
-/* Every colour, typeface and spacing of the dashboard lives here.
-   The world: the accountant's green columnar pad. Ruled paper, ink figures, a red margin,
-   pencil for what is secondary, a red pen ring on the live control. No cards, no chrome.
-   Two stocks: the pad by day, and the same pad under a desk lamp (`data-theme="dark"` on <html>,
-   set by theme.js from the system's preference unless the user's switch says otherwise). */
+/* Every colour, typeface and spacing of the dashboard lives here, the canvas included: scene.js
+   reads the --scene-* and --sky-* tokens with getComputedStyle.
+   The world: a snowfield seen as a diorama. Each visit leaves footprints, paths wear in, the
+   nightly snowfall covers the day. The scene is lit by the viewer's clock, not by the scheme;
+   the scheme only changes the glass panels over it and the ledger (`data-theme="dark"` on
+   <html>, set by theme.js from the system's preference unless the user's switch says otherwise). */
 :root {
   color-scheme: light;
-  --bg: #dde9d5;        /* the paper */
-  --rule: #b7cbae;      /* the feint ruled line, every --lh */
+  /* The panels: frosted glass over the snow, and the ledger, a field notebook with feint blue rules. */
+  --bg: #f4f7fb;        /* the ledger's paper */
+  --rule: #d5deea;      /* its feint ruled line, every --lh */
   --border: var(--rule);
-  --surface: #eef4ea;   /* a field that stands apart: the token input */
-  --surface-2: #d2e0ca;
-  --hover: #d3dfcb;     /* a control under the pointer: the paper, pressed */
-  --text: #1e211c;      /* ink */
-  --muted: #434c40;     /* pencil; 7:1 on the paper, 5.1:1 even on a rule */
-  --accent: #b8281f;    /* red pen: the live range, the visitors line, focus, selection, the caret */
-  --accent-ink: #f6f3e9;
-  --bar: #555b52;       /* the chart's bars: an ink wash */
-  --bar-soft: #a9bf9f;  /* the share bar under a table value */
+  --glass: rgba(248, 250, 253, .84);
+  --glass-line: rgba(29, 36, 51, .14);
+  --glass-shadow: 0 8px 30px rgba(20, 30, 60, .14);
+  --surface: #ffffff;   /* a field that stands apart: the token input */
+  --surface-2: #e9eef5;
+  --hover: #e6ecf4;
+  --text: #1d2433;      /* ink */
+  --muted: #4f5a70;     /* pencil; 6.9:1 on the paper */
+  --accent: #c8402f;    /* trail-marker red: the live dot, the pressed range, focus, the visitors line */
+  --accent-ink: #ffffff;
+  --bar: #5a6c90;       /* the chart's bars: the footprint's blue */
+  --bar-soft: #c3cfe0;  /* the share bar under a table value */
   --line: var(--accent);
   --danger: var(--accent);
+  --ok: #2f8a5b;        /* the live connection, open */
+
   --font: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-  --font-num: ui-monospace, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace; /* the typed figures */
-  --lh: 28px;           /* the rule pitch: every line of text and every table row is one rule high; the chart is 8 rules */
-  --gutter: 56px;       /* the page's left margin, past the red rule; --gutter-phone under 600px */
-  --gutter-phone: 32px;
-  --gate-w: 440px;      /* the token form */
+  --font-num: ui-monospace, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+  --font-scene: italic 600 14px "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;  /* labels in the snow */
+  --font-scene-big: italic 700 24px "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+  --lh: 28px;           /* the ledger's rule pitch */
+  --gate-w: 440px;
+  --ledger-w: 760px;
   --s-1: 4px; --s-2: 8px; --s-3: 12px; --s-4: 16px; --s-5: 24px; --s-6: 32px;
-  --radius: 2px;
-  --tap: 44px; /* the smallest control a finger can hit reliably */
-  --fs-xs: 12px; --fs-s: 13px; --fs-m: 15px; --fs-l: 22px; --fs-title: 32px; --fs-xl: 48px; --fs-xl-phone: 40px;
-  --fs-num: 14px;   /* the typed figures in the tables */
-  --fs-touch: 16px; /* inputs on touch screens: under 16px iOS zooms the page on focus */
-  --track: .12em;   /* the tracking of every printed label */
-  --t-fast: 150ms; --t-base: 200ms;
+  --radius: 10px;
+  --radius-panel: 14px;
+  --tap: 44px;
+  --fs-xs: 12px; --fs-s: 13px; --fs-m: 15px; --fs-l: 20px; --fs-title: 28px; --fs-xl: 40px; --fs-xl-phone: 34px;
+  --fs-num: 14px;
+  --fs-stat: 22px;
+  --fs-touch: 16px;
+  --track: .12em;
+  --t-fast: 150ms; --t-base: 220ms;
+
+  /* The scene. Snow, what is trodden into it, what stands on it. */
+  --scene-snow: #edf1f6;
+  --scene-clear: #fafcff;          /* a site's clearing, a shade brighter than the field */
+  --scene-drift-dark: rgba(70, 92, 135, .28);
+  --scene-drift-light: rgba(255, 255, 255, .55);
+  --scene-speck-dark: rgba(90, 110, 150, .12);
+  --scene-speck-light: rgba(255, 255, 255, .7);
+  --scene-print: #5a6c90;          /* a footprint's floor */
+  --scene-print-rim: #ffffff;      /* its lit wall */
+  --scene-wear: #4d5f80;           /* packed snow on a worn path */
+  --scene-shadow: #26324f;
+  --scene-pine: #2b463f;
+  --scene-pine-shade: rgba(15, 30, 30, .35);
+  --scene-pine-snow: #f4f8fc;
+  --scene-trunk: #4a3b33;
+  --scene-stone-lit: #a3acbb;
+  --scene-stone-dark: #535b6b;
+  --scene-cairn-1: #6f7787;
+  --scene-cairn-2: #868e9d;
+  --scene-cairn-3: #5f6777;
+  --scene-post: #5a4636;
+  --scene-rope: #6b5644;
+  --scene-glow: #a8c8ff;           /* a fresh print at night */
+  --scene-glint: #fffbea;          /* sun on the snow */
+  --scene-flake: #ffffff;
+  --scene-ink: #1d2433;            /* labels on lit snow */
+  --scene-ink-halo: rgba(255, 255, 255, .8);
+  --scene-ink-night: #eef3ff;      /* labels under the moon */
+  --scene-ink-night-halo: rgba(10, 16, 34, .6);
+  --scene-hover: rgba(200, 64, 47, .6);   /* the ring round a clearing under the pointer */
+  --scene-vignette: 15, 22, 45;    /* r, g, b of the darkened corners */
+
+  /* The light, by the sun's height (scene.js): multiplied over the whole scene. */
+  --sky-night: #54669e;    /* the sun far below: moonlit snow */
+  --sky-late: #5c6ea6;      /* the small hours and late evening */
+  --sky-dusk: #9492c8;      /* the sun at the horizon, falling */
+  --sky-gold: #ffc29e;      /* the sun just up */
+  --sky-warm: #ffead4;      /* morning and afternoon */
+  --sky-day: #ffffff;       /* noon */
 }
-/* The dark stock: deep green-grey paper, chalk-white ink, the red pen a shade brighter so it still
-   reads. Only colours change; the rules, type and spacing are the same pad. theme.js sets the
-   attribute from the system's preference or the user's switch, before first paint. */
+/* The dark stock: the panels and the ledger only. The scene keeps its own light. */
 :root[data-theme="dark"] {
   color-scheme: dark;
-  --bg: #1a221c;        /* the paper under the lamp */
-  --rule: #303d33;
-  --surface: #232d25;
-  --surface-2: #2a372c;
-  --hover: #263128;
-  --text: #e4eadf;      /* chalk-white ink; 13:1 on the paper */
-  --muted: #a7b4a3;     /* pencil; 7.5:1 on the paper, 5.3:1 on a rule */
-  --accent: #ec5a4d;    /* red pen, brighter for the dark stock; 4.8:1 on the paper */
-  --accent-ink: #1a221c; /* on the red pen, the paper itself: cream would not read */
-  --bar: #b6c2b1;       /* the chart's bars: a chalk wash */
-  --bar-soft: #4a5b4b;
+  --bg: #141b2b;
+  --rule: #263149;
+  --glass: rgba(16, 22, 36, .82);
+  --glass-line: rgba(230, 235, 245, .14);
+  --glass-shadow: 0 8px 30px rgba(0, 0, 0, .35);
+  --surface: #1b2438;
+  --surface-2: #222c42;
+  --hover: #222c42;
+  --text: #e6ebf5;      /* 14:1 on the paper */
+  --muted: #a3aec4;     /* 7.6:1 */
+  --accent: #ff7a6b;    /* 6.1:1 */
+  --accent-ink: #141b2b;
+  --bar: #9fb3d8;
+  --bar-soft: #34425e;
+  --ok: #5fd39a;
 }

@@ -1,5 +1,5 @@
 # Footworn: a cookie-free visit counter. One Worker: the collector (/c), the tracker (/footworn.js),
-# the read API (/api/*) and the dashboard (/). Free plan is enough: see README.
+# the read API (/api/*), the live view (/live) and the dashboard (/). Free plan is enough: see README.
 name = "footworn"
 main = "src/index.js"
 compatibility_date = "2026-09-01"
@@ -22,6 +22,16 @@ database_name = "footworn"
 # Replace with the id `wrangler d1 create footworn --location weur` prints (keep weur: data in Europe).
 database_id = "e740f5c0-572f-4503-a4d8-c03c6f42d73d"
 migrations_dir = "migrations"
+
+# The live view: one Durable Object relays each counted hit to the open dashboards (src/live.js).
+# SQLite-backed, as the free plan requires; it stores nothing.
+[[durable_objects.bindings]]
+name = "LIVE"
+class_name = "Live"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["Live"]
 
 # Nightly: rotate the salt, forget today's visitor hashes, drop hits past the retention.
 [triggers]

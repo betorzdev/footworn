@@ -33,24 +33,33 @@ ever stored. `docs/privacy.md` maps every stored column to the AEPD's list.
 ## Operating Context
 
 Deployed at `footworn.<account>.workers.dev`. The dashboard (`public/index.html`, `app.js`) asks
-for the admin token once, keeps it in `localStorage`, and reads `/api/stats` and `/api/event`.
-The view lives in the query string, so a URL is a bookmark to a site, range and open event.
+for the admin token once, keeps it in `localStorage`, reads `/api/scene` for the snowfield and
+`/api/stats` and `/api/event` for the ledger, and listens on `/live` (a WebSocket relayed by the
+`Live` Durable Object, opened with a 60-second ticket). The view lives in the query string, so a
+URL is a bookmark to a site, the open ledger, its range and an open event.
 `/demo` fires pageviews and events during local development; `/privacy` is the public notice.
 
 ## Capabilities and Constraints
 
-- Shows, per site and range (7, 30, 90 days or custom): totals (visitors, pageviews, events),
-  a day chart (pageviews as bars, visitors as a line), and top-30 tables for pages, referrers,
-  events, countries, languages, browsers, systems, devices. An event opens a detail with its own
-  day chart, pages and property breakdowns.
+- The snowfield (since 2026-10-03, replacing the ledger-pad page): a valley with one clearing
+  per site, then each site up close, live. Pages are standing stones (30-day top 8), referrers
+  gates (top 5, elsewhere, direct), each pageview a line of footprints (deep for `first`, shaped
+  by device), events stones on a cairn, 30-day traffic as trodden paths; lit by the viewer's
+  clock, cleared by a snowfall at UTC midnight. A 2D canvas, option B "Diorama" of the design
+  study (tilted camera, shadows).
+- The ledger, a drawer over it, per site and range (1, 7, 30, 90 days or custom): totals
+  (visitors, pageviews, events), a day chart (pageviews as bars, visitors as a line), hour or
+  weekday and screen-width profiles, and top-30 tables for pages, referrers, events, countries,
+  languages, browsers, systems, devices. An event opens a detail with its own day chart, pages
+  and property breakdowns. It is the scene's text alternative.
 - Zero runtime dependencies, no framework, no build: classic scripts and plain CSS. The
   dashboard's CSP allows no inline code, so no inline styles or scripts.
 - Every colour, typeface and spacing of the dashboard comes from `public/tokens.css`, the only
   design source; there is no DESIGN.md by decision (`docs/backlog.md`).
 - Web fonts are possible only if self-hosted or allowed by `public/_headers`; the current CSP
   allows no external origins.
-- English only. One scheme, light: the green ruled paper (since 2026-10-01); a dark scheme via
-  `prefers-color-scheme` is in the backlog.
+- English only. The scene has its own light (the viewer's hour); the panels and the ledger
+  follow the system scheme, with a Dark/Light override.
 
 ## Brand Commitments
 

@@ -74,3 +74,41 @@ export async function eventStats(db, { site, name, from, to }) {
   for (const r of res[3]) (props[r.key] = props[r.key] || []).push({ value: r.value, hits: r.hits });
   return { site, name, from, to, totals: res[0][0], days: res[1], paths: res[2], props };
 }
+
+/* What the snowfield draws for one site, all of it counts:
+   - `pages`, `refs`: the 30-day top 8 pages (standing stones) and top 5 referrers (gates);
+   - `wear`: 30-day pageviews per (referrer, page), the trodden paths;
+   - `today`: totals, and pageviews and events per page and per referrer;
+   - `yesterday`: visitors yesterday up to this time of day, for the change in the valley;
+   - `recent`: today's last 3 hours in 10-minute blocks per page, referrer, device and first,
+     newest first (past the limit the oldest go), which the page turns back into footprints when
+     it opens. No country here: that only comes with a live hit (src/live.js). */
+export async function scene(db, { site, now = Date.now() }) {
+  const today = new Date(now).toISOString().slice(0, 10), from = addDays(today, -29), yesterday = addDays(today, -1);
+  const secs = Math.floor(now / 1000);
+  const month = 'site = ?1 AND day BETWEEN ?2 AND ?3 AND event IS NULL';
+  const m = sql => db.prepare(sql).bind(site, from, today);
+  const d = sql => db.prepare(sql).bind(site, today);
+  const rows = await db.batch([
+    m(`SELECT path AS value, COUNT(*) AS hits FROM hits WHERE ${month} GROUP BY path ORDER BY hits DESC LIMIT 8`),
+    m(`SELECT ref AS value, COUNT(*) AS hits FROM hits WHERE ${month} AND ref IS NOT NULL GROUP BY ref ORDER BY hits DESC LIMIT 5`),
+    m(`SELECT ref, path, COUNT(*) AS hits FROM hits WHERE ${month} GROUP BY ref, path ORDER BY hits DESC LIMIT 400`),
+    d(`SELECT SUM(event IS NULL) AS hits, SUM(first) AS visitors, SUM(event IS NOT NULL) AS events FROM hits WHERE site = ?1 AND day = ?2`),
+    d(`SELECT path, SUM(event IS NULL) AS hits, SUM(event IS NOT NULL) AS events FROM hits
+       WHERE site = ?1 AND day = ?2 GROUP BY path ORDER BY hits DESC LIMIT 200`),
+    d(`SELECT ref, COUNT(*) AS hits FROM hits WHERE site = ?1 AND day = ?2 AND event IS NULL GROUP BY ref ORDER BY hits DESC LIMIT 200`),
+    db.prepare(`SELECT SUM(first) AS visitors FROM hits WHERE site = ?1 AND day = ?2 AND ts <= ?3 AND event IS NULL`).bind(site, yesterday, secs - 86400),
+    db.prepare(`SELECT (ts / 600) * 600 AS block, path, ref, device, first, COUNT(*) AS hits FROM hits
+                WHERE site = ?1 AND day = ?2 AND ts > ?3 AND event IS NULL
+                GROUP BY block, path, ref, device, first ORDER BY block DESC LIMIT 3000`).bind(site, today, secs - 3 * 3600),
+  ]);
+  const res = rows.map(r => r.results || []);
+  const t = res[3][0] || {};
+  return {
+    site, day: today, now: secs,
+    pages: res[0], refs: res[1], wear: res[2],
+    today: { hits: t.hits || 0, visitors: t.visitors || 0, events: t.events || 0, pages: res[4], refs: res[5] },
+    yesterday: { visitors: (res[6][0] && res[6][0].visitors) || 0 },
+    recent: res[7],
+  };
+}

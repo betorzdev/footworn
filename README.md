@@ -2,7 +2,7 @@
 
 <p align="center">
   A visit counter for static sites that sets no cookies, keeps no IP and needs no consent banner.<br>
-  One Cloudflare Worker on the free plan: the collector, a 1&nbsp;KB tracker, a D1 database, a JSON API and a dashboard.
+  One Cloudflare Worker on the free plan: the collector, a 1&nbsp;KB tracker, a D1 database, a JSON API and a live dashboard where every visit leaves footprints in the snow.
 </p>
 
 <p align="center">
@@ -12,9 +12,9 @@
   <img alt="Cloudflare Workers, free plan" src="https://img.shields.io/badge/Cloudflare_Workers-free_plan-4a5a4e">
 </p>
 
-<img alt="The Footworn dashboard: a month of a site on green ruled paper. Three totals with their change against the previous month, pageviews as bars and visitors as a red line by day, pageviews by weekday and by screen width, then the top pages, referrers, events and countries." src="docs/screenshots/dashboard-light.png">
+<img alt="The Footworn valley: three sites as clearings in a snowy pine forest seen as a diorama. Each clearing shows its name, visitors today, how many came in the last five minutes and the change against yesterday; lines of footprints run from the gates on its edge to standing stones, and the busiest paths are trodden into the snow." src="docs/screenshots/valley.png">
 
-<p align="center"><sub>The dashboard, on a month of one site. It follows your system’s light or dark scheme.</sub></p>
+<p align="center"><sub>The valley: one clearing per site, live. Click one to walk in.</sub></p>
 
 ## Why
 
@@ -22,43 +22,50 @@
   keep without consent (Spain’s LSSI 22.2 as the AEPD reads it, the CNIL’s line). No cookies, no
   storage in the browser, no IP, no User-Agent, no fingerprint. [`docs/privacy.md`](docs/privacy.md)
   maps every stored column to that list.
-- **A glance, not a session.** Totals with their change, a day chart, when people come and on
-  what screens, the top of each dimension. Nothing to configure, nothing to click through.
+- **A glance, and a show.** Every visit arrives as a line of footprints, the moment it is
+  counted: from the gate of the site it came from to the stone of the page it opened. The
+  ledger beside it has the plain numbers: totals with their change, a day chart, when people
+  come and on what screens, the top of each dimension.
 - **Events with properties.** `footworn.event('screen', { view: 'combat', lang: 'es' })` and the
   dashboard breaks it down by day, by page and by each property.
 - **Free and tiny.** The Workers Free plan has room for about 50 000 pageviews a day. The
   tracker is 1 KB, the Worker has zero runtime dependencies, the dashboard is a few plain files
-  behind a strict CSP: no framework, no build.
+  (a 2D canvas, no WebGL) behind a strict CSP: no framework, no build.
 - **It never breaks the host page.** Everything the tracker does is inside `try/catch`;
   `sendBeacon` first, `fetch keepalive` after; a hit that isn’t valid is dropped with a silent `204`.
 
 ## What you see
 
-**When people come, and on what screens.** By hour of the day (in your local time) on a week or
-less, by weekday on a longer range; screen widths in 100 px buckets, with the phone, tablet and
-desktop cut-offs drawn in.
+**A site, up close.** Each page with traffic is a standing stone, sized by its last 30 days.
+Referrers are gates on the edge of the clearing (the top five, then *elsewhere*; *direct* comes
+in at the bottom). Every pageview walks from its gate to its stone: a deep print for the first
+page of a visitor's day, a light one for the next; bare feet on a phone, trainers on a tablet,
+boots on a desktop. An event adds a stone to the page's cairn. Paths used for weeks stay packed
+under the fresh snow; footprints are covered in about three hours, and at UTC midnight (the
+day's cut) a snowfall clears the field. Hover, or tap, a stone, a gate or a print for its numbers.
 
-![By hour and screen widths over a week: visits climb through the afternoon and peak around 21h; widths cluster at 360 to 430 px with a second group from 1200 px.](docs/screenshots/rhythm-week.png)
+![Hallownest up close in the afternoon: stones for each page with today's pageviews and events, gates for google.com, reddit.com, steamcommunity.com, youtube.com and twitter.com with their arrivals, trails of footprints between them, cairns of event stones, pines casting long shadows.](docs/screenshots/site.png)
 
-**One event, opened.** An event name in the Events table opens its own panel: a day chart, the
-pages it fired on, and every property with its values. The view lives in the URL, so
-`/?site=your-site&days=30&event=screen` is a link straight to it.
+**Lit by your clock.** The sun moves the shadows through the day and sets the snow gold at dusk;
+at night fresh prints keep a little light, and a visitor walking in carries it.
 
-![The screen event opened: 8,166 times over the month, a bar per day, the pages it fired on, and two properties, lang and view, each with its values and counts.](docs/screenshots/event.png)
+![Pharloom at night: blue moonlit snow, two glowing lines of fresh footprints arriving from google.com and reddit.com.](docs/screenshots/night.png)
 
-**Every dimension, top 30.** Pages, referrers, events, countries, languages, browsers, systems,
-devices: count and visitors, with a bar under each value. Every chart also has its numbers in a
-table under a `Data` toggle, for screen readers and copy-paste.
+**The ledger.** A drawer with the numbers behind the scene, for any range: totals with their
+change, pageviews and visitors by day, by hour or weekday, screen widths, the top 30 of each
+dimension (pages, referrers, events, countries, languages, browsers, systems, devices), and an
+event opened with its pages and properties. Every chart has its numbers in a table under `Data`,
+which makes the ledger the scene's text alternative too. The view lives in the URL:
+`/?site=your-site&ledger=1&days=30&event=screen` is a link straight to it.
 
-![Eight tables: pages, referrers, events, countries, languages, browsers, systems and devices, each value with its pageviews and visitors and a proportional bar beneath it.](docs/screenshots/tables.png)
+![The ledger open beside the clearing: a week's totals, pageviews as bars and visitors as a red line by day, pageviews by weekday and by screen width.](docs/screenshots/ledger.png)
 
-**On a phone, in both schemes.** The pages follow the system; the dashboard’s Dark/Light button
-overrides it, and the choice is kept in the browser, like the token.
+**On a phone.** The valley stacks its clearings; drag to look around, pinch to zoom, tap for the
+numbers. The panels and the ledger follow the system's light or dark scheme, and the Dark/Light
+button overrides it.
 
 <p align="center">
-  <img alt="The dashboard on a 390 px phone, light scheme: the controls stack, the totals stack, the day chart fills the width." src="docs/screenshots/phone.png" width="300">
-  &nbsp;&nbsp;
-  <img alt="The same screen in the dark scheme: pale ink on dark green paper, the visitors line in a brighter red." src="docs/screenshots/phone-dark.png" width="300">
+  <img alt="The valley on a 390 px phone in the morning: three clearings stacked, the totals and the site buttons at the bottom." src="docs/screenshots/phone.png" width="300">
 </p>
 
 ## Wire a site
@@ -95,7 +102,9 @@ flowchart LR
     check["site known? origin allowed? not a bot?"] --> row["one row of hits<br><sub>path, day, ref host, browser/OS family,<br>device, width, country, lang, first</sub>"]
   end
   worker --> d1[("D1<br><sub>weur</sub>")]
-  d1 -- "GET /api/stats<br>GET /api/event" --> dash["the dashboard<br><sub>bearer token</sub>"]
+  d1 -- "GET /api/scene<br>GET /api/stats<br>GET /api/event" --> dash["the dashboard<br><sub>bearer token</sub>"]
+  worker -- "each counted hit<br><sub>path, ref, device, first, country, event</sub>" --> live["Live<br><sub>Durable Object, stores nothing</sub>"]
+  live -- "WebSocket /live<br><sub>60 s ticket</sub>" --> dash
   cron["nightly cron"] -. "new salt, forget today’s hashes,<br>drop hits past 25 months" .-> d1
 ```
 
@@ -115,8 +124,9 @@ npm run dev                           # http://localhost:8787
 
 - `/demo` fires a pageview and has buttons for events.
 - `/` is the dashboard. Paste the token from `.dev.vars`, or open `/#token=…` once: it’s saved in
-  the browser and the URL is cleaned. The view lives in the query, so `/?site=<id>&days=7` or
-  `/?site=<id>&from=…&to=…&event=<name>` is a link to it.
+  the browser and the URL is cleaned. The view lives in the query, so `/?site=<id>` or
+  `/?site=<id>&ledger=1&from=…&to=…&event=<name>` is a link to it; `&hour=21` fixes the light,
+  to see the scene at another time of day. Keep `/demo` open in another tab to watch the hits walk in.
 - `/privacy` is the public notice.
 - `curl http://localhost:8787/cdn-cgi/local/scheduled` runs the nightly cron by hand.
 
@@ -137,7 +147,10 @@ locally for `/verify`.
 6. Register each site with `npm run site:add -- <id> "<name>" "<origin> [<origin>…]" --remote`.
 
 Free plan room: 100 000 requests/day and 100 000 D1 writes/day; a pageview costs two writes and
-an event one, so about 50 000 pageviews a day. Retention is `RETENTION_MONTHS` in
+an event one, so about 50 000 pageviews a day. The live view adds one Durable Object request per
+counted hit (100 000 a day on the free plan, the same ceiling); an open dashboard's socket
+hibernates between hits and costs nothing while idle. The first `npm run deploy` creates the
+Durable Object (the `[[migrations]]` in `wrangler.toml`). Retention is `RETENTION_MONTHS` in
 `wrangler.toml` (25, the AEPD’s cap).
 
 ## Privacy
@@ -153,7 +166,8 @@ an event one, so about 50 000 pageviews a day. Retention is `RETENTION_MONTHS` i
 | `first` | the daily visitor flag: a count, not an identifier |
 
 Not stored, ever: cookies, local storage, IP, User-Agent, any hash or id, any sequence of pages
-one person saw. `/privacy` is the notice a host site links to;
+one person saw. The live view relays each counted hit to the open dashboards (path, referrer host,
+device, first, country, event name) and keeps none of it. `/privacy` is the notice a host site links to;
 [`docs/privacy.md`](docs/privacy.md) is the full record, and it changes together with the schema.
 
 <p align="center">
@@ -167,6 +181,9 @@ one person saw. `/privacy` is the notice a host site links to;
 | | |
 |---|---|
 | `GET /api/sites` | `[{ id, name }]` |
+| `GET /api/scene?site=` | what the snowfield draws, all counts: `pages` and `refs` (30-day top 8 and top 5, `[{ value, hits }]`), `wear: [{ ref, path, hits }]` (30 days), `today: { hits, visitors, events, pages: [{ path, hits, events }], refs: [{ ref, hits }] }`, `yesterday: { visitors }` up to this time of day, and `recent: [{ block, path, ref, device, first, hits }]`, today's last 3 hours in 10-minute blocks |
+| `GET /api/live-ticket` | `{ ticket }`, good for 60 s, to open the live socket |
+| `GET /live?ticket=` | WebSocket: one JSON message per counted hit, `{ site, t, path, ref, device, first, country, event }`; send `ping`, get `pong` |
 | `GET /api/stats?site=&from=&to=` | `{ totals: { hits, visitors, events }, days: [{ day, hits, visitors, events }], path, ref, browser, os, device, country, lang, events }`, each dimension `[{ value, hits, visitors }]`, top 30. Also `hours: [{ hour, hits }]` (UTC), `weekdays: [{ weekday, hits }]` (0 is Sunday), `widths: [{ bucket, hits }]` (100 px buckets, pageviews only) and `previous: { from, to, hits, visitors, events }`, the totals of the period of the same length just before. |
 | `GET /api/event?site=&name=&from=&to=` | `{ totals, days, paths, props: { key: [{ value, hits }] } }` |
 | `POST /c` | what the tracker sends: `{ s, p, r, w, l, e?, props? }`, under 8 KB; always `204` |
@@ -174,13 +191,15 @@ one person saw. `/privacy` is the notice a host site links to;
 ## Layout
 
 ```
-src/index.js      the Worker: /c, /api/*, the nightly cron (export default { fetch, scheduled })
+src/index.js      the Worker: /c, /api/*, /live, the nightly cron (export default { fetch, scheduled }, export { Live })
 src/collect.js    a posted body → a row of hits (validation, referrer, device, props)
 src/ua.js         User-Agent → browser/OS families; the bot filter
 src/visitor.js    the daily salt and the "first today" flag
 src/stats.js      the API's queries
+src/live.js       the live view: what a live message carries, and the Live Durable Object that relays it
+src/ticket.js     the live socket's 60-second ticket
 src/auth.js       the bearer check
-public/           footworn.js, the dashboard (index.html, app.js, theme.js, style.css, tokens.css), privacy, demo,
+public/           footworn.js, the dashboard (index.html, app.js, scene.js, live.js, ledger.js, theme.js, style.css, tokens.css), privacy, demo,
                   _headers (nosniff and no-referrer everywhere; the dashboard's CSP: no inline code, no framing)
 migrations/       the D1 schema
 test/             node --test

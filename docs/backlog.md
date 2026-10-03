@@ -56,6 +56,16 @@ errors, loading state, URL state, reduced motion, focus rings and press feedback
   the single design source. `.impeccable/` (the surface brief with the direction contract, the
   review screenshots) is gitignored, session material only.
 
+## The snowfield, next (agreed 2026-10-03)
+
+- **Replay**: a day, or a week, played back in about 20 seconds with a scrubber, from the
+  10-minute blocks `/api/scene` already returns.
+- **Sound**: an optional sonification, one soft note per hit (page as pitch, device as timbre).
+- **Country off the live view**: a switch (a var in `wrangler.toml`) for publishers who prefer
+  not to see it per visit; `docs/privacy.md` already says how.
+- **Big numbers in the ledger's column charts**: the left axis clips labels past four digits
+  (`frame()` in `public/ledger.js`, `L: 36`).
+
 ## Later, by anyone
 
 - **`.claude/rules/` with path scoping** if `CLAUDE.md` grows past about 80 lines.

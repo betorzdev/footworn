@@ -106,6 +106,36 @@ try {
   const two = await api(`/api/stats?site=two`);
   assert.equal(two.totals.hits, 1, 'site two is separate');
 
+  // The snowfield's read: counts only, no list of hits.
+  const sc = await api('/api/scene?site=one');
+  assert.deepEqual([sc.today.hits, sc.today.visitors, sc.today.events], [4, 3, 3], 'scene totals');
+  assert.deepEqual(sc.pages.map(p => [p.value, p.hits]), [['/', 3], ['/map/', 1]], 'scene stones');
+  assert.deepEqual(sc.refs, [{ value: 'reddit.com', hits: 1 }], 'scene gates');
+  assert.deepEqual(sc.today.pages.map(p => [p.path, p.hits, p.events]).sort(), [['/', 3, 2], ['/map/', 1, 1]], 'scene today by page');
+  assert.equal(sc.recent.reduce((n, r) => n + r.hits, 0), 4, 'scene recent footprints');
+  assert.ok(sc.recent.every(r => !('country' in r)), 'no country in the aggregate');
+
+  // The live view: a ticket, the socket, one hit relayed with exactly its scene fields; a bot is
+  // not relayed; a ticket tampered with opens nothing.
+  const { ticket } = await api('/api/live-ticket');
+  const ws = new WebSocket(`ws://127.0.0.1:${PORT}/live?ticket=${encodeURIComponent(ticket)}`);
+  await new Promise((ok, ko) => { ws.onopen = ok; ws.onerror = () => ko(new Error('the live socket did not open')); });
+  const next = () => new Promise(ok => { const t = setTimeout(() => ok(null), 3000); ws.onmessage = e => { clearTimeout(t); ok(JSON.parse(e.data)); }; });
+  let msg = next();
+  await post({ s: 'two', p: '/live/', r: 'https://news.ycombinator.com/', w: 390, l: 'en' }, { origin: 'https://two.example', ip: '203.0.113.9' });
+  msg = await msg;
+  assert.ok(msg, 'a live message arrives');
+  // wrangler dev fills the country from this machine's connection, so any code (or none) will do.
+  assert.ok(msg.country === null || /^[A-Z]{2}$/.test(msg.country), 'live country');
+  assert.deepEqual({ ...msg, t: 0, country: null }, { site: 'two', t: 0, path: '/live/', ref: 'news.ycombinator.com', device: 'phone', first: 1, country: null, event: null }, 'live message');
+  msg = next();
+  await post({ s: 'two', p: '/' }, { origin: 'https://two.example', ua: 'Mozilla/5.0 (compatible; Googlebot/2.1)' });
+  assert.equal(await msg, null, 'a bot is not relayed');
+  ws.close();
+  const bad = new WebSocket(`ws://127.0.0.1:${PORT}/live?ticket=${encodeURIComponent(ticket.slice(0, -2) + (ticket.endsWith('AA') ? 'BB' : 'AA'))}`);
+  assert.equal(await new Promise(ok => { bad.onopen = () => ok('open'); bad.onerror = () => ok('refused'); }), 'refused', 'a tampered ticket is refused');
+  assert.equal((await fetch(BASE + '/live')).status, 426, '/live is a socket');
+
   // The dashboard comes with its headers (public/_headers), and the file itself is not served.
   const home = await fetch(BASE + '/');
   assert.equal(home.status, 200, 'the dashboard is served');
