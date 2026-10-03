@@ -371,8 +371,9 @@
     });
 
     /* --- the drawer --- */
-    function open(site) {
-      state.site = site; state.open = true;
+    /* `event`, when given, opens that event's detail once the numbers are in. */
+    function open(site, event) {
+      state.site = site; state.open = true; if (event) state.openEvent = event;
       $('ledger').hidden = false;
       if (state.days) setRange(state.days); else setCustom(state.from, state.to);
     }

@@ -469,6 +469,9 @@
        30-day top 5, else elsewhere; direct for none), and a site's district. As CSS rgb(). */
     laneColor: function (id, ref) { var s = byId[id]; var l = s && s.loaded ? laneFor(s, ref) : null; return l ? 'rgb(' + l.color.join(',') + ')' : 'rgb(' + (ref == null ? T.direct : T.elsewhere).join(',') + ')'; },
     siteColor: function (id) { var s = byId[id]; return s ? 'rgb(' + s.tint.join(',') + ')' : ''; },
+    /* One page's counts today, from its tower: { pv, loads, engaged, other }; `other` when the page
+       is outside the 30-day top 8 and the counts are those of every such page together. */
+    pageStats: function (id, path) { var s = byId[id]; if (!s || !s.loaded) return null; var t = towerOf(s, path); return { pv: t.pv, loads: t.loads, engaged: t.engaged, other: !!t.other }; },
     stats: function (id) {
       var list = id ? [byId[id]].filter(Boolean) : sites, now = performance.now();
       return list.reduce(function (t, s) { t.visitors += s.visitors; t.pageviews += s.pageviews; t.events += s.events; t.live += liveCount(s, now); return t; },

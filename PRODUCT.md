@@ -54,8 +54,9 @@ URL is a bookmark to a site, the open ledger, its range and an open event.
 - Today, one by one (since 2026-10-03; two tabs since the same day, the single list read as
   confusing): a panel beside the scene (a sheet on a phone). *Visits*: newest first, live, a
   visit (`first`) in bold with its referrer's lane colour, another page a lighter row, *Only
-  visits* to hide those; *Events*: a card per name with its count, the spread of its commonest
-  property and the last time. Rounded so a row is not a fingerprint (the minute, the device class,
+  visits* to hide those, a click unfolds a row with every field it holds and today's counts
+  around it (page, referrer, country, device); *Events*: a card per name with its count, the
+  spread of its commonest property, the last time and a link to the ledger's event detail. Rounded so a row is not a fingerprint (the minute, the device class,
   families; no width, no second, no id), never joining a page to a visit, empty at UTC midnight.
   Pointing at a row rings its tower and lane in the scene.
 - The ledger, a drawer over it, per site and range (1, 7, 30, 90 days or custom): totals

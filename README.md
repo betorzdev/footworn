@@ -51,9 +51,11 @@ dark from the top down and the day starts again.
 **Today, one by one.** A panel beside the scene, in two tabs. *Visits* lists the day's
 pageviews as they come in, newest first, and makes a visit (the first page of someone's day)
 stand out: its referrer's lane colour, the page, where it came from, the country and the device;
-another page steps back, and *Only visits* hides those. Point at a row for its browser, system
-and language, and the scene rings its tower and its lane. *Events* has a card per event with
-today's count, the spread of its commonest property and when it last happened. Rounded on
+another page steps back, and *Only visits* hides those. Point at a row and the scene rings its
+tower and its lane; click it and it unfolds with everything it holds (country, device, browser
+and system, language) and today's counts around it: its page's pageviews and used share, its
+referrer, its country and its device. *Events* has a card per event with today's count, the
+spread of its commonest property, when it last happened and a link to its detail in the ledger. Rounded on
 purpose, so a row is never a fingerprint (no width, no second, nothing joining two rows, so a
 page is never hung under a visit), and gone at UTC midnight.
 

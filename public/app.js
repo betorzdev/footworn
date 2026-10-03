@@ -63,6 +63,7 @@
     onUrl: syncUrl,
   });
   var visits = window.FootwornVisits({ siteName: siteName, siteColor: function (id) { return scene.siteColor(id); }, laneColor: function (id, ref) { return scene.laneColor(id, ref); },
+    pageStats: function (id, path) { return scene.pageStats(id, path); }, openEvent: function (id, name) { openEvent(id, name); },
     totals: function (site) { return scene.stats(site); }, onHover: function (h) { scene.highlight(h); } });
   state.showVisits = visits.remembered();
   var live = window.FootwornLive({
@@ -199,7 +200,9 @@
 
   $('places').addEventListener('click', function (e) { var b = e.target.closest('button.place'); if (b) go(b.dataset.id); });
   $('back').addEventListener('click', leave);
-  function openLedger() { ledger.open(state.site); paintPanel(); syncUrl(); scene.refit(true); $('close-ledger').focus({ preventScroll: true }); }
+  function openLedger(event) { ledger.open(state.site, event); paintPanel(); syncUrl(); scene.refit(true); $('close-ledger').focus({ preventScroll: true }); }
+  /* From an event's card in the visits panel: its site's ledger, open at that event. */
+  function openEvent(id, name) { if (state.site !== id) go(id, true); openLedger(name); }
   function closeLedger() { ledger.close(); paintPanel(); scene.refit(true); $('open-ledger').focus({ preventScroll: true }); }
   /* The visits panel: shown unless the reader put it away (remembered), and never under the ledger. */
   function paintPanel() {
@@ -211,7 +214,7 @@
     if (!state.showVisits) scene.highlight(null);
     paintPanel(); scene.refit(true);
   });
-  $('open-ledger').addEventListener('click', openLedger);
+  $('open-ledger').addEventListener('click', function () { openLedger(); });
   $('close-ledger').addEventListener('click', closeLedger);
   document.addEventListener('keydown', function (e) {
     if (e.key !== 'Escape' || !$('gate').hidden) return;

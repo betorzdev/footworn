@@ -112,8 +112,32 @@ input {
 .visit .side { display: flex; align-items: center; gap: var(--s-1); color: var(--muted); font-size: var(--fs-xs); }
 .visit .flag { font-size: var(--fs-m); line-height: 1; }
 .visit .foot { width: 14px; height: 9px; fill: currentColor; }
-.visit .extra { grid-column: 3 / -1; color: var(--muted); font-size: var(--fs-xs); display: none; padding-top: 2px; }
-.visit:focus-visible .extra { display: block; }
+.visit .chev { width: 10px; text-align: center; transition: transform var(--t-fast); }
+.visit[aria-expanded="true"] { background: var(--hover); box-shadow: inset 3px 0 0 var(--accent); }
+.visit[aria-expanded="true"] .chev { transform: rotate(90deg); }
+/* A row, unfolded: what it holds, then today's counts around it. */
+.visit-detail { margin: 0 0 var(--s-2) calc(40px + var(--s-2)); padding: var(--s-3); background: var(--surface); border-left: 2px solid var(--accent);
+  border-radius: 0 var(--radius) var(--radius) 0; }
+.visit-detail.unfold { animation: unfold var(--t-base) ease-out; }
+@keyframes unfold { from { opacity: 0; transform: translateY(-4px); } }
+.visit-detail p { margin: 0; }
+.visit-detail .kind { font: 600 var(--fs-xs) var(--font); letter-spacing: var(--track); text-transform: uppercase; color: var(--muted); }
+.visit-detail .kind.is-visit { color: var(--visit-dot); }
+.visit-detail .page-name { font-size: var(--fs-l); font-weight: 700; overflow-wrap: anywhere; margin-top: 2px; }
+.visit-detail .soft { font-size: var(--fs-xs); color: var(--muted); font-weight: 400; }
+.visit-detail p.soft { margin-top: var(--s-2); }
+.facts { display: grid; grid-template-columns: auto 1fr; gap: var(--s-1) var(--s-3); margin: var(--s-3) 0 0; font-size: var(--fs-s); }
+.facts dt { color: var(--muted); }
+.facts dd { margin: 0; font-weight: 600; display: flex; align-items: center; gap: var(--s-1); min-width: 0; overflow-wrap: anywhere; }
+.ctx { margin-top: var(--s-3); padding-top: var(--s-2); border-top: 1px solid var(--glass-line); }
+.ctx h3 { margin: 0 0 var(--s-1); font: 600 var(--fs-xs) var(--font); letter-spacing: var(--track); text-transform: uppercase; color: var(--muted); }
+.ctx .r { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px var(--s-2); align-items: center; padding: 3px 0; font-size: var(--fs-xs); }
+.ctx .r > span:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ctx .r > span:nth-child(2) { color: var(--muted); white-space: nowrap; }
+.ctx .r b { color: var(--text); font-weight: 600; }
+.ctx .meter { grid-column: 1 / -1; height: 4px; border-radius: 2px; background: var(--surface-2); overflow: hidden; }
+.ctx .meter .bar { display: block; height: 100%; border-radius: 0; background: var(--bar); width: 0; }
+.event-card .btn.small { margin-top: var(--s-2); padding: 0 var(--s-3); font-size: var(--fs-xs); }
 .visit.page { padding-top: 3px; padding-bottom: 3px; color: var(--page-ink); }
 .visit.page .path { font-weight: 500; }
 .visit.page .when { font-weight: 500; opacity: .8; }
@@ -133,7 +157,7 @@ input {
 .event-card .last { margin-top: var(--s-2); font-size: var(--fs-xs); color: var(--muted); }
 .event-card .last b { color: var(--text); font-weight: 600; }
 .events-list .note { font-size: var(--fs-xs); color: var(--muted); padding: var(--s-2); }
-@media (hover: hover) and (pointer: fine) { .visit:hover { background: var(--hover); } .visit:hover .extra { display: block; } .tabs button:not([aria-selected="true"]):hover { color: var(--text); } }
+@media (hover: hover) and (pointer: fine) { .visit:hover { background: var(--hover); } .tabs button:not([aria-selected="true"]):hover { color: var(--text); } }
 
 /* Token form */
 .gate { position: fixed; left: 50%; top: 22vh; transform: translateX(-50%); width: min(var(--gate-w), calc(100vw - 2 * var(--s-4))); padding: var(--s-5); }
@@ -256,7 +280,7 @@ td.n { text-align: right; padding-left: var(--s-3); font-family: var(--font-num)
 @media (prefers-reduced-motion: reduce) {
   .btn, .tile .v, [aria-busy="true"] .chart, [aria-busy="true"] .grid, [aria-busy="true"] .detail { transition: none; }
   .btn:active { transform: none; }
-  .live[data-state="open"] i, .ledger, .detail:not([hidden]), .visit.fresh { animation: none; }
+  .live[data-state="open"] i, .ledger, .detail:not([hidden]), .visit.fresh, .visit-detail.unfold { animation: none; }
 }
 
 /* Under 16px iOS zooms the page into a focused input. */
