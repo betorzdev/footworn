@@ -56,11 +56,13 @@ errors, loading state, URL state, reduced motion, focus rings and press feedback
   the single design source. `.impeccable/` (the surface brief with the direction contract, the
   review screenshots) is gitignored, session material only.
 
-## The snowfield, next (agreed 2026-10-03)
+## The bay, next (agreed 2026-10-03, carried over from the snowfield)
 
-- **Replay**: a day, or a week, played back in about 20 seconds with a scrubber, from the
-  10-minute blocks `/api/scene` already returns.
-- **Sound**: an optional sonification, one soft note per hit (page as pitch, device as timbre).
+- **Replay**: a day, or a week, played back in about 20 seconds with a scrubber (cars and shore
+  lights from the hour counts, or from 10-minute blocks added back to `/api/scene`).
+- **Sound**: an optional sonification, one soft note per hit (page as pitch, lane as timbre).
+- **Sky by the clock**: the bay is always at night; if wanted, a dusk or day sky by the viewer's
+  hour, as the snowfield had.
 - **Country off the live view**: a switch (a var in `wrangler.toml`) for publishers who prefer
   not to see it per visit; `docs/privacy.md` already says how.
 - **Big numbers in the ledger's column charts**: the left axis clips labels past four digits

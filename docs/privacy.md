@@ -71,7 +71,7 @@ person.
 - **The history** (`GET /api/visits`, `visits` in `src/stats.js`): today's rows (UTC), newest
   first, at most 2000 per site: the minute, `path`, `ref` (hostname), `device`, the `browser` and
   `os` families, `lang`, `country`, `first`, and for an event its name and properties. At UTC
-  midnight the list empties, as the snowfield does; earlier days are only counts.
+  midnight the list empties, as the bay's windows go dark; earlier days are only counts.
 - **The live view** (`/live`, `liveMessage` in `src/live.js`): the same fields, the moment each
   hit is counted. The message carries the second in `t`, which the page needs to tell a live hit
   from one it already loaded, and which its own arrival gives away anyway; the page shows the

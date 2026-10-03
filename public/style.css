@@ -1,5 +1,5 @@
 *, *::before, *::after { box-sizing: border-box; }
-html { font-family: var(--font); font-size: var(--fs-m); line-height: 1.4; color: var(--text); background: var(--scene-snow); -webkit-tap-highlight-color: transparent; -webkit-text-size-adjust: 100%; caret-color: var(--accent); accent-color: var(--accent); }
+html { font-family: var(--font); font-size: var(--fs-m); line-height: 1.4; color: var(--text); background: var(--city-sky-top); -webkit-tap-highlight-color: transparent; -webkit-text-size-adjust: 100%; caret-color: var(--accent); accent-color: var(--accent); }
 body { margin: 0; min-height: 100vh; }
 ::selection { background: var(--accent); color: var(--accent-ink); }
 ::placeholder { color: var(--muted); opacity: 1; }
@@ -40,7 +40,7 @@ input {
 
 /* --- the field: the canvas under frosted glass panels --- */
 .field { overflow: hidden; height: 100vh; height: 100dvh; }
-/* The scene takes every gesture itself: drag pans, pinch zooms. */
+/* The scene takes every gesture itself: a drag scrolls a shore longer than the window. */
 #scene { position: fixed; inset: 0; width: 100vw; height: 100vh; height: 100dvh; display: block; touch-action: none; }
 .glass {
   background: var(--glass); color: var(--text); border: 1px solid var(--glass-line); border-radius: var(--radius-panel);
@@ -82,31 +82,58 @@ input {
 .visits h2 { margin: 0; font-size: var(--fs-m); }
 .visits .fold { font: inherit; font-weight: 650; color: inherit; background: none; border: 0; padding: 0; display: flex; align-items: center; gap: var(--s-2); cursor: default; }
 .visits .fold i { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); }
-.visits .sub { margin: 0 0 var(--s-2); font-size: var(--fs-xs); color: var(--muted); }
-.filters { display: flex; gap: var(--s-1); flex-wrap: wrap; }
-.filters button { font: 600 var(--fs-xs)/1 var(--font); color: var(--text); background: transparent; border: 1px solid var(--glass-line); border-radius: 999px; padding: 0 var(--s-3); min-height: 30px; cursor: pointer; }
-.filters button[aria-pressed="true"] { background: var(--text); color: var(--bg); border-color: var(--text); }
-.visits-list { list-style: none; margin: 0; padding: var(--s-1) var(--s-2) var(--s-3); overflow-y: auto; overscroll-behavior: contain; flex: 1; }
+.visits .sub { margin: 0; font-size: var(--fs-xs); color: var(--muted); }
+/* Visits | Events: two tabs, each with its count. */
+.tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 2px; margin-top: var(--s-2); padding: 3px; border-radius: var(--radius); background: var(--surface-2); }
+.tabs button { font: 600 var(--fs-s)/1 var(--font); color: var(--muted); background: transparent; border: 0; border-radius: calc(var(--radius) - 3px); min-height: 36px; cursor: pointer;
+  display: flex; align-items: center; justify-content: center; gap: var(--s-2); }
+.tabs button[aria-selected="true"] { background: var(--surface); color: var(--text); box-shadow: var(--tab-shadow); }
+.tabs b { font-weight: 600; }
+.tools { display: flex; justify-content: space-between; align-items: center; gap: var(--s-2); margin-top: var(--s-2); min-height: 24px; }
+.switch { display: inline-flex; align-items: center; gap: var(--s-1); font-size: var(--fs-xs); color: var(--muted); cursor: pointer; white-space: nowrap; }
+.switch input { margin: 0; width: 16px; height: 16px; }
+/* The key, and the dots it explains: filled for a visit (in its lane's colour), hollow for another page. */
+.key { margin: var(--s-1) 0 0; font-size: var(--fs-xs); color: var(--muted); display: flex; align-items: center; flex-wrap: wrap; gap: var(--s-1); }
+.key .dot + .dot, .key .hollow { margin-left: var(--s-2); }
+.dot { width: 8px; height: 8px; border-radius: 50%; background: var(--visit-dot); box-shadow: 0 0 0 1px var(--glass-line); flex: none; display: inline-block; }   /* the ring keeps a pale lane (direct) visible on light glass */
+.dot.hollow { background: transparent; box-shadow: inset 0 0 0 1.5px var(--page-dot); }
+.visits-body { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.visits-list, .events-list { list-style: none; margin: 0; padding: var(--s-1) var(--s-2) var(--s-3); overflow-y: auto; overscroll-behavior: contain; flex: 1; }
 .visits-list .hour { font: 600 var(--fs-xs)/1 var(--font); letter-spacing: var(--track); color: var(--muted); padding: var(--s-3) var(--s-2) var(--s-1); }
-.visits-list .empty { color: var(--muted); font-size: var(--fs-s); padding: var(--s-4) var(--s-2); }
-.visit { display: grid; grid-template-columns: 44px 1fr; gap: var(--s-3); width: 100%; text-align: left; font: inherit; color: inherit; background: transparent;
-  border: 0; border-radius: var(--radius); padding: var(--s-2); cursor: pointer; }
-.visit .when { font-size: var(--fs-xs); font-weight: 600; color: var(--muted); padding-top: 2px; }
-.visit .what { min-width: 0; }
-.visit .line { display: flex; align-items: baseline; gap: var(--s-2); min-width: 0; }
+.visits-list .empty, .events-list .empty { color: var(--muted); font-size: var(--fs-s); padding: var(--s-4) var(--s-2); }
+/* One row: a visit stands out, another page steps back. Details unfold under it on hover or focus. */
+.visit { display: grid; grid-template-columns: 40px 10px minmax(0, 1fr) auto; column-gap: var(--s-2); align-items: center; width: 100%; text-align: left;
+  font: inherit; font-size: var(--fs-s); color: inherit; background: transparent; border: 0; border-radius: var(--radius); padding: var(--s-2); cursor: pointer; }
+.visit .when { font-size: var(--fs-xs); font-weight: 600; color: var(--muted); }
+.visit .what { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.visit .site { font-size: var(--fs-xs); font-weight: 650; margin-right: var(--s-1); }
+.visit .path { font-weight: 650; }
+.visit .from { color: var(--muted); font-size: var(--fs-xs); margin-left: var(--s-1); }
+.visit .side { display: flex; align-items: center; gap: var(--s-1); color: var(--muted); font-size: var(--fs-xs); }
 .visit .flag { font-size: var(--fs-m); line-height: 1; }
-.visit .site { font-size: var(--fs-xs); font-weight: 600; color: var(--muted); }
-.visit .path { font-weight: 650; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.visit .from { color: var(--muted); font-size: var(--fs-xs); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.chips { display: flex; flex-wrap: wrap; gap: var(--s-1); margin-top: var(--s-1); }
-.chip { display: inline-flex; align-items: center; gap: var(--s-1); padding: 1px var(--s-2); border-radius: 999px; background: var(--chip); color: var(--muted); font-size: var(--fs-xs); white-space: nowrap; }
-.chip.first { background: var(--chip-first); color: var(--chip-first-ink); }
-.chip.event { background: var(--chip-event); color: var(--chip-event-ink); }
-.chip .foot { width: 14px; height: 9px; fill: currentColor; }
+.visit .foot { width: 14px; height: 9px; fill: currentColor; }
+.visit .extra { grid-column: 3 / -1; color: var(--muted); font-size: var(--fs-xs); display: none; padding-top: 2px; }
+.visit:focus-visible .extra { display: block; }
+.visit.page { padding-top: 3px; padding-bottom: 3px; color: var(--page-ink); }
+.visit.page .path { font-weight: 500; }
+.visit.page .when { font-weight: 500; opacity: .8; }
 .visit.fresh { animation: walkin 1.6s ease-out; }
 @keyframes walkin { from { opacity: 0; transform: translateY(-6px); background: var(--row-new); } 55% { opacity: 1; transform: none; background: var(--row-new); } }
-.visits .more { margin: 0 var(--s-3) var(--s-3); }
-@media (hover: hover) and (pointer: fine) { .visit:hover { background: var(--hover); } .filters button:hover { background: var(--hover); } }
+.visits > .more { margin: 0 var(--s-3) var(--s-3); }
+/* Events: a card per name, its count today, the spread of its commonest property. */
+.event-card { padding: var(--s-3) var(--s-2); border-bottom: 1px solid var(--glass-line); }
+.event-card .top { display: flex; justify-content: space-between; align-items: baseline; gap: var(--s-2); }
+.event-card .name { font-weight: 700; overflow-wrap: anywhere; }
+.event-card .count { font: 600 var(--fs-l) var(--font-num); transition: color var(--t-base); }
+.event-card .count.pulse { color: var(--accent); }
+.event-card .prop { margin-top: var(--s-1); font-size: var(--fs-xs); color: var(--muted); }
+.event-card .bars { display: grid; grid-template-columns: minmax(0, 7em) 1fr auto; gap: var(--s-1) var(--s-2); align-items: center; margin-top: var(--s-1); }
+.event-card .bars span:nth-child(3n+1) { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text); }
+.event-card .bar { height: 6px; border-radius: 3px; background: var(--bar); width: 0; }
+.event-card .last { margin-top: var(--s-2); font-size: var(--fs-xs); color: var(--muted); }
+.event-card .last b { color: var(--text); font-weight: 600; }
+.events-list .note { font-size: var(--fs-xs); color: var(--muted); padding: var(--s-2); }
+@media (hover: hover) and (pointer: fine) { .visit:hover { background: var(--hover); } .visit:hover .extra { display: block; } .tabs button:not([aria-selected="true"]):hover { color: var(--text); } }
 
 /* Token form */
 .gate { position: fixed; left: 50%; top: 22vh; transform: translateX(-50%); width: min(var(--gate-w), calc(100vw - 2 * var(--s-4))); padding: var(--s-5); }
@@ -116,7 +143,7 @@ input {
 .gate input { flex: 1; min-width: 0; font: inherit; }
 .gate .error { margin-top: var(--s-3); }
 
-/* --- the ledger: a field notebook slid over the snow, ruled every --lh --- */
+/* --- the ledger: a field notebook slid over the bay, ruled every --lh --- */
 .ledger {
   position: fixed; top: 0; right: 0; bottom: 0; width: min(var(--ledger-w), 100vw); overflow-y: auto; overscroll-behavior: contain; z-index: 4;
   padding: var(--s-2) max(var(--s-5), env(safe-area-inset-right)) max(var(--lh), env(safe-area-inset-bottom)) var(--s-6);
@@ -201,7 +228,7 @@ td.n { text-align: right; padding-left: var(--s-3); font-family: var(--font-num)
   .visits.open .fold::after { content: "\25BE"; }
   .visits-head { border-bottom: 0; padding-bottom: var(--s-2); }
   .visits .sub { margin: 0; }
-  .visits:not(.open) .filters, .visits:not(.open) .visits-list, .visits:not(.open) .more { display: none; }
+  .visits:not(.open) .tabs, .visits:not(.open) .tools, .visits:not(.open) .key, .visits:not(.open) .visits-body, .visits:not(.open) > .more { display: none; }
 }
 @media (max-width: 760px) {
   .stats { top: auto; bottom: calc(max(var(--s-4), env(safe-area-inset-bottom)) + var(--tap) + var(--s-2) * 2 + var(--s-3)); left: max(var(--s-4), env(safe-area-inset-left)); justify-content: space-between; padding: var(--s-2) var(--s-4); }

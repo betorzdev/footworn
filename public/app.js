@@ -1,14 +1,14 @@
-/* Footworn's dashboard: the snowfield. One classic script ties the parts together. It asks the
-   token once (kept in localStorage), reads /api/sites and /api/scene for each site, feeds the
-   scene (scene.js), keeps the live socket (live.js) and opens the ledger (ledger.js). The view
-   lives in the query string (`?site=&ledger=1&days=30&event=`), so a link reopens it; the token
-   only ever travels in the hash (`#token=`). `?hour=21` fixes the light, for a preview. */
+/* Footworn's dashboard: the bay. One classic script ties the parts together. It asks the token
+   once (kept in localStorage), reads /api/sites and /api/scene for each site, feeds the scene
+   (city.js), keeps the live socket (live.js) and opens the ledger (ledger.js). The view lives in
+   the query string (`?site=&ledger=1&days=30&event=`), so a link reopens it; the token only ever
+   travels in the hash (`#token=`). */
 (function () {
   'use strict';
   var TOKEN_KEY = 'footworn.token';
   var $ = function (id) { return document.getElementById(id); };
-  var state = { token: null, sites: [], site: null, day: null, buffer: null, started: false, hour: null };
-  var scene = window.FootwornScene;
+  var state = { token: null, sites: [], site: null, day: null, buffer: null, started: false };
+  var scene = window.FootwornCity;
   var touch = !!(window.matchMedia && matchMedia('(hover: none)').matches);
 
   function load(key) { try { return localStorage.getItem(key); } catch (e) { return null; } }
@@ -62,7 +62,8 @@
     unauthorized: function () { showGate('The token stopped working. Paste it again.'); },
     onUrl: syncUrl,
   });
-  var visits = window.FootwornVisits({ siteName: siteName, totals: function (site) { return scene.stats(site); }, onHover: function (h) { scene.highlight(h); } });
+  var visits = window.FootwornVisits({ siteName: siteName, siteColor: function (id) { return scene.siteColor(id); }, laneColor: function (id, ref) { return scene.laneColor(id, ref); },
+    totals: function (site) { return scene.stats(site); }, onHover: function (h) { scene.highlight(h); } });
   state.showVisits = visits.remembered();
   var live = window.FootwornLive({
     ticket: function () { return api('/api/live-ticket').then(function (r) { return r.ticket; }); },
@@ -98,7 +99,6 @@
       if (!state.started) {
         state.started = true;
         scene.init($('scene'), { tip: $('tip'), insets: insets, onEnter: go, onLeave: leave });
-        if (state.hour !== null) scene.setHour(state.hour);
       }
       scene.setSites(sites);
       $('places').innerHTML = sites.map(function (s) {
@@ -116,7 +116,7 @@
     });
   }
 
-  /* Every clearing from /api/scene and every site's visits from /api/visits. Live hits that
+  /* Every district from /api/scene and every site's visits from /api/visits. Live hits that
      arrive meanwhile wait; once the answers are in, each is replayed only where it is newer than
      that answer, so a hit is not drawn or listed twice. A reload started later wins: an older
      one that finishes after it changes nothing. */
@@ -145,10 +145,13 @@
     });
   }
 
-  /* The day's cut, as the API makes it: at UTC midnight the snowfall covers the field. */
+  /* The day's cut, as the API makes it: at UTC midnight the windows go dark and the day starts again. */
   setInterval(function () {
-    if (state.day && utcDay() !== state.day) { state.day = utcDay(); visits.clear(); scene.snowfall(reloadAll); }
+    if (state.day && utcDay() !== state.day) { state.day = utcDay(); visits.clear(); scene.dayCut(reloadAll); }
   }, 15000);
+  /* The used share and the hours come only with /api/scene (`$engaged` never reaches the live
+     socket), so the dashboard left open refreshes them every five minutes. */
+  setInterval(function () { if (state.started && state.token && $('gate').hidden && !document.hidden) reloadAll(); }, 5 * 60 * 1000);
 
   /* --- the view --- */
   function go(id, instant) {
@@ -175,7 +178,7 @@
     $('open-ledger').hidden = !inSite;
     paintPanel();
     $('title').textContent = inSite ? siteName(state.site) : 'Your sites';
-    $('sub').textContent = 'Today · ' + (state.day || utcDay()) + ' UTC · ' + (inSite ? (touch ? 'tap' : 'hover') + ' the prints, stones and gates' : 'pick a clearing');
+    $('sub').textContent = 'Today · ' + (state.day || utcDay()) + ' UTC · ' + (inSite ? (touch ? 'tap' : 'hover') + ' the towers and lanes' : 'pick a district');
     paintStats();
   }
   function paintStats() {
@@ -215,7 +218,7 @@
     if (ledger.isOpen()) closeLedger();
     else if (state.site) leave();
   });
-  /* A window turned from landscape to portrait (or back) gets the valley rearranged. */
+  /* A window turned from landscape to portrait (or back) gets the scene rearranged, if it asks to. */
   var relayout = null;
   window.addEventListener('resize', function () {
     clearTimeout(relayout);
@@ -226,12 +229,11 @@
     }, 300);
   });
 
-  /* `?site=` (and `&ledger=1&days=…&event=…` when the ledger is open), plus `hour=` if it was given. */
+  /* `?site=`, and `&ledger=1&days=…&event=…` when the ledger is open. */
   function syncUrl() {
     var q = [];
     if (state.site) q.push('site=' + encodeURIComponent(state.site));
     if (state.site && ledger.isOpen()) q.push('ledger=1', ledger.query());
-    if (state.hour !== null) q.push('hour=' + state.hour);
     history.replaceState(null, '', location.pathname + (q.length ? '?' + q.join('&') : ''));
   }
 
@@ -250,12 +252,11 @@
   state.site = q.site || null;
   state.ledgerOnBoot = q.ledger === '1';
   ledger.restore(q);
-  if (q.hour !== undefined && q.hour !== '' && !isNaN(q.hour)) state.hour = Math.max(0, Math.min(24, Number(q.hour)));
 
   /* The scheme of the panels and the ledger (the scene keeps its own light): theme.js applied it
      before paint; the button offers the other one. Cosmetic: without theme.js the rest works. */
   var meta = document.querySelector('meta[name="theme-color"]'), theme = window.footwornTheme;
-  if (meta) meta.content = getComputedStyle(document.documentElement).getPropertyValue('--scene-snow').trim();
+  if (meta) meta.content = getComputedStyle(document.documentElement).getPropertyValue('--city-sky-top').trim();
   function other() { return theme.current() === 'dark' ? 'light' : 'dark'; }
   function paintTheme() { var b = $('theme'), o = other(); b.textContent = o === 'dark' ? 'Dark' : 'Light'; b.title = 'Switch the panels to the ' + o + ' scheme'; }
   if (theme) {

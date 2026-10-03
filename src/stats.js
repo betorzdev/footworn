@@ -16,6 +16,15 @@ const DIMS = ['path', 'ref', 'browser', 'os', 'device', 'country', 'lang'];
 const USER = "(event IS NOT NULL AND event NOT LIKE '$%')";
 const ENGAGED = "(event IS '$engaged')";  // IS, not =: 0 on a pageview, never NULL
 
+/* The "used" rate counts only pageviews since the tracker first sent `$engaged` for this site:
+   `loads`. Older pageviews could never have one, and would dilute the rate. Returns the SQL
+   expression; a site that never sent one has no loads, and so no rate. */
+async function loadsSince(db, site) {
+  const first = await db.prepare(`SELECT MIN(day) AS day FROM hits WHERE site = ?1 AND event = '$engaged'`).bind(site).first();
+  const since = first && /^\d{4}-\d{2}-\d{2}$/.test(first.day) ? first.day : '9999-12-31';  // spliced into SQL: a day or nothing
+  return `(event IS NULL AND day >= '${since}')`;
+}
+
 const DAY_MS = 86400000;
 const addDays = (iso, n) => new Date(Date.parse(iso) + n * DAY_MS).toISOString().slice(0, 10);
 
@@ -25,11 +34,7 @@ const addDays = (iso, n) => new Date(Date.parse(iso) + n * DAY_MS).toISOString()
    Sunday) and screen width in 100 px buckets. `previous` is the same totals for the period of
    the same length just before, for the change under each total. */
 export async function stats(db, { site, from, to }) {
-  /* The "used" rate counts only pageviews since the tracker first sent `$engaged` for this site:
-     `loads`. Older pageviews could never have one, and would dilute the rate. */
-  const first = await db.prepare(`SELECT MIN(day) AS day FROM hits WHERE site = ?1 AND event = '$engaged'`).bind(site).first();
-  const since = first && /^\d{4}-\d{2}-\d{2}$/.test(first.day) ? first.day : '9999-12-31';  // spliced into SQL: a day or nothing
-  const LOADS = `(event IS NULL AND day >= '${since}')`;
+  const LOADS = await loadsSince(db, site);
   const where = 'site = ?1 AND day BETWEEN ?2 AND ?3';
   const q = sql => db.prepare(sql).bind(site, from, to);
   const dim = d => d === 'path'
@@ -91,42 +96,44 @@ export async function eventStats(db, { site, name, from, to }) {
   return { site, name, from, to, totals: res[0][0], days: res[1], paths: res[2], props };
 }
 
-/* What the snowfield draws for one site, all of it counts:
-   - `pages`, `refs`: the 30-day top 8 pages (standing stones) and top 5 referrers (gates);
-   - `wear`: 30-day pageviews per (referrer, page), the trodden paths;
-   - `today`: totals, and pageviews and events per page and per referrer;
-   - `yesterday`: visitors yesterday up to this time of day, for the change in the valley;
-   - `recent`: today's last 3 hours in 10-minute blocks per page, referrer, device and first,
-     newest first (past the limit the oldest go), which the page turns back into footprints when
-     it opens. No country here: that only comes with a live hit (src/live.js). */
+/* What the bay draws for one site, all of it counts:
+   - `pages`, `refs`: the 30-day top 8 pages (its towers, in a fixed order) and top 5 referrers
+     (the lanes of its skyline, with elsewhere and direct);
+   - `today`: totals, and per page its pageviews, `loads` and used loads (`engaged`, the used
+     rate is engaged / loads, as in `stats`) and events, and pageviews per referrer;
+   - `live`: pageviews in the last 5 minutes;
+   - `yesterday`: visitors yesterday up to this time of day, for the change on the sign;
+   - `hours`: pageviews by UTC hour, today and yesterday, for the day's rhythm. */
 export async function scene(db, { site, now = Date.now() }) {
   const today = new Date(now).toISOString().slice(0, 10), from = addDays(today, -29), yesterday = addDays(today, -1);
-  const secs = Math.floor(now / 1000);
+  const secs = Math.floor(now / 1000), LOADS = await loadsSince(db, site);
   const month = 'site = ?1 AND day BETWEEN ?2 AND ?3 AND event IS NULL';
   const m = sql => db.prepare(sql).bind(site, from, today);
   const d = sql => db.prepare(sql).bind(site, today);
   const rows = await db.batch([
     m(`SELECT path AS value, COUNT(*) AS hits FROM hits WHERE ${month} GROUP BY path ORDER BY hits DESC LIMIT 8`),
     m(`SELECT ref AS value, COUNT(*) AS hits FROM hits WHERE ${month} AND ref IS NOT NULL GROUP BY ref ORDER BY hits DESC LIMIT 5`),
-    m(`SELECT ref, path, COUNT(*) AS hits FROM hits WHERE ${month} GROUP BY ref, path ORDER BY hits DESC LIMIT 400`),
-    d(`SELECT SUM(event IS NULL) AS hits, SUM(first) AS visitors, SUM(${USER}) AS events FROM hits
-       WHERE site = ?1 AND day = ?2 AND (event IS NULL OR ${USER})`),
-    d(`SELECT path, SUM(event IS NULL) AS hits, SUM(${USER}) AS events FROM hits
-       WHERE site = ?1 AND day = ?2 AND (event IS NULL OR ${USER}) GROUP BY path ORDER BY hits DESC LIMIT 200`),
+    d(`SELECT SUM(event IS NULL) AS hits, SUM(first) AS visitors, SUM(${USER}) AS events, SUM(${LOADS}) AS loads, SUM(${ENGAGED}) AS engaged FROM hits
+       WHERE site = ?1 AND day = ?2`),
+    d(`SELECT path, SUM(event IS NULL) AS hits, SUM(${LOADS}) AS loads, SUM(${ENGAGED}) AS engaged, SUM(${USER}) AS events FROM hits
+       WHERE site = ?1 AND day = ?2 GROUP BY path HAVING hits > 0 OR events > 0 ORDER BY hits DESC LIMIT 200`),
     d(`SELECT ref, COUNT(*) AS hits FROM hits WHERE site = ?1 AND day = ?2 AND event IS NULL GROUP BY ref ORDER BY hits DESC LIMIT 200`),
     db.prepare(`SELECT SUM(first) AS visitors FROM hits WHERE site = ?1 AND day = ?2 AND ts <= ?3 AND event IS NULL`).bind(site, yesterday, secs - 86400),
-    db.prepare(`SELECT (ts / 600) * 600 AS block, path, ref, device, first, COUNT(*) AS hits FROM hits
-                WHERE site = ?1 AND day = ?2 AND ts > ?3 AND event IS NULL
-                GROUP BY block, path, ref, device, first ORDER BY block DESC LIMIT 3000`).bind(site, today, secs - 3 * 3600),
+    db.prepare(`SELECT COUNT(*) AS hits FROM hits WHERE site = ?1 AND day = ?2 AND ts > ?3 AND event IS NULL`).bind(site, today, secs - 300),
+    db.prepare(`SELECT day, CAST(strftime('%H', ts, 'unixepoch') AS INTEGER) AS hour, COUNT(*) AS hits FROM hits
+                WHERE site = ?1 AND day IN (?2, ?3) AND event IS NULL GROUP BY day, hour`).bind(site, today, yesterday),
   ]);
   const res = rows.map(r => r.results || []);
-  const t = res[3][0] || {};
+  const t = res[2][0] || {};
+  const hours = Array.from({ length: 24 }, (_, hour) => ({ hour, today: 0, yesterday: 0 }));
+  for (const r of res[7]) if (r.hour >= 0 && r.hour < 24) hours[r.hour][r.day === today ? 'today' : 'yesterday'] = r.hits;
   return {
     site, day: today, now: secs,
-    pages: res[0], refs: res[1], wear: res[2],
-    today: { hits: t.hits || 0, visitors: t.visitors || 0, events: t.events || 0, pages: res[4], refs: res[5] },
-    yesterday: { visitors: (res[6][0] && res[6][0].visitors) || 0 },
-    recent: res[7],
+    pages: res[0], refs: res[1],
+    today: { hits: t.hits || 0, visitors: t.visitors || 0, events: t.events || 0, loads: t.loads || 0, engaged: t.engaged || 0, pages: res[3], refs: res[4] },
+    live: (res[6][0] && res[6][0].hits) || 0,
+    yesterday: { visitors: (res[5][0] && res[5][0].visitors) || 0 },
+    hours,
   };
 }
 

@@ -112,12 +112,15 @@ try {
 
   // The snowfield's read: counts only, no list of hits.
   const sc = await api('/api/scene?site=one');
-  assert.deepEqual([sc.today.hits, sc.today.visitors, sc.today.events], [4, 3, 3], 'scene totals');
-  assert.deepEqual(sc.pages.map(p => [p.value, p.hits]), [['/', 3], ['/map/', 1]], 'scene stones');
-  assert.deepEqual(sc.refs.map(r => r.value).sort(), ['discord', 'reddit.com'], 'scene gates');
-  assert.deepEqual(sc.today.pages.map(p => [p.path, p.hits, p.events]).sort(), [['/', 3, 2], ['/map/', 1, 1]], 'scene today by page');
-  assert.equal(sc.recent.reduce((n, r) => n + r.hits, 0), 4, 'scene recent footprints');
-  assert.ok(sc.recent.every(r => !('country' in r)), 'no country in the aggregate');
+  assert.deepEqual([sc.today.hits, sc.today.visitors, sc.today.events, sc.today.loads, sc.today.engaged], [4, 3, 3, 4, 1], 'scene totals');
+  assert.deepEqual(sc.pages.map(p => [p.value, p.hits]), [['/', 3], ['/map/', 1]], 'scene towers');
+  assert.deepEqual(sc.refs.map(r => r.value).sort(), ['discord', 'reddit.com'], 'scene lanes');
+  assert.deepEqual(sc.today.pages.map(p => [p.path, p.hits, p.loads, p.engaged, p.events]).sort(), [['/', 3, 3, 1, 2], ['/map/', 1, 1, 0, 1]], 'scene today by page');
+  assert.equal(sc.live, 4, 'scene live: the last 5 minutes');
+  assert.equal(sc.hours.length, 24, 'scene hours');
+  assert.equal(sc.hours.reduce((n, h) => n + h.today, 0), 4, 'scene hours sum to today');
+  assert.ok(!('recent' in sc) && !('wear' in sc), 'no footprints any more');
+  assert.ok(JSON.stringify(sc).indexOf('country') < 0, 'no country in the aggregate');
 
   // Today's visits, one by one, rounded: the minute, never the second or the width.
   const vs = await api('/api/visits?site=one');

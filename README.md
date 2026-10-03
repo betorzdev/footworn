@@ -2,7 +2,7 @@
 
 <p align="center">
   A visit counter for static sites that sets no cookies, keeps no IP and needs no consent banner.<br>
-  One Cloudflare Worker on the free plan: the collector, a 1&nbsp;KB tracker, a D1 database, a JSON API and a live dashboard where every visit leaves footprints in the snow.
+  One Cloudflare Worker on the free plan: the collector, a 1&nbsp;KB tracker, a D1 database, a JSON API and a live dashboard: a bay at night where every site is a district and every visit a light on the shore.
 </p>
 
 <p align="center">
@@ -12,9 +12,9 @@
   <img alt="Cloudflare Workers, free plan" src="https://img.shields.io/badge/Cloudflare_Workers-free_plan-4a5a4e">
 </p>
 
-<img alt="The Footworn valley: three sites as clearings in a snowy pine forest seen as a diorama. Each clearing shows its name, visitors today, how many came in the last five minutes and the change against yesterday; lines of footprints run from the gates on its edge to standing stones, and the busiest paths are trodden into the snow." src="docs/screenshots/valley.png">
+<img alt="The Footworn bay at night: three sites as districts on the shore, their towers reflected in the water. Each district has a sign with its name, visitors today, how many came in the last five minutes, the share of loads used and the change against yesterday; a light runs along the shore road into one of them, and a card shows today's pageviews by hour against yesterday." src="docs/screenshots/bay.png">
 
-<p align="center"><sub>The valley: one clearing per site, live. Click one to walk in.</sub></p>
+<p align="center"><sub>The bay: one district per site, every page a tower, all on one scale, live. Click one to look closer.</sub></p>
 
 ## Why
 
@@ -22,10 +22,10 @@
   keep without consent (Spain’s LSSI 22.2 as the AEPD reads it, the CNIL’s line). No cookies, no
   storage in the browser, no IP, no User-Agent, no fingerprint. [`docs/privacy.md`](docs/privacy.md)
   maps every stored column to that list.
-- **A glance, and a show.** Every visit arrives as a line of footprints, the moment it is
-  counted: from the gate of the site it came from to the stone of the page it opened. The
-  ledger beside it has the plain numbers: totals with their change, a day chart, when people
-  come and on what screens, the top of each dimension.
+- **A glance, and a show.** The busiest site is the tallest district; the busiest page, the
+  tallest tower; warm windows are the loads that were used. Every visit arrives as a light the
+  moment it is counted. The ledger beside it has the plain numbers: totals with their change, a
+  day chart, when people come and on what screens, the top of each dimension.
 - **Events with properties.** `footworn.event('screen', { view: 'combat', lang: 'es' })` and the
   dashboard breaks it down by day, by page and by each property.
 - **Free and tiny.** The Workers Free plan has room for about 50 000 pageviews a day. The
@@ -36,29 +36,28 @@
 
 ## What you see
 
-**A site, up close.** Each page with traffic is a standing stone, sized by its last 30 days.
-Referrers are gates on the edge of the clearing (the top five, then *elsewhere*; *direct* comes
-in at the bottom). Every pageview walks from its gate to its stone: a deep print for the first
-page of a visitor's day, a light one for the next; bare feet on a phone, trainers on a tablet,
-boots on a desktop. An event adds a stone to the page's cairn. Paths used for weeks stay packed
-under the fresh snow; footprints are covered in about three hours, and at UTC midnight (the
-day's cut) a snowfall clears the field. Hover, or tap, a stone, a gate or a print for its numbers.
+**A site, up close.** Click a district and the camera closes in on its skyline: a tower per
+page (the 30-day top 8, and *other pages*), from today's busiest to its quietest, its height
+today's pageviews and the sign on its roof the count. The windows are lit warm from the ground
+up for the share of loads where the page was *used* (a tap, a key or 10 s in view), cool for the
+rest, and a tick on the side gives that share. On the street, a lane per referrer (the top five,
+then *elsewhere* and *direct*) with today's arrivals. Every pageview is a car that drives its
+lane to its tower, with a trail in the lane's colour; every event, a searchlight over the roof.
+Hover, or tap, a tower or a lane for its numbers. At UTC midnight (the day's cut) the windows go
+dark from the top down and the day starts again.
 
-![Hallownest up close in the afternoon: stones for each page with today's pageviews and events, gates for google.com, reddit.com, steamcommunity.com, youtube.com and twitter.com with their arrivals, trails of footprints between them, cairns of event stones, pines casting long shadows.](docs/screenshots/site.png)
+![Hallownest up close: towers for each page from busiest to quietest, warm windows below and cool ones above with the used share on a tick, signs with today's pageviews on the roofs, lanes for google.com, reddit.com, steamcommunity.com, bing.com, youtube.com, elsewhere and direct with their counts, a searchlight over /charms/ for an event, the towers reflected in the wet street.](docs/screenshots/site.png)
 
-**Today's visits, one by one.** A panel beside the scene lists the day's visits as they walk
-in, newest first: the minute, the country, the page and where it came from, phone, tablet or
-desktop, browser and system, language, and for an event its properties. Filter by first pages,
-events or phones; point at a row and the scene rings its stone and its gate. Rounded on purpose,
-so a row is never a fingerprint (no width, no second, nothing joining two rows), and gone at UTC
-midnight with the snowfall.
+**Today, one by one.** A panel beside the scene, in two tabs. *Visits* lists the day's
+pageviews as they come in, newest first, and makes a visit (the first page of someone's day)
+stand out: its referrer's lane colour, the page, where it came from, the country and the device;
+another page steps back, and *Only visits* hides those. Point at a row for its browser, system
+and language, and the scene rings its tower and its lane. *Events* has a card per event with
+today's count, the spread of its commonest property and when it last happened. Rounded on
+purpose, so a row is never a fingerprint (no width, no second, nothing joining two rows, so a
+page is never hung under a visit), and gone at UTC midnight.
 
-![The visits panel beside a clearing: rows of today's visits, each with its time, flag, page, referrer and chips for first page, device, browser and system and language; one row is pointed at and its stone and gate are ringed in red.](docs/screenshots/visits.png)
-
-**Lit by your clock.** The sun moves the shadows through the day and sets the snow gold at dusk;
-at night fresh prints keep a little light, and a visitor walking in carries it.
-
-![Pharloom at night: blue moonlit snow, two glowing lines of fresh footprints arriving from google.com and reddit.com.](docs/screenshots/night.png)
+![The panel beside a skyline, on its Visits tab: visits in bold with a dot in their referrer's lane colour, the page, the referrer, a flag and a device mark; other pages in a lighter, lower row with a hollow dot. One row is pointed at and its tower is lit.](docs/screenshots/visits.png)
 
 **The ledger.** A drawer with the numbers behind the scene, for any range: totals with their
 change, pageviews and visitors by day, by hour or weekday, screen widths, the top 30 of each
@@ -68,14 +67,13 @@ event opened with its pages and properties. Every chart has its numbers in a tab
 which makes the ledger the scene's text alternative too. The view lives in the URL:
 `/?site=your-site&ledger=1&days=30&event=screen` is a link straight to it.
 
-![The ledger open beside the clearing: a week's totals, pageviews as bars and visitors as a red line by day, pageviews by weekday and by screen width.](docs/screenshots/ledger.png)
+![The ledger open beside the skyline: a week's totals, pageviews as bars and visitors as a red line by day, pageviews by weekday and by screen width.](docs/screenshots/ledger.png)
 
-**On a phone.** The valley stacks its clearings; drag to look around, pinch to zoom, tap for the
-numbers. The panels and the ledger follow the system's light or dark scheme, and the Dark/Light
+**On a phone.** The shore scrolls sideways when the districts don't fit; tap for the numbers. The panels and the ledger follow the system's light or dark scheme, and the Dark/Light
 button overrides it.
 
 <p align="center">
-  <img alt="The valley on a 390 px phone in the morning: three clearings stacked, the totals and the site buttons at the bottom." src="docs/screenshots/phone.png" width="300">
+  <img alt="The bay on a 390 px phone: three districts with their signs, the totals and the site buttons at the bottom." src="docs/screenshots/phone.png" width="300">
 </p>
 
 ## Wire a site
@@ -144,8 +142,8 @@ npm run dev                           # http://localhost:8787
 - `/demo` fires a pageview and has buttons for events.
 - `/` is the dashboard. Paste the token from `.dev.vars`, or open `/#token=…` once: it’s saved in
   the browser and the URL is cleaned. The view lives in the query, so `/?site=<id>` or
-  `/?site=<id>&ledger=1&from=…&to=…&event=<name>` is a link to it; `&hour=21` fixes the light,
-  to see the scene at another time of day. Keep `/demo` open in another tab to watch the hits walk in.
+  `/?site=<id>&ledger=1&from=…&to=…&event=<name>` is a link to it. Keep `/demo` open in another
+  tab to watch the hits come in.
 - `/privacy` is the public notice.
 - `curl http://localhost:8787/cdn-cgi/local/scheduled` runs the nightly cron by hand.
 
@@ -200,7 +198,7 @@ the width, no id), live and as the day's history; earlier days are only counts. 
 | | |
 |---|---|
 | `GET /api/sites` | `[{ id, name }]` |
-| `GET /api/scene?site=` | what the snowfield draws, all counts: `pages` and `refs` (30-day top 8 and top 5, `[{ value, hits }]`), `wear: [{ ref, path, hits }]` (30 days), `today: { hits, visitors, events, pages: [{ path, hits, events }], refs: [{ ref, hits }] }`, `yesterday: { visitors }` up to this time of day, and `recent: [{ block, path, ref, device, first, hits }]`, today's last 3 hours in 10-minute blocks |
+| `GET /api/scene?site=` | what the bay draws, all counts: `pages` and `refs` (30-day top 8 and top 5, `[{ value, hits }]`), `today: { hits, visitors, events, loads, engaged, pages: [{ path, hits, loads, engaged, events }], refs: [{ ref, hits }] }` (the used rate is `engaged / loads`, as in `/api/stats`), `live` (pageviews in the last 5 minutes), `yesterday: { visitors }` up to this time of day, and `hours: [{ hour, today, yesterday }]`, pageviews by UTC hour |
 | `GET /api/visits?site=` | today's visits (UTC), newest first, at most 2000, rounded: `{ day, now, visits: [{ minute, path, ref, device, browser, os, lang, country, first, event, props }] }`. Never the width, the second or an id |
 | `GET /api/live-ticket` | `{ ticket }`, good for 60 s, to open the live socket |
 | `GET /live?ticket=` | WebSocket: one JSON message per counted hit, `{ site, t, path, ref, device, browser, os, lang, first, country, event, props }`; send `ping`, get `pong` |
@@ -219,7 +217,7 @@ src/stats.js      the API's queries
 src/live.js       the live view: what a live message carries, and the Live Durable Object that relays it
 src/ticket.js     the live socket's 60-second ticket
 src/auth.js       the bearer check
-public/           footworn.js, the dashboard (index.html, app.js, scene.js, live.js, ledger.js, theme.js, style.css, tokens.css), privacy, demo,
+public/           footworn.js, the dashboard (index.html, app.js, city.js, live.js, ledger.js, theme.js, style.css, tokens.css), privacy, demo,
                   _headers (nosniff and no-referrer everywhere; the dashboard's CSP: no inline code, no framing)
 migrations/       the D1 schema
 test/             node --test

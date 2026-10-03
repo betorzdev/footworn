@@ -12,7 +12,7 @@
 </head>
 <body class="field">
 <a class="skip" href="#places">Skip to the sites</a>
-<canvas id="scene" role="img" aria-label="A snowfield where every visit leaves footprints"></canvas>
+<canvas id="scene" role="img" aria-label="A bay at night: every site a district, every page a tower"></canvas>
 
 <section id="gate" class="gate glass" hidden>
   <h1>Footworn</h1>
@@ -27,7 +27,7 @@
 
 <div id="ui" hidden>
   <header class="hud glass">
-    <button class="btn" id="back" type="button" hidden aria-label="Back to the valley">← Valley</button>
+    <button class="btn" id="back" type="button" hidden aria-label="Back to all sites">← All sites</button>
     <div class="who">
       <p class="eyebrow">Footworn</p>
       <h1 id="title">Your sites</h1>
@@ -52,16 +52,21 @@
 
   <aside id="visits" class="visits glass" aria-labelledby="visits-title" hidden>
     <header class="visits-head">
-      <h2 id="visits-title"><button type="button" id="visits-fold" class="fold" aria-expanded="false" aria-controls="visits-list"><i aria-hidden="true"></i>Today’s visits</button></h2>
-      <p id="visits-count" class="sub">–</p>
-      <div class="filters" id="visits-filters" role="group" aria-label="Show">
-        <button type="button" aria-pressed="true" data-f="all">All</button>
-        <button type="button" aria-pressed="false" data-f="first">First pages</button>
-        <button type="button" aria-pressed="false" data-f="events">Events</button>
-        <button type="button" aria-pressed="false" data-f="phones">Phones</button>
+      <h2 id="visits-title"><button type="button" id="visits-fold" class="fold" aria-expanded="false" aria-controls="visits-body"><i aria-hidden="true"></i>Today</button></h2>
+      <div class="tabs" id="visits-tabs" role="tablist" aria-label="Show">
+        <button type="button" role="tab" id="tab-visits" data-tab="visits" aria-controls="visits-list" aria-selected="true">Visits <b class="num" id="n-visits">–</b></button>
+        <button type="button" role="tab" id="tab-events" data-tab="events" aria-controls="events-list" aria-selected="false" tabindex="-1">Events <b class="num" id="n-events">–</b></button>
       </div>
+      <div class="tools" id="visits-tools">
+        <p id="visits-count" class="sub">–</p>
+        <label class="switch"><input type="checkbox" id="only-visits" name="only-visits"> Only visits</label>
+      </div>
+      <p class="key" id="visits-key"><span class="dot" aria-hidden="true"></span>visit: first page of someone’s day <span class="dot hollow" aria-hidden="true"></span>another page</p>
     </header>
-    <ol id="visits-list" class="visits-list" role="log" aria-label="Today’s visits, newest first"></ol>
+    <div class="visits-body" id="visits-body">
+      <ol id="visits-list" class="visits-list" role="tabpanel" aria-labelledby="tab-visits"></ol>
+      <div id="events-list" class="events-list" role="tabpanel" aria-labelledby="tab-events" hidden></div>
+    </div>
     <button type="button" class="btn more" id="visits-more" hidden>Show more</button>
   </aside>
 
@@ -109,7 +114,7 @@
 
 <div id="tip" class="tip glass" role="tooltip" hidden></div>
 
-<script src="scene.js"></script>
+<script src="city.js"></script>
 <script src="live.js"></script>
 <script src="ledger.js"></script>
 <script src="visits.js"></script>

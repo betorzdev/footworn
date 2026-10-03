@@ -33,7 +33,7 @@ ever stored. `docs/privacy.md` maps every stored column to the AEPD's list.
 ## Operating Context
 
 Deployed at `footworn.<account>.workers.dev`. The dashboard (`public/index.html`, `app.js`) asks
-for the admin token once, keeps it in `localStorage`, reads `/api/scene` for the snowfield and
+for the admin token once, keeps it in `localStorage`, reads `/api/scene` for the bay and
 `/api/stats` and `/api/event` for the ledger, and listens on `/live` (a WebSocket relayed by the
 `Live` Durable Object, opened with a 60-second ticket). The view lives in the query string, so a
 URL is a bookmark to a site, the open ledger, its range and an open event.
@@ -41,16 +41,23 @@ URL is a bookmark to a site, the open ledger, its range and an open event.
 
 ## Capabilities and Constraints
 
-- The snowfield (since 2026-10-03, replacing the ledger-pad page): a valley with one clearing
-  per site, then each site up close, live. Pages are standing stones (30-day top 8), referrers
-  gates (top 5, elsewhere, direct), each pageview a line of footprints (deep for `first`, shaped
-  by device), events stones on a cairn, 30-day traffic as trodden paths; lit by the viewer's
-  clock, cleared by a snowfall at UTC midnight. A 2D canvas, option B "Diorama" of the design
-  study (tilted camera, shadows).
-- Today's visits, one by one (since 2026-10-03): a panel beside the scene (a sheet on a phone),
-  newest first, live, rounded so a row is not a fingerprint (the minute, the device class,
-  families; no width, no second, no id), empty at UTC midnight. Pointing at a row rings its
-  stone and gate in the scene.
+- The bay (since 2026-10-03, replacing the snowfield, which read as unclear): a night bay seen
+  from the front, one district per site with a tower per page (30-day top 8, plus other pages),
+  heights today's pageviews on one scale for every site, warm windows from the ground up for the
+  share of loads used (`$engaged`), cool for the rest; a sign per district (visitors, live, used,
+  change against yesterday); every live hit a light on the shore road. Clicking a district zooms
+  into its skyline: towers from busiest to quietest, a lane per referrer (top 5, elsewhere,
+  direct), every hit a car with a trail, every event a searchlight. Rain, reflections, always
+  night; at UTC midnight the windows go dark. A 2D canvas (`public/city.js`). The rule behind it,
+  from three rounds of design options: atmosphere in the light, a chart's structure in the forms
+  (front views so heights compare as bars, only data objects in focus, a number beside each).
+- Today, one by one (since 2026-10-03; two tabs since the same day, the single list read as
+  confusing): a panel beside the scene (a sheet on a phone). *Visits*: newest first, live, a
+  visit (`first`) in bold with its referrer's lane colour, another page a lighter row, *Only
+  visits* to hide those; *Events*: a card per name with its count, the spread of its commonest
+  property and the last time. Rounded so a row is not a fingerprint (the minute, the device class,
+  families; no width, no second, no id), never joining a page to a visit, empty at UTC midnight.
+  Pointing at a row rings its tower and lane in the scene.
 - The ledger, a drawer over it, per site and range (1, 7, 30, 90 days or custom): totals
   (visitors, pageviews, events), a day chart (pageviews as bars, visitors as a line), hour or
   weekday and screen-width profiles, and top-30 tables for pages, referrers, events, countries,

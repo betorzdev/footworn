@@ -1,4 +1,4 @@
-/* The ledger: a drawer of plain numbers over the snowfield, for the site on screen. Totals with
+/* The ledger: a drawer of plain numbers over the bay, for the site on screen. Totals with
    their rates, the day chart, the hour or weekday and screen-width profiles, a table per
    dimension and the detail of one event, all read from /api/stats and /api/event. It is also the
    scene's text alternative: every count the canvas draws is here as a table. Charts are inline
