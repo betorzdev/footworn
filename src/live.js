@@ -3,7 +3,10 @@
    WebSocket Hibernation API, so an idle connection costs nothing. It stores nothing: a hit is
    relayed and forgotten. What a message may carry is `liveMessage`, and docs/privacy.md says why. */
 
-/* The fields of a hit the live view sends: never browser, os, width, lang or an event's props. */
+/* The fields of a hit the live view sends: the same as a row of today's visits (`visits` in
+   src/stats.js), so a live row and a reloaded one read alike. Never the width; the second is in
+   `t` because the page needs it to tell a live hit from one already counted, and it shows only
+   the minute (the message's own arrival tells the second anyway). */
 export function liveMessage(hit) {
   return {
     site: hit.site,
@@ -11,9 +14,13 @@ export function liveMessage(hit) {
     path: hit.path,
     ref: hit.ref,
     device: hit.device,
+    browser: hit.browser,
+    os: hit.os,
+    lang: hit.lang,
     first: hit.first ? 1 : 0,
     country: hit.country,
     event: hit.event,
+    props: hit.event ? hit.props : null,
   };
 }
 

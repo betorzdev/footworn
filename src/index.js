@@ -5,7 +5,7 @@
 import { makeHit, originAllowed } from './collect.js';
 import { firstToday, rotateSalt } from './visitor.js';
 import { authorized } from './auth.js';
-import { sites, stats, eventStats, scene } from './stats.js';
+import { sites, stats, eventStats, scene, visits } from './stats.js';
 import { publish } from './live.js';
 import { makeTicket, checkTicket } from './ticket.js';
 
@@ -100,6 +100,7 @@ async function api(request, env, url) {
   if (!site) return json({ error: 'site' }, 400);
   if (url.pathname === '/api/stats') return json(await stats(env.DB, { site, ...range(url) }));
   if (url.pathname === '/api/scene') return json(await scene(env.DB, { site }));
+  if (url.pathname === '/api/visits') return json(await visits(env.DB, { site }));
   if (url.pathname === '/api/event') {
     const name = url.searchParams.get('name');
     if (!name) return json({ error: 'name' }, 400);

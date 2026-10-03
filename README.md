@@ -46,6 +46,15 @@ day's cut) a snowfall clears the field. Hover, or tap, a stone, a gate or a prin
 
 ![Hallownest up close in the afternoon: stones for each page with today's pageviews and events, gates for google.com, reddit.com, steamcommunity.com, youtube.com and twitter.com with their arrivals, trails of footprints between them, cairns of event stones, pines casting long shadows.](docs/screenshots/site.png)
 
+**Today's visits, one by one.** A panel beside the scene lists the day's visits as they walk
+in, newest first: the minute, the country, the page and where it came from, phone, tablet or
+desktop, browser and system, language, and for an event its properties. Filter by first pages,
+events or phones; point at a row and the scene rings its stone and its gate. Rounded on purpose,
+so a row is never a fingerprint (no width, no second, nothing joining two rows), and gone at UTC
+midnight with the snowfall.
+
+![The visits panel beside a clearing: rows of today's visits, each with its time, flag, page, referrer and chips for first page, device, browser and system and language; one row is pointed at and its stone and gate are ringed in red.](docs/screenshots/visits.png)
+
 **Lit by your clock.** The sun moves the shadows through the day and sets the snow gold at dusk;
 at night fresh prints keep a little light, and a visitor walking in carries it.
 
@@ -166,8 +175,8 @@ Durable Object (the `[[migrations]]` in `wrangler.toml`). Retention is `RETENTIO
 | `first` | the daily visitor flag: a count, not an identifier |
 
 Not stored, ever: cookies, local storage, IP, User-Agent, any hash or id, any sequence of pages
-one person saw. The live view relays each counted hit to the open dashboards (path, referrer host,
-device, first, country, event name) and keeps none of it. `/privacy` is the notice a host site links to;
+one person saw. Today's visits are listed one by one, rounded (the minute, the device class, never
+the width, no id), live and as the day's history; earlier days are only counts. `/privacy` is the notice a host site links to;
 [`docs/privacy.md`](docs/privacy.md) is the full record, and it changes together with the schema.
 
 <p align="center">
@@ -182,8 +191,9 @@ device, first, country, event name) and keeps none of it. `/privacy` is the noti
 |---|---|
 | `GET /api/sites` | `[{ id, name }]` |
 | `GET /api/scene?site=` | what the snowfield draws, all counts: `pages` and `refs` (30-day top 8 and top 5, `[{ value, hits }]`), `wear: [{ ref, path, hits }]` (30 days), `today: { hits, visitors, events, pages: [{ path, hits, events }], refs: [{ ref, hits }] }`, `yesterday: { visitors }` up to this time of day, and `recent: [{ block, path, ref, device, first, hits }]`, today's last 3 hours in 10-minute blocks |
+| `GET /api/visits?site=` | today's visits (UTC), newest first, at most 2000, rounded: `{ day, now, visits: [{ minute, path, ref, device, browser, os, lang, country, first, event, props }] }`. Never the width, the second or an id |
 | `GET /api/live-ticket` | `{ ticket }`, good for 60 s, to open the live socket |
-| `GET /live?ticket=` | WebSocket: one JSON message per counted hit, `{ site, t, path, ref, device, first, country, event }`; send `ping`, get `pong` |
+| `GET /live?ticket=` | WebSocket: one JSON message per counted hit, `{ site, t, path, ref, device, browser, os, lang, first, country, event, props }`; send `ping`, get `pong` |
 | `GET /api/stats?site=&from=&to=` | `{ totals: { hits, visitors, events }, days: [{ day, hits, visitors, events }], path, ref, browser, os, device, country, lang, events }`, each dimension `[{ value, hits, visitors }]`, top 30. Also `hours: [{ hour, hits }]` (UTC), `weekdays: [{ weekday, hits }]` (0 is Sunday), `widths: [{ bucket, hits }]` (100 px buckets, pageviews only) and `previous: { from, to, hits, visitors, events }`, the totals of the period of the same length just before. |
 | `GET /api/event?site=&name=&from=&to=` | `{ totals, days, paths, props: { key: [{ value, hits }] } }` |
 | `POST /c` | what the tracker sends: `{ s, p, r, w, l, e?, props? }`, under 8 KB; always `204` |

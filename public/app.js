@@ -62,22 +62,30 @@
     unauthorized: function () { showGate('The token stopped working. Paste it again.'); },
     onUrl: syncUrl,
   });
+  var visits = window.FootwornVisits({ siteName: siteName, totals: function (site) { return scene.stats(site); }, onHover: function (h) { scene.highlight(h); } });
+  state.showVisits = visits.remembered();
   var live = window.FootwornLive({
     ticket: function () { return api('/api/live-ticket').then(function (r) { return r.ticket; }); },
-    onMessage: function (msg) { if (state.buffer) state.buffer.push(msg); else scene.live(msg); },
+    onMessage: function (msg) { if (state.buffer) state.buffer.push(msg); else { scene.live(msg); visits.live(msg); } },
     onState: paintLive,
     onResume: reloadAll,
   });
 
-  /* The panels' room at the top and bottom of the window, so the scene frames what they leave free. */
+  /* The panels' room at the top, bottom and right of the window, so the scene frames what they leave free. */
   function insets() {
-    var top = 16, bottom = 16, mid = window.innerHeight / 2;
+    var top = 16, bottom = 16, right = 0, W = window.innerWidth, H = window.innerHeight;
     ['.hud', '.stats', '.dock'].forEach(function (sel) {
       var r = document.querySelector(sel).getBoundingClientRect(); if (!r.height) return;
-      if (r.top + r.height / 2 < mid) top = Math.max(top, r.bottom); else bottom = Math.max(bottom, window.innerHeight - r.top);
+      if (r.top + r.height / 2 < H / 2) top = Math.max(top, r.bottom); else bottom = Math.max(bottom, H - r.top);
     });
-    /* An open ledger takes the right of a wide window; the clearing moves into what is left. */
-    var led = $('ledger'), right = !led.hidden && led.offsetWidth < window.innerWidth ? led.offsetWidth : 0;
+    /* An open ledger, or the visits panel, takes the right of a wide window; on a phone the
+       panel is a sheet at the bottom. */
+    var led = $('ledger'), vis = $('visits');
+    if (!led.hidden && led.offsetWidth < W) right = led.offsetWidth;
+    else if (!vis.hidden) {
+      var v = vis.getBoundingClientRect();
+      if (v.height > H / 2 && v.left > W * .4) right = W - v.left; else bottom = Math.max(bottom, H - v.top);
+    }
     return { top: top + 12, bottom: bottom + 12, right: right };
   }
 
@@ -86,7 +94,7 @@
       $('gate-form').querySelector('button').disabled = false;
       save(TOKEN_KEY, state.token);
       state.sites = sites;
-      $('gate').hidden = true; $('ui').hidden = false;
+      $('gate').hidden = true; $('ui').hidden = false; paintPanel();
       if (!state.started) {
         state.started = true;
         scene.init($('scene'), { tip: $('tip'), insets: insets, onEnter: go, onLeave: leave });
@@ -108,22 +116,28 @@
     });
   }
 
-  /* Every clearing from /api/scene. Live hits that arrive meanwhile wait; once the counts are in,
-     only the ones newer than their own site's answer are replayed, so a hit is not drawn twice.
-     A reload started later wins: an older one that finishes after it changes nothing. */
+  /* Every clearing from /api/scene and every site's visits from /api/visits. Live hits that
+     arrive meanwhile wait; once the answers are in, each is replayed only where it is newer than
+     that answer, so a hit is not drawn or listed twice. A reload started later wins: an older
+     one that finishes after it changes nothing. */
   var generation = 0;
   function reloadAll() {
     if (!state.sites.length) return Promise.resolve();
     var mine = ++generation;
     state.buffer = [];
     return Promise.all(state.sites.map(function (s) {
-      return api('/api/scene?site=' + encodeURIComponent(s.id)).then(function (d) { return { id: s.id, data: d }; });
+      var q = '?site=' + encodeURIComponent(s.id);
+      return Promise.all([api('/api/scene' + q), api('/api/visits' + q)]).then(function (d) { return { id: s.id, scene: d[0], visits: d[1] }; });
     })).then(function (answers) {
       if (mine !== generation) return;
-      var asOf = {}, held = state.buffer || [];
-      answers.forEach(function (a) { scene.load(a.id, a.data); asOf[a.id] = a.data.now; });
+      var sceneAt = {}, listAt = {}, held = state.buffer || [];
+      answers.forEach(function (a) { scene.load(a.id, a.scene); sceneAt[a.id] = a.scene.now; listAt[a.id] = a.visits.now; });
+      visits.set(answers.map(function (a) { return a.visits; }));
       state.buffer = null; state.day = utcDay();
-      held.forEach(function (m) { if (asOf[m.site] !== undefined && m.t > asOf[m.site]) scene.live(m); });
+      held.forEach(function (m) {
+        if (sceneAt[m.site] !== undefined && m.t > sceneAt[m.site]) scene.live(m);
+        if (listAt[m.site] !== undefined && m.t >= listAt[m.site]) visits.live(m, m.t === listAt[m.site]);
+      });
       showError(null); paintView();
     }).catch(function (e) {
       if (mine !== generation) return;
@@ -133,12 +147,13 @@
 
   /* The day's cut, as the API makes it: at UTC midnight the snowfall covers the field. */
   setInterval(function () {
-    if (state.day && utcDay() !== state.day) { state.day = utcDay(); scene.snowfall(reloadAll); }
+    if (state.day && utcDay() !== state.day) { state.day = utcDay(); visits.clear(); scene.snowfall(reloadAll); }
   }, 15000);
 
   /* --- the view --- */
   function go(id, instant) {
     state.site = id;
+    visits.view(id);
     scene.enter(id, instant);
     paintView(); syncUrl();
     $('back').focus({ preventScroll: true });
@@ -146,6 +161,7 @@
   function leave() {
     if (ledger.isOpen()) ledger.close();
     var was = state.site; state.site = null;
+    visits.view(null); paintPanel();
     scene.leave();
     paintView(); syncUrl();
     var b = was && $('places').querySelector('[data-id="' + was.replace(/["\\]/g, '\\$&') + '"]');
@@ -157,6 +173,7 @@
     $('back').hidden = !inSite;
     $('places').hidden = inSite;
     $('open-ledger').hidden = !inSite;
+    paintPanel();
     $('title').textContent = inSite ? siteName(state.site) : 'Your sites';
     $('sub').textContent = 'Today · ' + (state.day || utcDay()) + ' UTC · ' + (inSite ? (touch ? 'tap' : 'hover') + ' the prints, stones and gates' : 'pick a clearing');
     paintStats();
@@ -179,8 +196,18 @@
 
   $('places').addEventListener('click', function (e) { var b = e.target.closest('button.place'); if (b) go(b.dataset.id); });
   $('back').addEventListener('click', leave);
-  function openLedger() { ledger.open(state.site); syncUrl(); scene.refit(true); $('close-ledger').focus({ preventScroll: true }); }
-  function closeLedger() { ledger.close(); scene.refit(true); $('open-ledger').focus({ preventScroll: true }); }
+  function openLedger() { ledger.open(state.site); paintPanel(); syncUrl(); scene.refit(true); $('close-ledger').focus({ preventScroll: true }); }
+  function closeLedger() { ledger.close(); paintPanel(); scene.refit(true); $('open-ledger').focus({ preventScroll: true }); }
+  /* The visits panel: shown unless the reader put it away (remembered), and never under the ledger. */
+  function paintPanel() {
+    $('visits').hidden = !state.showVisits || ledger.isOpen();
+    $('toggle-visits').setAttribute('aria-pressed', String(!!state.showVisits));
+  }
+  $('toggle-visits').addEventListener('click', function () {
+    state.showVisits = !state.showVisits; visits.remember(state.showVisits);
+    if (!state.showVisits) scene.highlight(null);
+    paintPanel(); scene.refit(true);
+  });
   $('open-ledger').addEventListener('click', openLedger);
   $('close-ledger').addEventListener('click', closeLedger);
   document.addEventListener('keydown', function (e) {

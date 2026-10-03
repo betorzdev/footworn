@@ -79,7 +79,7 @@
   /* ---------- the valley ---------- */
   /* As many columns as frame the valley biggest in this window: a row on a laptop, a column on a phone. */
   function bestCols(n) {
-    var best = 1, bz = 0, w = Math.max(1, cv.clientWidth), h = Math.max(1, cv.clientHeight);
+    var ins = opts && opts.insets ? opts.insets() : { right: 0 }, best = 1, bz = 0, w = Math.max(1, cv.clientWidth - (ins.right || 0)), h = Math.max(1, cv.clientHeight);
     for (var c = 1; c <= Math.max(1, n); c++) {
       var r = Math.ceil(n / c), z = Math.min(w / (c * GAP), h / ((r * GAP * .85 + 300) * TILT));
       if (z > bz * 1.05) { bz = z; best = c; }
@@ -293,9 +293,9 @@
     var minx = Infinity, miny = Infinity, maxx = -Infinity, maxy = -Infinity;
     sites.forEach(function (s) { minx = Math.min(minx, s.x - s.r - 80); miny = Math.min(miny, s.y - s.r - 150); maxx = Math.max(maxx, s.x + s.r + 80); maxy = Math.max(maxy, s.y + s.r + 60); });
     if (!sites.length) return { x: W / 2, y: H / 2, z: .5 };
-    var top = opts.insets ? opts.insets() : { top: 100, bottom: 100 };
-    var z = Math.min((VW - 32) / (maxx - minx), (VH - top.top - top.bottom) / ((maxy - miny) * TILT));
-    return { x: (minx + maxx) / 2, y: (miny + maxy) / 2 - (top.top - top.bottom) / 2 / (z * TILT), z: clamp(z, .12, 1.6) };
+    var top = opts.insets ? opts.insets() : { top: 100, bottom: 100, right: 0 }, right = top.right || 0;
+    var z = clamp(Math.min((VW - right - 32) / (maxx - minx), (VH - top.top - top.bottom) / ((maxy - miny) * TILT)), .12, 1.6);
+    return { x: (minx + maxx) / 2 + right / 2 / z, y: (miny + maxy) / 2 - (top.top - top.bottom) / 2 / (z * TILT), z: z };
   }
   function fitSite(s) {
     var top = opts.insets ? opts.insets() : { top: 100, bottom: 100, right: 0 }, right = top.right || 0;
@@ -413,6 +413,7 @@
 
     drawGlow(now, L, z, fade);
     if (L.e > 0 && !reduced) drawGlints(now, L, z);
+    drawHighlight(now, z);
     drawLabels(L, z);
     drawFlakes(now, dt, sk);
   }
@@ -534,6 +535,22 @@
       ctx.beginPath(); ctx.moveTo(s[0] - r, s[1]); ctx.lineTo(s[0] + r, s[1]); ctx.moveTo(s[0], s[1] - r); ctx.lineTo(s[0], s[1] + r); ctx.stroke();
     });
     ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over';
+  }
+
+  /* A visit picked in the list: a ring that keeps widening round its page's stone and its gate. */
+  function drawHighlight(now, z) {
+    var h = state.hl, s = h && byId[h.site]; if (!s || !s.loaded) return;
+    var m = markFor(s, h.path), g = gateFor(s, h.ref), k = reduced ? 0 : (now % 1400) / 1400;
+    ctx.setTransform(DPR, 0, 0, DPR, 0, 0); ctx.strokeStyle = T.sceneHover;
+    [[m.x, m.y, m.rm + 12], [g.x, g.y, 20]].forEach(function (c) {
+      var p = sp(c[0], c[1]), r = c[2] * z;
+      ctx.globalAlpha = 1; ctx.lineWidth = 2; ctx.beginPath(); ctx.ellipse(p[0], p[1], r, r * TILT, 0, 0, TAU); ctx.stroke();
+      if (k) { ctx.globalAlpha = 1 - k; ctx.lineWidth = 3; ctx.beginPath(); ctx.ellipse(p[0], p[1], r * (1 + .6 * k), r * (1 + .6 * k) * TILT, 0, 0, TAU); ctx.stroke(); }
+    });
+    var a = sp(g.x, g.y), b = sp(m.x, m.y);
+    ctx.globalAlpha = .7; ctx.lineWidth = 1.5; ctx.setLineDash([4, 5]); ctx.lineDashOffset = -now / 60;
+    ctx.beginPath(); ctx.moveTo(a[0], a[1]); ctx.lineTo(b[0], b[1]); ctx.stroke();
+    ctx.setLineDash([]); ctx.globalAlpha = 1;
   }
 
   function label(str, x, y, font, L, align, alpha) {
@@ -695,6 +712,8 @@
     wantsRelayout: function () { return !!sites.length && bestCols(sites.length) !== state.cols; },
     /* The day's cut: a heavy snowfall, then `done` (app.js reloads the counts). */
     snowfall: function (done) { if (!state.storm) state.storm = { t0: performance.now(), dur: reduced ? 1 : 5200, done: done }; },
+    /* Rings one visit's stone and gate ({ site, path, ref }), or nothing (null). */
+    highlight: function (h) { state.hl = h || null; },
     /* Fixes the light at an hour (0-24), for a preview; null follows the clock again. */
     setHour: function (h) { state.hour = h == null || isNaN(h) ? null : clamp(+h, 0, 24); },
     stats: function (id) {

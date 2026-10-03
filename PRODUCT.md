@@ -47,6 +47,10 @@ URL is a bookmark to a site, the open ledger, its range and an open event.
   by device), events stones on a cairn, 30-day traffic as trodden paths; lit by the viewer's
   clock, cleared by a snowfall at UTC midnight. A 2D canvas, option B "Diorama" of the design
   study (tilted camera, shadows).
+- Today's visits, one by one (since 2026-10-03): a panel beside the scene (a sheet on a phone),
+  newest first, live, rounded so a row is not a fingerprint (the minute, the device class,
+  families; no width, no second, no id), empty at UTC midnight. Pointing at a row rings its
+  stone and gate in the scene.
 - The ledger, a drawer over it, per site and range (1, 7, 30, 90 days or custom): totals
   (visitors, pageviews, events), a day chart (pageviews as bars, visitors as a line), hour or
   weekday and screen-width profiles, and top-30 tables for pages, referrers, events, countries,

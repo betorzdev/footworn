@@ -115,6 +115,14 @@ try {
   assert.equal(sc.recent.reduce((n, r) => n + r.hits, 0), 4, 'scene recent footprints');
   assert.ok(sc.recent.every(r => !('country' in r)), 'no country in the aggregate');
 
+  // Today's visits, one by one, rounded: the minute, never the second or the width.
+  const vs = await api('/api/visits?site=one');
+  assert.equal(vs.visits.length, 7, 'visits: 4 pageviews and 3 events');
+  assert.deepEqual(vs.visits.filter(v => v.event).map(v => v.event).sort(), ['screen', 'screen', 'share'], 'visits events');
+  assert.ok(vs.visits.every(v => v.minute % 60 === 0 && !('width' in v) && !('ts' in v) && !('id' in v)), 'visits are rounded');
+  assert.deepEqual(vs.visits.find(v => v.event === 'screen' && v.path === '/map/').props, { view: 'map', lang: 'es' }, 'visits props parsed');
+  assert.ok((await api('/api/visits?site=two')).visits.every(v => v.path === '/'), 'visits of two are separate');
+
   // The live view: a ticket, the socket, one hit relayed with exactly its scene fields; a bot is
   // not relayed; a ticket tampered with opens nothing.
   const { ticket } = await api('/api/live-ticket');
@@ -127,7 +135,9 @@ try {
   assert.ok(msg, 'a live message arrives');
   // wrangler dev fills the country from this machine's connection, so any code (or none) will do.
   assert.ok(msg.country === null || /^[A-Z]{2}$/.test(msg.country), 'live country');
-  assert.deepEqual({ ...msg, t: 0, country: null }, { site: 'two', t: 0, path: '/live/', ref: 'news.ycombinator.com', device: 'phone', first: 1, country: null, event: null }, 'live message');
+  assert.deepEqual({ ...msg, t: 0, country: null, browser: null, os: null }, { site: 'two', t: 0, path: '/live/', ref: 'news.ycombinator.com', device: 'phone',
+    browser: null, os: null, lang: 'en', first: 1, country: null, event: null, props: null }, 'live message');
+  assert.deepEqual([msg.browser, msg.os], ['Chrome', 'Windows'], 'live browser and system families');
   msg = next();
   await post({ s: 'two', p: '/' }, { origin: 'https://two.example', ua: 'Mozilla/5.0 (compatible; Googlebot/2.1)' });
   assert.equal(await msg, null, 'a bot is not relayed');

@@ -25,6 +25,12 @@
   --line: var(--accent);
   --danger: var(--accent);
   --ok: #2f8a5b;        /* the live connection, open */
+  /* Today's visits: the chips under a row, and the glow of one that just walked in. */
+  --chip: #e6ecf4;
+  --chip-first: #dcefe4;  --chip-first-ink: #1f6b44;   /* 6.1:1 */
+  --chip-event: #fbe3de;  --chip-event-ink: #9b2c1f;   /* 6.3:1 */
+  --row-new: #fff3cf;
+  --visits-w: 380px;
 
   --font: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   --font-num: ui-monospace, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
@@ -102,4 +108,8 @@
   --bar: #9fb3d8;
   --bar-soft: #34425e;
   --ok: #5fd39a;
+  --chip: #222c42;
+  --chip-first: #183a2a;  --chip-first-ink: #7fe0ae;
+  --chip-event: #3e2020;  --chip-event-ink: #ff9d90;
+  --row-new: #3a3420;
 }

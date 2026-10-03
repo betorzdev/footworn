@@ -74,6 +74,40 @@ input {
 .tip strong { display: block; font-size: var(--fs-m); }
 .tip small { display: block; color: var(--muted); font-size: var(--fs-xs); }
 
+/* Today's visits: a panel down the right, under the totals and above the dock. */
+.visits { position: fixed; z-index: 3; right: max(var(--s-4), env(safe-area-inset-right)); width: var(--visits-w);
+  top: calc(max(var(--s-4), env(safe-area-inset-top)) + 84px); bottom: calc(max(var(--s-4), env(safe-area-inset-bottom)) + var(--tap) + var(--s-2) * 2 + var(--s-3));
+  display: flex; flex-direction: column; overflow: hidden; }
+.visits-head { padding: var(--s-3) var(--s-4) var(--s-2); border-bottom: 1px solid var(--glass-line); }
+.visits h2 { margin: 0; font-size: var(--fs-m); }
+.visits .fold { font: inherit; font-weight: 650; color: inherit; background: none; border: 0; padding: 0; display: flex; align-items: center; gap: var(--s-2); cursor: default; }
+.visits .fold i { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); }
+.visits .sub { margin: 0 0 var(--s-2); font-size: var(--fs-xs); color: var(--muted); }
+.filters { display: flex; gap: var(--s-1); flex-wrap: wrap; }
+.filters button { font: 600 var(--fs-xs)/1 var(--font); color: var(--text); background: transparent; border: 1px solid var(--glass-line); border-radius: 999px; padding: 0 var(--s-3); min-height: 30px; cursor: pointer; }
+.filters button[aria-pressed="true"] { background: var(--text); color: var(--bg); border-color: var(--text); }
+.visits-list { list-style: none; margin: 0; padding: var(--s-1) var(--s-2) var(--s-3); overflow-y: auto; overscroll-behavior: contain; flex: 1; }
+.visits-list .hour { font: 600 var(--fs-xs)/1 var(--font); letter-spacing: var(--track); color: var(--muted); padding: var(--s-3) var(--s-2) var(--s-1); }
+.visits-list .empty { color: var(--muted); font-size: var(--fs-s); padding: var(--s-4) var(--s-2); }
+.visit { display: grid; grid-template-columns: 44px 1fr; gap: var(--s-3); width: 100%; text-align: left; font: inherit; color: inherit; background: transparent;
+  border: 0; border-radius: var(--radius); padding: var(--s-2); cursor: pointer; }
+.visit .when { font-size: var(--fs-xs); font-weight: 600; color: var(--muted); padding-top: 2px; }
+.visit .what { min-width: 0; }
+.visit .line { display: flex; align-items: baseline; gap: var(--s-2); min-width: 0; }
+.visit .flag { font-size: var(--fs-m); line-height: 1; }
+.visit .site { font-size: var(--fs-xs); font-weight: 600; color: var(--muted); }
+.visit .path { font-weight: 650; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.visit .from { color: var(--muted); font-size: var(--fs-xs); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.chips { display: flex; flex-wrap: wrap; gap: var(--s-1); margin-top: var(--s-1); }
+.chip { display: inline-flex; align-items: center; gap: var(--s-1); padding: 1px var(--s-2); border-radius: 999px; background: var(--chip); color: var(--muted); font-size: var(--fs-xs); white-space: nowrap; }
+.chip.first { background: var(--chip-first); color: var(--chip-first-ink); }
+.chip.event { background: var(--chip-event); color: var(--chip-event-ink); }
+.chip .foot { width: 14px; height: 9px; fill: currentColor; }
+.visit.fresh { animation: walkin 1.6s ease-out; }
+@keyframes walkin { from { opacity: 0; transform: translateY(-6px); background: var(--row-new); } 55% { opacity: 1; transform: none; background: var(--row-new); } }
+.visits .more { margin: 0 var(--s-3) var(--s-3); }
+@media (hover: hover) and (pointer: fine) { .visit:hover { background: var(--hover); } .filters button:hover { background: var(--hover); } }
+
 /* Token form */
 .gate { position: fixed; left: 50%; top: 22vh; transform: translateX(-50%); width: min(var(--gate-w), calc(100vw - 2 * var(--s-4))); padding: var(--s-5); }
 .gate h1 { margin: 0 0 var(--s-2); font-size: var(--fs-title); }
@@ -158,6 +192,17 @@ td.n { text-align: right; padding-left: var(--s-3); font-family: var(--font-num)
 .narrow ul { margin: 0 0 var(--s-4); padding-left: 1.2em; }
 .demo .btn { border-color: var(--text); }
 
+/* On a phone the visits are a sheet over the totals: folded, the title and the count; open, the list. */
+@media (max-width: 760px) {
+  .visits { top: auto; width: auto; left: max(var(--s-4), env(safe-area-inset-left)); z-index: 4;
+    bottom: calc(max(var(--s-4), env(safe-area-inset-bottom)) + var(--tap) + var(--s-2) * 2 + var(--s-3) * 2 + 58px); max-height: 60vh; }
+  .visits .fold { cursor: pointer; min-height: 32px; }
+  .visits .fold::after { content: "\25B4"; margin-left: var(--s-2); color: var(--muted); }
+  .visits.open .fold::after { content: "\25BE"; }
+  .visits-head { border-bottom: 0; padding-bottom: var(--s-2); }
+  .visits .sub { margin: 0; }
+  .visits:not(.open) .filters, .visits:not(.open) .visits-list, .visits:not(.open) .more { display: none; }
+}
 @media (max-width: 760px) {
   .stats { top: auto; bottom: calc(max(var(--s-4), env(safe-area-inset-bottom)) + var(--tap) + var(--s-2) * 2 + var(--s-3)); left: max(var(--s-4), env(safe-area-inset-left)); justify-content: space-between; padding: var(--s-2) var(--s-4); }
   .hud { right: max(var(--s-4), env(safe-area-inset-right)); }
@@ -184,7 +229,7 @@ td.n { text-align: right; padding-left: var(--s-3); font-family: var(--font-num)
 @media (prefers-reduced-motion: reduce) {
   .btn, .tile .v, [aria-busy="true"] .chart, [aria-busy="true"] .grid, [aria-busy="true"] .detail { transition: none; }
   .btn:active { transform: none; }
-  .live[data-state="open"] i, .ledger, .detail:not([hidden]) { animation: none; }
+  .live[data-state="open"] i, .ledger, .detail:not([hidden]), .visit.fresh { animation: none; }
 }
 
 /* Under 16px iOS zooms the page into a focused input. */

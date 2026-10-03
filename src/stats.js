@@ -1,5 +1,6 @@
-/* The dashboard's reads. Every answer is a count per day or per value of one dimension, never a
-   list of hits: what the AEPD's guide calls "por página y agregadas diariamente". */
+/* The dashboard's reads. Every answer is a count per day or per value of one dimension (what the
+   AEPD's guide calls "por página y agregadas diariamente"), with one exception, `visits`: today's
+   visits one by one, rounded so that a row is not a fingerprint (docs/privacy.md). */
 
 const TOP = 30;
 
@@ -110,5 +111,23 @@ export async function scene(db, { site, now = Date.now() }) {
     today: { hits: t.hits || 0, visitors: t.visitors || 0, events: t.events || 0, pages: res[4], refs: res[5] },
     yesterday: { visitors: (res[6][0] && res[6][0].visitors) || 0 },
     recent: res[7],
+  };
+}
+
+/* Today's visits, newest first: the one list the API gives. Rounded on the way out, so a row does
+   not single anyone out: the minute, not the second; the device class, not the width; browser and
+   system families; no id, so nothing joins two rows into a journey. Today only (UTC): at
+   midnight the list empties, as the snowfield does. */
+export async function visits(db, { site, now = Date.now() }) {
+  const today = new Date(now).toISOString().slice(0, 10);
+  const r = await db.prepare(`SELECT (ts / 60) * 60 AS minute, path, ref, device, browser, os, lang, country, first, event, props
+                              FROM hits WHERE site = ?1 AND day = ?2 ORDER BY ts DESC LIMIT 2000`).bind(site, today).all();
+  return {
+    site, day: today, now: Math.floor(now / 1000),
+    visits: (r.results || []).map(v => {
+      let props = null;
+      if (v.props) { try { props = JSON.parse(v.props); } catch (e) { props = null; } }
+      return { ...v, first: v.first ? 1 : 0, props };
+    }),
   };
 }

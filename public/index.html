@@ -44,10 +44,26 @@
   <nav class="dock glass" aria-label="Sites and tools">
     <ul id="places" class="places"></ul>
     <span class="grow"></span>
+    <button class="btn" id="toggle-visits" type="button" aria-controls="visits" aria-pressed="true">Visits</button>
     <button class="btn" id="open-ledger" type="button" hidden aria-controls="ledger">Ledger</button>
     <button class="btn" id="theme" type="button">Dark</button>
     <button class="btn" id="logout" type="button" title="Forget the token">Lock</button>
   </nav>
+
+  <aside id="visits" class="visits glass" aria-labelledby="visits-title" hidden>
+    <header class="visits-head">
+      <h2 id="visits-title"><button type="button" id="visits-fold" class="fold" aria-expanded="false" aria-controls="visits-list"><i aria-hidden="true"></i>Today’s visits</button></h2>
+      <p id="visits-count" class="sub">–</p>
+      <div class="filters" id="visits-filters" role="group" aria-label="Show">
+        <button type="button" aria-pressed="true" data-f="all">All</button>
+        <button type="button" aria-pressed="false" data-f="first">First pages</button>
+        <button type="button" aria-pressed="false" data-f="events">Events</button>
+        <button type="button" aria-pressed="false" data-f="phones">Phones</button>
+      </div>
+    </header>
+    <ol id="visits-list" class="visits-list" role="log" aria-label="Today’s visits, newest first"></ol>
+    <button type="button" class="btn more" id="visits-more" hidden>Show more</button>
+  </aside>
 
   <p id="error" class="error glass banner" role="alert" hidden></p>
 
@@ -96,6 +112,7 @@
 <script src="scene.js"></script>
 <script src="live.js"></script>
 <script src="ledger.js"></script>
+<script src="visits.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

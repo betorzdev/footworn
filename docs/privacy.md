@@ -32,30 +32,38 @@ also empties `seen`. The hash is never written to `hits`, the IP and the User-Ag
 written anywhere, and after midnight nothing can be recomputed. GoatCounter keeps the same
 tuple in memory for 8 hours; Plausible hashes with a daily salt as well.
 
-## The live view
+## Today's visits, one by one
 
-The dashboard shows each counted hit as it arrives, as footprints walking in. This is the one
-place where Footworn hands out a hit on its own rather than a count, so it is kept narrow:
+Besides the counts, the dashboard lists today's visits one by one, as they arrive and as a
+history of the day. These are the only places where Footworn hands out a hit on its own rather
+than a count, so they are kept narrow.
 
-- **What travels**: `site`, the time, `path`, `ref` (hostname), `device` (phone, tablet or
-  desktop), `first`, `country` and, for an event, its name (`liveMessage` in `src/live.js`).
-  Never the browser or OS family, the width, the language or an event's properties; and, as
-  everywhere, never an IP, a User-Agent, a hash or an id. Every field is one already stored and
-  listed above.
-- **Where it goes**: only to dashboards holding the admin token. The socket opens with a ticket
-  the API signs under that token and that expires in 60 seconds (`src/ticket.js`); the token
-  itself never travels in a URL.
-- **What is kept**: nothing more. The `Live` Durable Object relays each message to the sockets
-  open at that moment and forgets it; it has no storage of its own. The page draws the prints
-  and lets fresh snow cover them; a reload rebuilds today's prints from counts per 10 minutes
-  (`/api/scene`), which carry no country.
-- **Why the country**: it is the guide's "geographic area of origin", shown to the publisher
-  alone, and it is the same field the ledger's Countries table counts. It is never joined to
-  anything that would follow the person: no journey, no id, nothing across days. A publisher who
-  prefers not to see it per visit can drop it from `liveMessage`; the counts are unaffected.
+**Why rounded.** A row with every stored field at full precision (the second, the width to the
+pixel, the language, browser, system and country) can single a person out on a small site
+without any id. So a row leaves the database rounded, and these never leave it this way: the
+width (a row says phone, tablet or desktop), the second (a row says the minute), the row id, and
+anything that would join two rows. There is no journey: nothing tells that two rows are the same
+person.
 
-The read API itself stays as it was: every answer is a count per day or per value of one
-dimension, never a list of hits.
+- **The history** (`GET /api/visits`, `visits` in `src/stats.js`): today's rows (UTC), newest
+  first, at most 2000 per site: the minute, `path`, `ref` (hostname), `device`, the `browser` and
+  `os` families, `lang`, `country`, `first`, and for an event its name and properties. At UTC
+  midnight the list empties, as the snowfield does; earlier days are only counts.
+- **The live view** (`/live`, `liveMessage` in `src/live.js`): the same fields, the moment each
+  hit is counted. The message carries the second in `t`, which the page needs to tell a live hit
+  from one it already loaded, and which its own arrival gives away anyway; the page shows the
+  minute. The `Live` Durable Object relays each message to the sockets open at that moment and
+  forgets it; it has no storage of its own.
+- **Who sees them**: only dashboards holding the admin token. The API takes it as a bearer; the
+  socket opens with a ticket the API signs under it, good for 60 seconds (`src/ticket.js`), so
+  the token never travels in a URL.
+- **Why that still fits the exemption**: every field is one already stored and listed above,
+  seen only by the publisher, for the site's own audience, never joined to anything else, never
+  followed across pages or days. Rounding keeps a row from working as a fingerprint. A publisher
+  who wants less can drop fields from `visits` and `liveMessage` (the country first); the counts
+  are unaffected.
+
+Everything else the API answers is a count per day or per value of one dimension.
 
 ## Guarantees the guide asks of the publisher
 
