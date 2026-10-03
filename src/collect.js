@@ -27,6 +27,22 @@ export function refHost(ref, ownHosts) {
   return host.length > MAX_REF ? null : host;
 }
 
+/* A link's own tag (?ref= or ?utm_source=, which the tracker sends as `c`), when it names one of
+   these channels; it then takes the referrer's place, so a link posted where no referrer is sent
+   still shows its source. A fixed list, not any word: a personal referral code (?ref=jsmith)
+   would be an identifier, and it is dropped like any other value (docs/privacy.md). */
+export const CHANNELS = new Set(['reddit', 'discord', 'youtube', 'twitter', 'x', 'bsky', 'mastodon', 'threads',
+  'facebook', 'instagram', 'tiktok', 'twitch', 'steam', 'telegram', 'whatsapp', 'github', 'email', 'newsletter']);
+export function campaign(c) {
+  if (typeof c !== 'string') return null;
+  c = c.trim().toLowerCase();
+  return CHANNELS.has(c) ? c : null;
+}
+
+/* Event names starting with `$` are Footworn's own; the only one is `$engaged` (the tracker's
+   "used, not just opened", once per load), which carries no properties. */
+export const ENGAGED = '$engaged';
+
 export function deviceOf(width) {
   if (!Number.isFinite(width) || width <= 0) return null;
   if (width < 600) return 'phone';
@@ -78,6 +94,7 @@ export function makeHit(body, { site, ua, country, now }) {
   const path = str(body.p, MAX_PATH);
   if (!path || path[0] !== '/') return { skip: 'path' };
   const event = str(body.e, MAX_EVENT);
+  if (event && event[0] === '$' && event !== ENGAGED) return { skip: 'event' };
   const w = Number.isFinite(body.w) ? Math.round(body.w) : 0;
   const width = w > 0 && w <= MAX_WIDTH ? w : null;
   const { browser, os } = parseUA(ua);
@@ -90,8 +107,8 @@ export function makeHit(body, { site, ua, country, now }) {
       day: date.toISOString().slice(0, 10),
       path: path.split('?')[0].split('#')[0],
       event,
-      props: event ? cleanProps(body.props) : null,
-      ref: refHost(body.r, hostsOf(site.origins)),
+      props: event && event !== ENGAGED ? cleanProps(body.props) : null,
+      ref: campaign(body.c) || refHost(body.r, hostsOf(site.origins)),
       browser, os,
       device: deviceOf(width),
       width,

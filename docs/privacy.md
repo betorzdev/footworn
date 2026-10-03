@@ -11,16 +11,39 @@ maps to it.
 | Stored (`hits`)            | The guide's list                                                    |
 |----------------------------|---------------------------------------------------------------------|
 | `path`, `day`              | Audience, page by page                                              |
-| `ref` (hostname only)      | Pages a link was followed from ("referrer"), per page, daily        |
+| `ref` (hostname, or the link's tag) | Pages a link was followed from ("referrer"), per page, daily |
 | `browser`, `os`, `device`, `width` | Device type, browser and screen size, per page, daily       |
 | `event`, `props`           | User actions (clicks, selections), per page, daily                  |
+| `event = '$engaged'`       | Time on page / bounce: the page was used, not just opened           |
 | `country`                  | Geographic area of origin, per page, daily                          |
 | `lang`                     | Part of the browser's description (its language setting)            |
 | `first`                    | The daily "unique visitor" flag (a count, not an identifier)        |
 
-Not in the list and therefore not collected: load time, time on page, bounce, scroll depth
-(allowed by the guide, just not built yet) and anything beyond it, above all session journeys
+Not in the list and therefore not collected: load time and scroll depth (allowed by the guide,
+just not built yet) and anything beyond it, above all session journeys
 (the sequence of pages one person saw), which would need a consent banner.
+
+## The link's tag
+
+A link can carry `?ref=` or `?utm_source=` ("reddit", "discord"); the tracker sends it and, when it
+names one of a fixed list of channels (`CHANNELS` in `src/collect.js`: social networks, chat apps,
+email), it is stored in `ref` in place of the referrer, so a link posted where apps send no
+referrer still shows its source. Any other value is dropped and the referrer stands: a free-form
+tag could be a personal referral code (`?ref=jsmith`), an identifier this exemption does not
+cover, and the list makes storing one impossible rather than a matter of good practice.
+
+## Used, not just opened
+
+Once per page load, the tracker sends an event named `$engaged` at the first tap or key press, or
+after 10 seconds with the tab visible (the clock stops while it is hidden). The state lives in
+the page's memory and dies with it; nothing is written in the browser. The row is an ordinary
+event row with no properties, and the dashboard turns it into one rate: loads used ÷ pageviews,
+per range and per page. That is the guide's "time on page" and "bounce", reduced to a yes.
+
+Event names starting with `$` are Footworn's own: the tracker refuses them from the page and the
+collector drops any but `$engaged`. `$engaged` never reaches the live view or today's list of
+visits (below): it follows its own pageview by seconds, and showing both would join two rows into
+one person.
 
 ## The visitor flag
 

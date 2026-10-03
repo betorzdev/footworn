@@ -11,32 +11,47 @@ export async function sites(db) {
 
 const DIMS = ['path', 'ref', 'browser', 'os', 'device', 'country', 'lang'];
 
+/* The site's own events, and the tracker's `$engaged` (a load where the page was used, not just
+   opened: src/collect.js). `$engaged` is never an event on the dashboard, only the "used" rate. */
+const USER = "(event IS NOT NULL AND event NOT LIKE '$%')";
+const ENGAGED = "(event IS '$engaged')";  // IS, not =: 0 on a pageview, never NULL
+
 const DAY_MS = 86400000;
 const addDays = (iso, n) => new Date(Date.parse(iso) + n * DAY_MS).toISOString().slice(0, 10);
 
-/* Totals, by day, each dimension's top values, the events, and three profiles the dashboard
+/* Totals, by day, each dimension's top values (pages with how many of their loads were used),
+   the events, and three profiles the dashboard
    draws as columns: hour of the day (UTC; the dashboard shifts it), weekday (SQLite's %w, 0 is
    Sunday) and screen width in 100 px buckets. `previous` is the same totals for the period of
    the same length just before, for the change under each total. */
 export async function stats(db, { site, from, to }) {
+  /* The "used" rate counts only pageviews since the tracker first sent `$engaged` for this site:
+     `loads`. Older pageviews could never have one, and would dilute the rate. */
+  const first = await db.prepare(`SELECT MIN(day) AS day FROM hits WHERE site = ?1 AND event = '$engaged'`).bind(site).first();
+  const since = first && /^\d{4}-\d{2}-\d{2}$/.test(first.day) ? first.day : '9999-12-31';  // spliced into SQL: a day or nothing
+  const LOADS = `(event IS NULL AND day >= '${since}')`;
   const where = 'site = ?1 AND day BETWEEN ?2 AND ?3';
   const q = sql => db.prepare(sql).bind(site, from, to);
-  const dim = d => q(`SELECT ${d} AS value, COUNT(*) AS hits, SUM(first) AS visitors FROM hits
+  const dim = d => d === 'path'
+    ? q(`SELECT path AS value, SUM(event IS NULL) AS hits, SUM(first) AS visitors, SUM(${LOADS}) AS loads, SUM(${ENGAGED}) AS engaged FROM hits
+         WHERE ${where} AND (event IS NULL OR ${ENGAGED})
+         GROUP BY path HAVING hits > 0 ORDER BY hits DESC LIMIT ${TOP}`)
+    : q(`SELECT ${d} AS value, COUNT(*) AS hits, SUM(first) AS visitors FROM hits
                       WHERE ${where} AND event IS NULL AND ${d} IS NOT NULL
                       GROUP BY ${d} ORDER BY hits DESC LIMIT ${TOP}`);
-  const pages = `SELECT COUNT(*) AS hits, SUM(first) AS visitors FROM hits WHERE ${where} AND event IS NULL`;
-  const events = `SELECT COUNT(*) AS events FROM hits WHERE ${where} AND event IS NOT NULL`;
+  const pages = `SELECT COUNT(*) AS hits, SUM(first) AS visitors, SUM(${LOADS}) AS loads FROM hits WHERE ${where} AND event IS NULL`;
+  const events = `SELECT SUM(${USER}) AS events, SUM(${ENGAGED}) AS engaged FROM hits WHERE ${where} AND event IS NOT NULL`;
   const len = Math.round((Date.parse(to) - Date.parse(from)) / DAY_MS) + 1;
   const previous = { from: addDays(from, -len), to: addDays(from, -1) };
   const pq = sql => db.prepare(sql).bind(site, previous.from, previous.to);
   const rows = await db.batch([
     q(pages),
     q(events),
-    q(`SELECT day, SUM(event IS NULL) AS hits, SUM(first) AS visitors, SUM(event IS NOT NULL) AS events
+    q(`SELECT day, SUM(event IS NULL) AS hits, SUM(first) AS visitors, SUM(${USER}) AS events, SUM(${ENGAGED}) AS engaged
        FROM hits WHERE ${where} GROUP BY day ORDER BY day`),
     ...DIMS.map(dim),
     q(`SELECT event AS value, COUNT(*) AS hits FROM hits
-       WHERE ${where} AND event IS NOT NULL GROUP BY event ORDER BY hits DESC LIMIT ${TOP}`),
+       WHERE ${where} AND ${USER} GROUP BY event ORDER BY hits DESC LIMIT ${TOP}`),
     q(`SELECT CAST(strftime('%H', ts, 'unixepoch') AS INTEGER) AS hour, COUNT(*) AS hits FROM hits
        WHERE ${where} AND event IS NULL GROUP BY hour ORDER BY hour`),
     q(`SELECT CAST(strftime('%w', day) AS INTEGER) AS weekday, COUNT(*) AS hits FROM hits
@@ -47,7 +62,7 @@ export async function stats(db, { site, from, to }) {
     pq(events),
   ]);
   const res = rows.map(r => r.results || []);
-  const totals = (p, e) => ({ hits: p[0].hits || 0, visitors: p[0].visitors || 0, events: e[0].events || 0 });
+  const totals = (p, e) => ({ hits: p[0].hits || 0, visitors: p[0].visitors || 0, events: e[0].events || 0, loads: p[0].loads || 0, engaged: e[0].engaged || 0 });
   const out = { site, from, to, totals: totals(res[0], res[1]), days: res[2] };
   DIMS.forEach((d, i) => { out[d] = res[3 + i]; });
   let i = 3 + DIMS.length;
@@ -94,9 +109,10 @@ export async function scene(db, { site, now = Date.now() }) {
     m(`SELECT path AS value, COUNT(*) AS hits FROM hits WHERE ${month} GROUP BY path ORDER BY hits DESC LIMIT 8`),
     m(`SELECT ref AS value, COUNT(*) AS hits FROM hits WHERE ${month} AND ref IS NOT NULL GROUP BY ref ORDER BY hits DESC LIMIT 5`),
     m(`SELECT ref, path, COUNT(*) AS hits FROM hits WHERE ${month} GROUP BY ref, path ORDER BY hits DESC LIMIT 400`),
-    d(`SELECT SUM(event IS NULL) AS hits, SUM(first) AS visitors, SUM(event IS NOT NULL) AS events FROM hits WHERE site = ?1 AND day = ?2`),
-    d(`SELECT path, SUM(event IS NULL) AS hits, SUM(event IS NOT NULL) AS events FROM hits
-       WHERE site = ?1 AND day = ?2 GROUP BY path ORDER BY hits DESC LIMIT 200`),
+    d(`SELECT SUM(event IS NULL) AS hits, SUM(first) AS visitors, SUM(${USER}) AS events FROM hits
+       WHERE site = ?1 AND day = ?2 AND (event IS NULL OR ${USER})`),
+    d(`SELECT path, SUM(event IS NULL) AS hits, SUM(${USER}) AS events FROM hits
+       WHERE site = ?1 AND day = ?2 AND (event IS NULL OR ${USER}) GROUP BY path ORDER BY hits DESC LIMIT 200`),
     d(`SELECT ref, COUNT(*) AS hits FROM hits WHERE site = ?1 AND day = ?2 AND event IS NULL GROUP BY ref ORDER BY hits DESC LIMIT 200`),
     db.prepare(`SELECT SUM(first) AS visitors FROM hits WHERE site = ?1 AND day = ?2 AND ts <= ?3 AND event IS NULL`).bind(site, yesterday, secs - 86400),
     db.prepare(`SELECT (ts / 600) * 600 AS block, path, ref, device, first, COUNT(*) AS hits FROM hits
@@ -116,12 +132,14 @@ export async function scene(db, { site, now = Date.now() }) {
 
 /* Today's visits, newest first: the one list the API gives. Rounded on the way out, so a row does
    not single anyone out: the minute, not the second; the device class, not the width; browser and
-   system families; no id, so nothing joins two rows into a journey. Today only (UTC): at
+   system families; no id, so nothing joins two rows into a journey (which is why `$engaged`,
+   seconds after its own pageview, is left out). Today only (UTC): at
    midnight the list empties, as the snowfield does. */
 export async function visits(db, { site, now = Date.now() }) {
   const today = new Date(now).toISOString().slice(0, 10);
   const r = await db.prepare(`SELECT (ts / 60) * 60 AS minute, path, ref, device, browser, os, lang, country, first, event, props
-                              FROM hits WHERE site = ?1 AND day = ?2 ORDER BY ts DESC LIMIT 2000`).bind(site, today).all();
+                              FROM hits WHERE site = ?1 AND day = ?2 AND (event IS NULL OR ${USER})
+                              ORDER BY ts DESC LIMIT 2000`).bind(site, today).all();
   return {
     site, day: today, now: Math.floor(now / 1000),
     visits: (r.results || []).map(v => {

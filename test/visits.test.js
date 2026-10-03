@@ -31,3 +31,9 @@ test('props come parsed, and bad JSON becomes null', async () => {
   const out = await visits(db, { site: 'one' });
   assert.deepEqual(out.visits.map(v => v.props), [{ view: 'map' }, null]);
 });
+
+test('$engaged rows stay out of the list: they would join two rows', async () => {
+  const db = fakeDb([]);
+  await visits(db, { site: 'one' });
+  assert.match(db.seen.sql, /event IS NULL OR \(event IS NOT NULL AND event NOT LIKE '\$%'\)/);
+});

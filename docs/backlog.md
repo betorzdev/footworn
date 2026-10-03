@@ -66,6 +66,17 @@ errors, loading state, URL state, reduced motion, focus rings and press feedback
 - **Big numbers in the ledger's column charts**: the left axis clips labels past four digits
   (`frame()` in `public/ledger.js`, `L: 36`).
 
+## Measuring the calculators, next (agreed 2026-10-03)
+
+Done that day: the *used* rate (`$engaged`) and link tags (`?ref=`, `?utm_source=`).
+
+- **Funnels and a key action in the ledger**: `import-open → import-read → save-import` as ratios
+  of daily counts, and one key event per site ÷ visitors. Nothing new stored.
+- **Notes on the day chart**: dated marks ("patch 1.0.3", "Reddit post") to explain spikes; a
+  small table and a write endpoint behind the token.
+- **Google Search Console** for both calculators, by the user: the queries and impressions before
+  the visit, which Footworn never sees.
+
 ## Later, by anyone
 
 - **`.claude/rules/` with path scoping** if `CLAUDE.md` grows past about 80 lines.

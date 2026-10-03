@@ -69,7 +69,11 @@ try {
   await post({ s: 'one', p: '/map/', e: 'screen', props: { view: 'map', lang: 'es' } });
   // Visitor C fires an event before any pageview: the event is not a visitor, the pageview still is.
   await post({ s: 'one', p: '/', e: 'share' }, { ip: '203.0.113.3' });
-  await post({ s: 'one', p: '/', w: 1024, l: 'fr' }, { ip: '203.0.113.3' });
+  // C came by a link tagged ?ref=Discord: the tag stands in for the missing referrer.
+  await post({ s: 'one', p: '/', r: '', c: 'Discord', w: 1024, l: 'fr' }, { ip: '203.0.113.3' });
+  // A used the home page: one `$engaged`, a "used" load, never an event; `$other` is not Footworn's.
+  await post({ s: 'one', p: '/', e: '$engaged' });
+  await post({ s: 'one', p: '/', e: '$other' });
   // Not counted: a bot, a wrong origin, an unknown site, a bad path, a body too big to be a hit.
   await post({ s: 'one', p: '/' }, { ua: 'Mozilla/5.0 (compatible; Googlebot/2.1)' });
   await post({ s: 'one', p: '/' }, { origin: 'https://evil.example' });
@@ -83,10 +87,10 @@ try {
   assert.deepEqual(sites.map(s => s.id), ['one', 'two']);
 
   let st = await api(`/api/stats?site=one&from=${today}&to=${today}`);
-  assert.deepEqual(st.totals, { hits: 4, visitors: 3, events: 3 }, 'totals');
-  assert.deepEqual(st.days, [{ day: today, hits: 4, visitors: 3, events: 3 }], 'days');
-  assert.deepEqual(st.path.map(p => [p.value, p.hits]), [['/', 3], ['/map/', 1]], 'paths');
-  assert.deepEqual(st.ref, [{ value: 'reddit.com', hits: 1, visitors: 1 }], 'refs');
+  assert.deepEqual(st.totals, { hits: 4, visitors: 3, events: 3, loads: 4, engaged: 1 }, 'totals');
+  assert.deepEqual(st.days, [{ day: today, hits: 4, visitors: 3, events: 3, engaged: 1 }], 'days');
+  assert.deepEqual(st.path.map(p => [p.value, p.hits, p.loads, p.engaged]), [['/', 3, 3, 1], ['/map/', 1, 1, 0]], 'paths, and their used loads');
+  assert.deepEqual(st.ref.map(r => r.value).sort(), ['discord', 'reddit.com'], 'refs, a link tag among them');
   assert.deepEqual(st.device.map(d => d.value).sort(), ['desktop', 'phone'], 'devices');
   assert.deepEqual(st.lang.map(d => [d.value, d.hits]).sort(), [['en', 1], ['es', 2], ['fr', 1]], 'langs');
   assert.deepEqual(st.events, [{ value: 'screen', hits: 2 }, { value: 'share', hits: 1 }], 'events');
@@ -95,7 +99,7 @@ try {
   assert.deepEqual(st.weekdays, [{ weekday: new Date().getUTCDay(), hits: 4 }], 'weekdays');
   assert.deepEqual(st.widths, [{ bucket: 300, hits: 1 }, { bucket: 1000, hits: 1 }, { bucket: 1400, hits: 2 }], 'widths');
   const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
-  assert.deepEqual(st.previous, { from: yesterday, to: yesterday, hits: 0, visitors: 0, events: 0 }, 'previous period');
+  assert.deepEqual(st.previous, { from: yesterday, to: yesterday, hits: 0, visitors: 0, events: 0, loads: 0, engaged: 0 }, 'previous period');
 
   const ev = await api(`/api/event?site=one&name=screen&from=${today}&to=${today}`);
   assert.equal(ev.totals.hits, 2);
@@ -110,14 +114,14 @@ try {
   const sc = await api('/api/scene?site=one');
   assert.deepEqual([sc.today.hits, sc.today.visitors, sc.today.events], [4, 3, 3], 'scene totals');
   assert.deepEqual(sc.pages.map(p => [p.value, p.hits]), [['/', 3], ['/map/', 1]], 'scene stones');
-  assert.deepEqual(sc.refs, [{ value: 'reddit.com', hits: 1 }], 'scene gates');
+  assert.deepEqual(sc.refs.map(r => r.value).sort(), ['discord', 'reddit.com'], 'scene gates');
   assert.deepEqual(sc.today.pages.map(p => [p.path, p.hits, p.events]).sort(), [['/', 3, 2], ['/map/', 1, 1]], 'scene today by page');
   assert.equal(sc.recent.reduce((n, r) => n + r.hits, 0), 4, 'scene recent footprints');
   assert.ok(sc.recent.every(r => !('country' in r)), 'no country in the aggregate');
 
   // Today's visits, one by one, rounded: the minute, never the second or the width.
   const vs = await api('/api/visits?site=one');
-  assert.equal(vs.visits.length, 7, 'visits: 4 pageviews and 3 events');
+  assert.equal(vs.visits.length, 7, 'visits: 4 pageviews and 3 events, no $engaged');
   assert.deepEqual(vs.visits.filter(v => v.event).map(v => v.event).sort(), ['screen', 'screen', 'share'], 'visits events');
   assert.ok(vs.visits.every(v => v.minute % 60 === 0 && !('width' in v) && !('ts' in v) && !('id' in v)), 'visits are rounded');
   assert.deepEqual(vs.visits.find(v => v.event === 'screen' && v.path === '/map/').props, { view: 'map', lang: 'es' }, 'visits props parsed');
@@ -141,6 +145,9 @@ try {
   msg = next();
   await post({ s: 'two', p: '/' }, { origin: 'https://two.example', ua: 'Mozilla/5.0 (compatible; Googlebot/2.1)' });
   assert.equal(await msg, null, 'a bot is not relayed');
+  msg = next();
+  await post({ s: 'two', p: '/live/', e: '$engaged' }, { origin: 'https://two.example', ip: '203.0.113.9' });
+  assert.equal(await msg, null, '$engaged is not relayed');
   ws.close();
   const bad = new WebSocket(`ws://127.0.0.1:${PORT}/live?ticket=${encodeURIComponent(ticket.slice(0, -2) + (ticket.endsWith('AA') ? 'BB' : 'AA'))}`);
   assert.equal(await new Promise(ok => { bad.onopen = () => ok('open'); bad.onerror = () => ok('refused'); }), 'refused', 'a tampered ticket is refused');
@@ -158,7 +165,7 @@ try {
   assert.equal(cron.status, 200, 'cron ran');
   await post({ s: 'one', p: '/', w: 1440, l: 'es-ES' });
   st = await api(`/api/stats?site=one`);
-  assert.deepEqual(st.totals, { hits: 5, visitors: 4, events: 3 }, 'after the cron');
+  assert.deepEqual(st.totals, { hits: 5, visitors: 4, events: 3, loads: 5, engaged: 1 }, 'after the cron');
 
   console.log('smoke: ok');
 } catch (e) {

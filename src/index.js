@@ -2,7 +2,7 @@
    binding before this runs; here live the collector (POST /c), the read API (GET /api/*), the
    live view's socket (GET /live, relayed to the `Live` Durable Object) and the nightly cron. */
 
-import { makeHit, originAllowed } from './collect.js';
+import { makeHit, originAllowed, ENGAGED } from './collect.js';
 import { firstToday, rotateSalt } from './visitor.js';
 import { authorized } from './auth.js';
 import { sites, stats, eventStats, scene, visits } from './stats.js';
@@ -78,8 +78,9 @@ async function collect(request, env, ctx) {
     .bind(hit.site, hit.ts, hit.day, hit.path, hit.event, hit.props ? JSON.stringify(hit.props) : null, hit.ref,
           hit.browser, hit.os, hit.device, hit.width, hit.country, hit.lang, hit.first)
     .run();
-  /* After the write, never instead of it: a live view that is down costs nothing but the show. */
-  if (env.LIVE && ctx) ctx.waitUntil(publish(env, hit).catch(e => logError('live', e)));
+  /* After the write, never instead of it: a live view that is down costs nothing but the show.
+     `$engaged` stays out: seconds after its pageview, it would join two rows into one person. */
+  if (env.LIVE && ctx && hit.event !== ENGAGED) ctx.waitUntil(publish(env, hit).catch(e => logError('live', e)));
   return empty();
 }
 

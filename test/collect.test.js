@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { makeHit, refHost, deviceOf, cleanProps, originAllowed, hostsOf } from '../src/collect.js';
+import { makeHit, refHost, deviceOf, cleanProps, originAllowed, hostsOf, campaign } from '../src/collect.js';
 
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0.0.0 Safari/537.36';
 const site = { id: 'hallownest', name: 'Hallownest Calculator', origins: 'https://betorzdev.github.io http://localhost:8787' };
@@ -96,4 +96,27 @@ test('readCapped stops at the cap, with or without Content-Length', async () => 
   assert.equal(await readCapped(big, 64), null);
   const lying = new Request('http://x/c', { method: 'POST', body: 'x', headers: { 'Content-Length': '999999' } });
   assert.equal(await readCapped(lying, 64), null);
+});
+
+test('$engaged is the one $ event, and carries no properties', () => {
+  const at = body => makeHit({ p: '/', ...body }, { site, ua: UA, now: NOW });
+  const { hit } = at({ e: '$engaged', props: { view: 'map' } });
+  assert.equal(hit.event, '$engaged');
+  assert.equal(hit.props, null);
+  assert.equal(at({ e: '$other' }).skip, 'event');
+  assert.equal(at({ e: '$' }).skip, 'event');
+});
+
+test('a link tag takes the referrer\'s place, only when it names a known channel', () => {
+  const at = body => makeHit({ p: '/', r: 'https://www.google.com/', ...body }, { site, ua: UA, now: NOW }).hit;
+  assert.equal(at({ c: 'Reddit' }).ref, 'reddit');
+  assert.equal(at({ c: ' discord ' }).ref, 'discord');
+  assert.equal(at({ c: '' }).ref, 'google.com');
+  assert.equal(at({ c: 'jsmith' }).ref, 'google.com', 'a personal referral code is not a channel');
+  assert.equal(at({ c: 'u8f3k2x9' }).ref, 'google.com');
+  assert.equal(at({ c: 'juan@mail.com' }).ref, 'google.com');
+  assert.equal(at({ c: 7 }).ref, 'google.com');
+  assert.equal(at({ c: 'discord' }).ref, 'discord');
+  assert.equal(campaign('youtube'), 'youtube');
+  assert.equal(campaign('youtube2'), null);
 });

@@ -62,7 +62,8 @@ at night fresh prints keep a little light, and a visitor walking in carries it.
 
 **The ledger.** A drawer with the numbers behind the scene, for any range: totals with their
 change, pageviews and visitors by day, by hour or weekday, screen widths, the top 30 of each
-dimension (pages, referrers, events, countries, languages, browsers, systems, devices), and an
+dimension (pages, referrers, events, countries, languages, browsers, systems, devices), the share
+of loads where the page was *used* (a tap, a key or 10 s in view; per range and per page), and an
 event opened with its pages and properties. Every chart has its numbers in a table under `Data`,
 which makes the ledger the scene's text alternative too. The view lives in the URL:
 `/?site=your-site&ledger=1&days=30&event=screen` is a link straight to it.
@@ -90,8 +91,17 @@ footworn.event('screen', { view: 'combat', lang: 'es' });   // an action, with u
 footworn.count('/other-page/');                              // a pageview by hand (hash routing, say)
 ```
 
+On its own it also sends `$engaged` once per load, at the first tap or key or after 10 s in view:
+the dashboard's *used* rate. Event names starting with `$` are reserved.
+
+Tag the links you post where apps send no referrer (Discord, the Reddit and YouTube apps):
+`https://your-site.example/?ref=discord` arrives as *discord* in place of *direct*. `?utm_source=`
+works too. Only known channels are kept (`CHANNELS` in `src/collect.js`: reddit, discord,
+youtube, steam, email…); any other value is ignored, so a personal referral code never lands.
+
 The script sends nothing over `file://`, on localhost (unless `data-local="1"`), inside an
-iframe, or from a browser driven by automation; `data-auto="0"` skips the pageview on load.
+iframe, or from a browser driven by automation; `data-auto="0"` skips the pageview on load (and
+the `$engaged` with it).
 Without the script (blocked, offline) `window.footworn` is undefined, so call it as
 `window.footworn && footworn.event(...)`.
 
@@ -167,9 +177,9 @@ Durable Object (the `[[migrations]]` in `wrangler.toml`). Retention is `RETENTIO
 | Stored, per hit | Why it is allowed |
 |---|---|
 | `path`, `day` | audience, page by page |
-| `ref` (hostname only) | where a link was followed from |
+| `ref` (hostname, or the link's `?ref=` tag) | where a link was followed from |
 | `browser`, `os`, `device`, `width` | device type, browser and screen size |
-| `event`, `props` | actions on the page |
+| `event`, `props` | actions on the page; `$engaged`, the page was used and not just opened |
 | `country` | geographic area, from the edge |
 | `lang` | the browser’s language setting |
 | `first` | the daily visitor flag: a count, not an identifier |
@@ -194,7 +204,7 @@ the width, no id), live and as the day's history; earlier days are only counts. 
 | `GET /api/visits?site=` | today's visits (UTC), newest first, at most 2000, rounded: `{ day, now, visits: [{ minute, path, ref, device, browser, os, lang, country, first, event, props }] }`. Never the width, the second or an id |
 | `GET /api/live-ticket` | `{ ticket }`, good for 60 s, to open the live socket |
 | `GET /live?ticket=` | WebSocket: one JSON message per counted hit, `{ site, t, path, ref, device, browser, os, lang, first, country, event, props }`; send `ping`, get `pong` |
-| `GET /api/stats?site=&from=&to=` | `{ totals: { hits, visitors, events }, days: [{ day, hits, visitors, events }], path, ref, browser, os, device, country, lang, events }`, each dimension `[{ value, hits, visitors }]`, top 30. Also `hours: [{ hour, hits }]` (UTC), `weekdays: [{ weekday, hits }]` (0 is Sunday), `widths: [{ bucket, hits }]` (100 px buckets, pageviews only) and `previous: { from, to, hits, visitors, events }`, the totals of the period of the same length just before. |
+| `GET /api/stats?site=&from=&to=` | `{ totals: { hits, visitors, events, loads, engaged }, days: [{ day, hits, visitors, events, engaged }], path, ref, browser, os, device, country, lang, events }`, each dimension `[{ value, hits, visitors }]` (`path` adds `loads` and `engaged`), top 30. `events` never counts `$engaged`; `loads` are the pageviews since the site's first `$engaged`, what the *used* rate divides by. Also `hours: [{ hour, hits }]` (UTC), `weekdays: [{ weekday, hits }]` (0 is Sunday), `widths: [{ bucket, hits }]` (100 px buckets, pageviews only) and `previous: { from, to, hits, visitors, events, loads, engaged }`, the totals of the period of the same length just before. |
 | `GET /api/event?site=&name=&from=&to=` | `{ totals, days, paths, props: { key: [{ value, hits }] } }` |
 | `POST /c` | what the tracker sends: `{ s, p, r, w, l, e?, props? }`, under 8 KB; always `204` |
 

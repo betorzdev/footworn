@@ -17,14 +17,23 @@
     /* Totals past a million go compact ("1.2M") so the tile never overflows; the exact number is the title. */
     var compact = new Intl.NumberFormat('en', { notation: 'compact', maximumFractionDigits: 1 });
     function tile(id, n) { var el = $(id); el.textContent = n >= 1e6 ? compact.format(n) : fmt(n); el.title = n >= 1e6 ? fmt(n) : ''; }
-    /* The rates under the totals: per day of the range, pageviews per visitor, and the change against
-       the previous period of the same length. Derived on screen, never stored. */
+    /* The rates under the totals: per day of the range, pageviews per visitor, the share of loads
+       that were used (the tracker's `$engaged`: a tap, a key or 10 s in view), and the change
+       against the previous period of the same length. Derived on screen, never stored. */
     var oneDecimal = new Intl.NumberFormat('en', { maximumFractionDigits: 1 });
     function rates(st) {
       var days = span(st), t = st.totals, p = st.previous;
       $('u-visitors').innerHTML = line([oneDecimal.format(t.visitors / days) + ' a day', delta(t.visitors, p, 'visitors', days)]);
-      $('u-hits').innerHTML = line([t.visitors ? oneDecimal.format(t.hits / t.visitors) + ' per visitor' : '', delta(t.hits, p, 'hits', days)]);
+      $('u-hits').innerHTML = line([t.visitors ? oneDecimal.format(t.hits / t.visitors) + ' per visitor' : '', used(t, p, days), delta(t.hits, p, 'hits', days)]);
       $('u-events').innerHTML = line([oneDecimal.format(t.events / days) + ' a day', delta(t.events, p, 'events', days)]);
+    }
+    /* Over `loads`, the pageviews since the tracker first sent `$engaged` (src/stats.js); nothing
+       when there are none, rather than a misleading 0%. */
+    function pct(engaged, loads) { return loads ? Math.min(100, Math.round(100 * engaged / loads)) : 0; }
+    function used(t, p, days) {
+      if (!t.engaged || !t.loads) return '';
+      var was = p && p.engaged && p.loads ? '; previous ' + days + ' d: ' + pct(p.engaged, p.loads) + '%' : '';
+      return '<span title="' + esc('Loads where the page was used: a tap, a key or 10 s in view' + was) + '">' + pct(t.engaged, t.loads) + '% used</span>';
     }
     function span(st) { return Math.round((Date.parse(st.to) - Date.parse(st.from)) / 86400000) + 1; }
     function line(parts) { return parts.filter(Boolean).join(' · '); }
@@ -141,10 +150,11 @@
       Array.prototype.forEach.call(el.querySelectorAll('.fill[data-w]'), function (f) { f.style.width = f.dataset.w + '%'; });
     }
 
-    /* One dimension: value, count, visitors. Event names are buttons (keyboard and mouse open the detail). */
+    /* One dimension: value, count, visitors, and for pages the share of loads used. Event names are buttons (keyboard and mouse open the detail). */
     function table(title, rows, key, countLabel, empty, clickable) {
       var max = rows.length ? rows[0][key] : 0;
       var withVisitors = rows.length && rows[0].visitors !== undefined && !clickable;
+      var withUsed = rows.some(function (r) { return r.engaged && r.loads; });
       var body = rows.length ? rows.map(function (r) {
         var w = max ? Math.round(100 * r[key] / max) : 0;
         var cell = clickable
@@ -153,10 +163,11 @@
         return '<tr><td class="v"><div class="fill" data-w="' + w + '"></div>' + cell + '</td>' +
           '<td class="n num">' + fmt(r[key]) + '</td>' +
           (withVisitors ? '<td class="n num muted">' + fmt(r.visitors) + '</td>' : '') +
+          (withUsed ? '<td class="n num muted" title="' + esc(fmt(r.engaged) + ' of ' + fmt(r.loads) + ' loads used') + '">' + (r.loads ? pct(r.engaged, r.loads) + '%' : '–') + '</td>' : '') +
           '</tr>';
       }).join('') : '';
       var th = function (t) { return '<th scope="col"><span class="sr-only">' + esc(t) + '</span></th>'; };
-      var head = '<thead><tr>' + th(title) + th(countLabel) + (withVisitors ? th('Visitors') : '') + '</tr></thead>';
+      var head = '<thead><tr>' + th(title) + th(countLabel) + (withVisitors ? th('Visitors') : '') + (withUsed ? th('Used') : '') + '</tr></thead>';
       return '<section class="panel"><h2>' + esc(title) + '</h2>' +
         (rows.length ? '<table class="dim">' + head + '<tbody>' + body + '</tbody></table>' : '<p class="empty">' + esc(empty || 'Nothing yet') + '</p>') + '</section>';
     }
