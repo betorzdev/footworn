@@ -1,8 +1,9 @@
 /* Footworn's tracker. Loaded as <script async src="https://…/footworn.js" data-site="your-site">.
    Counts one pageview on load and exposes window.footworn.count(path) and
-   window.footworn.event(name, props). Once per load, at the first tap or key or after 10 s in
-   view, it sends `$engaged`: the page was used, not just opened (a plain event; whether it was
-   sent lives in this page's memory, never in the browser's storage). Sends
+   window.footworn.event(name, props). A reload counts only as a new day's first visit. Once
+   per load (not on a reload), at the first tap or key or after 10 s in view, it sends
+   `$engaged`: the page was used, not just opened (a plain event; whether it was sent lives in
+   this page's memory, never in the browser's storage). Sends
    nothing over file://, on localhost (unless data-local="1"), inside an iframe, or to a browser
    driven by automation. No cookies, no storage, no ids: the body carries the path, the referrer
    (or the link's ?ref= / ?utm_source=), the viewport width and the language, and the server
@@ -72,6 +73,21 @@
       document.addEventListener('visibilitychange', clock);
       clock();
     }
-    if (s.getAttribute('data-auto') !== '0' && !skip()) { window.footworn.count(); engaged(); }
+    /* A reload is the same visit again, not a new one. Its pageview goes marked `rl`, and the
+       collector keeps it only when it is the visitor's first of the day (a tab left open
+       overnight); it sends no `$engaged`. So a reload that is kept counts as a load that can't be
+       used: the used share leans a little low for overnight tabs, never high from refreshes, and
+       nothing more has to be stored to pair the two. Events and footworn.count() go as usual. */
+    function reloaded() {
+      try {
+        var nav = performance.getEntriesByType && performance.getEntriesByType('navigation')[0];
+        if (nav) return nav.type === 'reload';
+        return !!(performance.navigation && performance.navigation.type === 1);
+      } catch (e) { return false; }
+    }
+    if (s.getAttribute('data-auto') !== '0' && !skip()) {
+      if (reloaded()) { var d = base(); d.rl = 1; send(d); }
+      else { window.footworn.count(); engaged(); }
+    }
   } catch (e) { /* never the host page's problem */ }
 })();

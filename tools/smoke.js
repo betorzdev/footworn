@@ -71,6 +71,8 @@ try {
   await post({ s: 'one', p: '/', e: 'share' }, { ip: '203.0.113.3' });
   // C came by a link tagged ?ref=Discord: the tag stands in for the missing referrer.
   await post({ s: 'one', p: '/', r: '', c: 'Discord', w: 1024, l: 'fr' }, { ip: '203.0.113.3' });
+  // A reloads the home page: the same visit again, not counted.
+  await post({ s: 'one', p: '/', rl: 1, w: 1440, l: 'es-ES' });
   // A used the home page: one `$engaged`, a "used" load, never an event; `$other` is not Footworn's.
   await post({ s: 'one', p: '/', e: '$engaged' });
   await post({ s: 'one', p: '/', e: '$other' });
@@ -166,7 +168,8 @@ try {
   // The cron forgets today's visitors: the same visitor is new again.
   const cron = await fetch(BASE + '/cdn-cgi/local/scheduled');
   assert.equal(cron.status, 200, 'cron ran');
-  await post({ s: 'one', p: '/', w: 1440, l: 'es-ES' });
+  // A reloads the next day (a tab left open overnight): the day's first pageview, so it counts.
+  await post({ s: 'one', p: '/', rl: 1, w: 1440, l: 'es-ES' });
   st = await api(`/api/stats?site=one`);
   assert.deepEqual(st.totals, { hits: 5, visitors: 4, events: 3, loads: 5, engaged: 1 }, 'after the cron');
 

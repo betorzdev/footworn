@@ -73,6 +73,9 @@ async function collect(request, env, ctx) {
   /* Only a pageview can be "the first of the day": an event is an action on a page already
      counted, so it costs one write instead of two and every SUM(first) in stats.js agrees. */
   hit.first = hit.event ? 0 : await firstToday(env.DB, { day: hit.day, site: site.id, ip: request.headers.get('CF-Connecting-IP'), ua });
+  /* A reload (`rl`, from the tracker) is the same visit again: dropped, unless it is this
+     visitor's first pageview of the day (a tab left open overnight, a phone restoring a tab). */
+  if (body.rl === 1 && !hit.event && !hit.first) return empty();
   await env.DB.prepare(`INSERT INTO hits (site, ts, day, path, event, props, ref, browser, os, device, width, country, lang, first)
                         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
     .bind(hit.site, hit.ts, hit.day, hit.path, hit.event, hit.props ? JSON.stringify(hit.props) : null, hit.ref,

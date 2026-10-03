@@ -87,7 +87,7 @@ button overrides it.
 <script async src="https://footworn.<account>.workers.dev/footworn.js" data-site="your-site"></script>
 ```
 
-That counts a pageview on load. From the page’s own code:
+That counts a pageview on load; a reload counts only if it is that visitor's first pageview of the day (a tab left open overnight), otherwise it is the same visit again. From the page’s own code:
 
 ```js
 footworn.event('screen', { view: 'combat', lang: 'es' });   // an action, with up to 10 short properties
@@ -98,7 +98,7 @@ An app that changes view without loading a page (tabs, screens) can send
 `footworn.event('screen', { view: 'charms' })`: an event named `screen` with a `view` is listed in
 the dashboard's Visits tab as a view opened in a page, between the visits.
 
-On its own it also sends `$engaged` once per load, at the first tap or key or after 10 s in view:
+On its own it also sends `$engaged` once per load (never on a reload), at the first tap or key or after 10 s in view:
 the dashboard's *used* rate. Event names starting with `$` are reserved.
 
 Tag the links you post where apps send no referrer (Discord, the Reddit and YouTube apps):

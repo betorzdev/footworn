@@ -51,7 +51,9 @@ one person.
 counted and is never a visitor): SHA-256 of `salt | site | ip | user-agent` goes into `seen`
 with `INSERT OR IGNORE`; a new row means the first pageview of the day. The salt is random, lives in
 `meta` for one UTC day and is replaced by the nightly cron (`src/index.js`, `nightly()`), which
-also empties `seen`. The hash is never written to `hits`, the IP and the User-Agent are never
+also empties `seen`. A reload (the tracker marks it `rl`, read from the browser's own navigation
+type, nothing stored) goes through the same check and is kept only when it comes out first: a
+tab left open overnight counts as that day's visit, a refresh within the day counts nothing. The hash is never written to `hits`, the IP and the User-Agent are never
 written anywhere, and after midnight nothing can be recomputed. GoatCounter keeps the same
 tuple in memory for 8 hours; Plausible hashes with a daily salt as well.
 
