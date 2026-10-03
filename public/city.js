@@ -296,7 +296,7 @@
     ctx.fillStyle = T.road; ctx.fillRect(0, L.gy, VW, 2);
     /* lanes: one per referrer, its colour, its name, today's count */
     s.lanes.forEach(function (l) {
-      var y = laneY(L, l), hl = view.hl && view.hl.site === s && laneFor(s, view.hl.ref) === l || view.hover && view.hover.lane === l;
+      var y = laneY(L, l), hl = view.hl && view.hl.site === s && 'ref' in view.hl && laneFor(s, view.hl.ref) === l || view.hover && view.hover.lane === l;
       ctx.strokeStyle = rgba(l.color, hl ? .5 : .16); ctx.lineWidth = hl ? 2 : 1; ctx.setLineDash([6, 8]); ctx.beginPath(); ctx.moveTo(L.B.left, y); ctx.lineTo(VW, y); ctx.stroke(); ctx.setLineDash([]);
       ctx.fillStyle = rgba(l.color, 1); ctx.fillRect(L.B.left, y - 4, 4, 8);
       text(fit(l.label, L.labels - L.B.left - 50, T.fontCity), L.B.left + 10, y + 4, T.fontCity, hl ? T.ink : T.inkSoft, 'left');

@@ -52,9 +52,9 @@ URL is a bookmark to a site, the open ledger, its range and an open event.
   from three rounds of design options: atmosphere in the light, a chart's structure in the forms
   (front views so heights compare as bars, only data objects in focus, a number beside each).
 - Today, one by one (since 2026-10-03; two tabs since the same day, the single list read as
-  confusing): a panel beside the scene (a sheet on a phone). *Visits*: newest first, live, a
-  visit (`first`) in bold with its referrer's lane colour, another page a lighter row, *Only
-  visits* to hide those, a click unfolds a row with every field it holds and today's counts
+  confusing): a panel beside the scene (a sheet on a phone). *Visits*: newest first, live, every
+  page load in bold with its referrer's lane colour, and between them, lighter and stepped in, the
+  views opened in a page (`screen` events with a `view`), *Hide views* to hide those, a click unfolds a row with every field it holds and today's counts
   around it (page, referrer, country, device); *Events*: a card per name with its count, the
   spread of its commonest property, the last time and a link to the ledger's event detail. Rounded so a row is not a fingerprint (the minute, the device class,
   families; no width, no second, no id), never joining a page to a visit, empty at UTC midnight.

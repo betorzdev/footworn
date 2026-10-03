@@ -138,9 +138,13 @@ input {
 .ctx .meter { grid-column: 1 / -1; height: 4px; border-radius: 2px; background: var(--surface-2); overflow: hidden; }
 .ctx .meter .bar { display: block; height: 100%; border-radius: 0; background: var(--bar); width: 0; }
 .event-card .btn.small { margin-top: var(--s-2); padding: 0 var(--s-3); font-size: var(--fs-xs); }
-.visit.page { padding-top: 3px; padding-bottom: 3px; color: var(--page-ink); }
-.visit.page .path { font-weight: 500; }
-.visit.page .when { font-weight: 500; opacity: .8; }
+.visit.view { padding-top: 3px; padding-bottom: 3px; grid-template-columns: 40px calc(10px + var(--s-4)) minmax(0, 1fr) auto; color: var(--page-ink); }
+.visit.view .dot { justify-self: end; }   /* stepped in under the visits' dots */
+.visit.view .path { font-weight: 500; }
+.visit.view .when { font-weight: 500; opacity: .8; }
+.prop-chip { font-size: var(--fs-xs); font-weight: 500; padding: 1px var(--s-2); border-radius: 999px; background: var(--surface-2); }
+.facts dd .prop-chip + .prop-chip { margin-left: 2px; }
+.visit-detail .btn.small { margin-top: var(--s-2); padding: 0 var(--s-3); font-size: var(--fs-xs); }
 .visit.fresh { animation: walkin 1.6s ease-out; }
 @keyframes walkin { from { opacity: 0; transform: translateY(-6px); background: var(--row-new); } 55% { opacity: 1; transform: none; background: var(--row-new); } }
 .visits > .more { margin: 0 var(--s-3) var(--s-3); }

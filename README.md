@@ -48,13 +48,16 @@ dark from the top down and the day starts again.
 
 ![Hallownest up close: towers for each page from busiest to quietest, warm windows below and cool ones above with the used share on a tick, signs with today's pageviews on the roofs, lanes for google.com, reddit.com, steamcommunity.com, bing.com, youtube.com, elsewhere and direct with their counts, a searchlight over /charms/ for an event, the towers reflected in the wet street.](docs/screenshots/site.png)
 
-**Today, one by one.** A panel beside the scene, in two tabs. *Visits* lists the day's
-pageviews as they come in, newest first, and makes a visit (the first page of someone's day)
-stand out: its referrer's lane colour, the page, where it came from, the country and the device;
-another page steps back, and *Only visits* hides those. Point at a row and the scene rings its
+**Today, one by one.** A panel beside the scene, in two tabs. *Visits* lists every visit to the
+site (a page load) as it comes in, newest first: its referrer's lane colour, the page, where it
+came from, the country and the device. Between them, stepped back, every view opened inside a
+page (a `screen` event with a `view`: "charms", "game"), in the order they came; they sit together
+because they arrived together, never because anything ties them, and *Hide views* leaves the
+visits alone. Point at a row and the scene rings its
 tower and its lane; click it and it unfolds with everything it holds (country, device, browser
-and system, language) and today's counts around it: its page's pageviews and used share, its
-referrer, its country and its device. *Events* has a card per event with today's count, the
+and system, language, whether it was the first page of that visitor's day; a view's page and
+properties) and today's counts around it: its page's pageviews and used share, its referrer or
+how often that view was opened, its country and its device. *Events* has a card per event with today's count, the
 spread of its commonest property, when it last happened and a link to its detail in the ledger. Rounded on
 purpose, so a row is never a fingerprint (no width, no second, nothing joining two rows, so a
 page is never hung under a visit), and gone at UTC midnight.
@@ -90,6 +93,10 @@ That counts a pageview on load. From the page’s own code:
 footworn.event('screen', { view: 'combat', lang: 'es' });   // an action, with up to 10 short properties
 footworn.count('/other-page/');                              // a pageview by hand (hash routing, say)
 ```
+
+An app that changes view without loading a page (tabs, screens) can send
+`footworn.event('screen', { view: 'charms' })`: an event named `screen` with a `view` is listed in
+the dashboard's Visits tab as a view opened in a page, between the visits.
 
 On its own it also sends `$engaged` once per load, at the first tap or key or after 10 s in view:
 the dashboard's *used* rate. Event names starting with `$` are reserved.
