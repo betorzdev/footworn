@@ -30,6 +30,7 @@ button, summary { user-select: none; -webkit-user-select: none; -webkit-touch-ca
 .btn:active { transform: scale(.97); }
 .btn:disabled { opacity: .55; cursor: progress; transform: none; }
 .btn[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+.btn.armed { border-color: var(--accent); color: var(--accent); }   /* Lock, asking before it forgets the token */
 input {
   font: var(--fs-s)/1 var(--font-num); color: var(--text); background: var(--surface); border: 1px solid var(--glass-line);
   border-radius: var(--radius); padding: 0 var(--s-3); min-height: var(--tap); font-variant-numeric: tabular-nums;
@@ -98,15 +99,15 @@ input {
 .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--visit-dot); box-shadow: 0 0 0 1px var(--glass-line); flex: none; display: inline-block; }   /* the ring keeps a pale lane (direct) visible on light glass */
 .dot.hollow { background: transparent; box-shadow: inset 0 0 0 1.5px var(--page-dot); }
 .visits-body { flex: 1; min-height: 0; display: flex; flex-direction: column; }
-.visits-list, .events-list { list-style: none; margin: 0; padding: var(--s-1) var(--s-2) var(--s-3); overflow-y: auto; overscroll-behavior: contain; flex: 1; }
+.visits-list { list-style: none; margin: 0; padding: var(--s-1) var(--s-2) var(--s-3); overflow-y: auto; overscroll-behavior: contain; flex: 1; }
 .visits-list .hour { font: 600 var(--fs-xs)/1 var(--font); letter-spacing: var(--track); color: var(--muted); padding: var(--s-3) var(--s-2) var(--s-1); }
-.visits-list .empty, .events-list .empty { color: var(--muted); font-size: var(--fs-s); padding: var(--s-4) var(--s-2); }
+.visits-list .empty { color: var(--muted); font-size: var(--fs-s); padding: var(--s-4) var(--s-2); }
 /* One row: a visit stands out, another page steps back. Details unfold under it on hover or focus. */
 .visit { display: grid; grid-template-columns: 40px 10px minmax(0, 1fr) auto; column-gap: var(--s-2); align-items: center; width: 100%; text-align: left;
   font: inherit; font-size: var(--fs-s); color: inherit; background: transparent; border: 0; border-radius: var(--radius); padding: var(--s-2); cursor: pointer; }
 .visit .when { font-size: var(--fs-xs); font-weight: 600; color: var(--muted); }
 .visit .what { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.visit .site { font-size: var(--fs-xs); font-weight: 650; margin-right: var(--s-1); }
+.visit .site { font-size: var(--fs-xs); font-weight: 650; margin-right: var(--s-1); color: var(--muted); }
 .visit .path { font-weight: 650; }
 .visit .from { color: var(--muted); font-size: var(--fs-xs); margin-left: var(--s-1); }
 .visit .side { display: flex; align-items: center; gap: var(--s-1); color: var(--muted); font-size: var(--fs-xs); }
@@ -137,7 +138,6 @@ input {
 .ctx .r b { color: var(--text); font-weight: 600; }
 .ctx .meter { grid-column: 1 / -1; height: 4px; border-radius: 2px; background: var(--surface-2); overflow: hidden; }
 .ctx .meter .bar { display: block; height: 100%; border-radius: 0; background: var(--bar); width: 0; }
-.event-card .btn.small { margin-top: var(--s-2); padding: 0 var(--s-3); font-size: var(--fs-xs); }
 .visit.view { padding-top: 3px; padding-bottom: 3px; grid-template-columns: 40px calc(10px + var(--s-4)) minmax(0, 1fr) auto; color: var(--page-ink); }
 .visit.view .dot { justify-self: end; }   /* stepped in under the visits' dots */
 .visit.view .path { font-weight: 500; }
@@ -148,20 +148,16 @@ input {
 .visit.fresh { animation: walkin 1.6s ease-out; }
 @keyframes walkin { from { opacity: 0; transform: translateY(-6px); background: var(--row-new); } 55% { opacity: 1; transform: none; background: var(--row-new); } }
 .visits > .more { margin: 0 var(--s-3) var(--s-3); }
-/* Events: a card per name, its count today, the spread of its commonest property. */
-.event-card { padding: var(--s-3) var(--s-2); border-bottom: 1px solid var(--glass-line); }
-.event-card .top { display: flex; justify-content: space-between; align-items: baseline; gap: var(--s-2); }
-.event-card .name { font-weight: 700; overflow-wrap: anywhere; }
-.event-card .count { font: 600 var(--fs-l) var(--font-num); transition: color var(--t-base); }
-.event-card .count.pulse { color: var(--accent); }
-.event-card .prop { margin-top: var(--s-1); font-size: var(--fs-xs); color: var(--muted); }
-.event-card .bars { display: grid; grid-template-columns: minmax(0, 7em) 1fr auto; gap: var(--s-1) var(--s-2); align-items: center; margin-top: var(--s-1); }
-.event-card .bars span:nth-child(3n+1) { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text); }
-.event-card .bar { height: 6px; border-radius: 3px; background: var(--bar); width: 0; }
-.event-card .last { margin-top: var(--s-2); font-size: var(--fs-xs); color: var(--muted); }
-.event-card .last b { color: var(--text); font-weight: 600; }
-.events-list .note { font-size: var(--fs-xs); color: var(--muted); padding: var(--s-2); }
-@media (hover: hover) and (pointer: fine) { .visit:hover { background: var(--hover); } .tabs button:not([aria-selected="true"]):hover { color: var(--text); } }
+/* Events: a pill per event name with today's count, filtering the list below. */
+.events-head { margin-top: var(--s-2); }
+.pills { display: flex; gap: var(--s-1); flex-wrap: wrap; margin-top: var(--s-2); }
+.pills button { font: 600 var(--fs-xs)/1 var(--font); color: var(--text); background: transparent; border: 1px solid var(--glass-line); border-radius: 999px;
+  min-height: 30px; padding: 0 var(--s-3); cursor: pointer; display: inline-flex; align-items: center; gap: var(--s-1); }
+.pills button[aria-pressed="true"] { background: var(--text); color: var(--bg); border-color: var(--text); }
+.pills b { font-weight: 600; transition: color var(--t-base); }
+.pills b.pulse { color: var(--accent); }
+.visit .props { font-size: var(--fs-xs); margin-left: var(--s-1); }
+@media (hover: hover) and (pointer: fine) { .visit:hover { background: var(--hover); } .tabs button:not([aria-selected="true"]):hover { color: var(--text); } .pills button:not([aria-pressed="true"]):hover { background: var(--hover); } }
 
 /* Token form */
 .gate { position: fixed; left: 50%; top: 22vh; transform: translateX(-50%); width: min(var(--gate-w), calc(100vw - 2 * var(--s-4))); padding: var(--s-5); }
@@ -256,7 +252,7 @@ td.n { text-align: right; padding-left: var(--s-3); font-family: var(--font-num)
   .visits.open .fold::after { content: "\25BE"; }
   .visits-head { border-bottom: 0; padding-bottom: var(--s-2); }
   .visits .sub { margin: 0; }
-  .visits:not(.open) .tabs, .visits:not(.open) .tools, .visits:not(.open) .key, .visits:not(.open) .visits-body, .visits:not(.open) > .more { display: none; }
+  .visits:not(.open) .tabs, .visits:not(.open) .tools, .visits:not(.open) .events-head, .visits:not(.open) .key, .visits:not(.open) .visits-body, .visits:not(.open) > .more { display: none; }
 }
 @media (max-width: 760px) {
   .stats { top: auto; bottom: calc(max(var(--s-4), env(safe-area-inset-bottom)) + var(--tap) + var(--s-2) * 2 + var(--s-3)); left: max(var(--s-4), env(safe-area-inset-left)); justify-content: space-between; padding: var(--s-2) var(--s-4); }

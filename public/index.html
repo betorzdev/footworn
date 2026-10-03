@@ -47,7 +47,7 @@
     <button class="btn" id="toggle-visits" type="button" aria-controls="visits" aria-pressed="true">Visits</button>
     <button class="btn" id="open-ledger" type="button" hidden aria-controls="ledger">Ledger</button>
     <button class="btn" id="theme" type="button">Dark</button>
-    <button class="btn" id="logout" type="button" title="Forget the token">Lock</button>
+    <button class="btn" id="logout" type="button" title="Forget the token on this browser: coming back needs it again" aria-live="polite">Lock</button>
   </nav>
 
   <aside id="visits" class="visits glass" aria-labelledby="visits-title" hidden>
@@ -61,11 +61,15 @@
         <p id="visits-count" class="sub">–</p>
         <label class="switch"><input type="checkbox" id="hide-views" name="hide-views"> Hide views</label>
       </div>
+      <div class="events-head" id="events-head" hidden>
+        <p id="events-count" class="sub">–</p>
+        <div class="pills" id="event-chips" role="group" aria-label="Show events"></div>
+      </div>
       <p class="key" id="visits-key"><span class="dot" aria-hidden="true"></span>a visit to the site <span class="dot hollow" aria-hidden="true"></span>a view opened in a page</p>
     </header>
     <div class="visits-body" id="visits-body">
       <ol id="visits-list" class="visits-list" role="tabpanel" aria-labelledby="tab-visits"></ol>
-      <div id="events-list" class="events-list" role="tabpanel" aria-labelledby="tab-events" hidden></div>
+      <ol id="events-list" class="visits-list" role="tabpanel" aria-labelledby="tab-events" hidden></ol>
     </div>
     <button type="button" class="btn more" id="visits-more" hidden>Show more</button>
   </aside>

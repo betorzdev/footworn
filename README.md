@@ -57,10 +57,11 @@ visits alone. Point at a row and the scene rings its
 tower and its lane; click it and it unfolds with everything it holds (country, device, browser
 and system, language, whether it was the first page of that visitor's day; a view's page and
 properties) and today's counts around it: its page's pageviews and used share, its referrer or
-how often that view was opened, its country and its device. *Events* has a card per event with today's count, the
-spread of its commonest property, when it last happened and a link to its detail in the ledger. Rounded on
-purpose, so a row is never a fingerprint (no width, no second, nothing joining two rows, so a
-page is never hung under a visit), and gone at UTC midnight.
+how often that view was opened, its country and its device. *Events* is the same list, one row
+per event in its own colour with its properties, under a pill per event name with today's count
+that filters it; an open event links to its detail in the ledger. Every row names its site.
+Rounded on purpose, so a row is never a fingerprint (no width, no second, nothing joining two
+rows, so a view is never hung under a visit), and gone at UTC midnight.
 
 ![The panel beside a skyline, on its Visits tab: visits in bold with a dot in their referrer's lane colour, the page, the referrer, a flag and a device mark; other pages in a lighter, lower row with a hollow dot. One row is pointed at and its tower is lit.](docs/screenshots/visits.png)
 

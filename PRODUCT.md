@@ -54,10 +54,12 @@ URL is a bookmark to a site, the open ledger, its range and an open event.
 - Today, one by one (since 2026-10-03; two tabs since the same day, the single list read as
   confusing): a panel beside the scene (a sheet on a phone). *Visits*: newest first, live, every
   page load in bold with its referrer's lane colour, and between them, lighter and stepped in, the
-  views opened in a page (`screen` events with a `view`), *Hide views* to hide those, a click unfolds a row with every field it holds and today's counts
-  around it (page, referrer, country, device); *Events*: a card per name with its count, the
-  spread of its commonest property, the last time and a link to the ledger's event detail. Rounded so a row is not a fingerprint (the minute, the device class,
-  families; no width, no second, no id), never joining a page to a visit, empty at UTC midnight.
+  views opened in a page (`screen` events with a `view`), *Hide views* to hide those; a click
+  unfolds a row with every field it holds and today's counts around it (page, referrer, country,
+  device). *Events*: the same list, one row per event with its properties, under a pill per name
+  with today's count that filters it, an open row linking to the ledger's event detail. Every row
+  names its site. Rounded so a row is not a fingerprint (the minute, the device class, browser and
+  system families; no width, no second, no id), never joining a view to a visit, empty at UTC midnight.
   Pointing at a row rings its tower and lane in the scene.
 - The ledger, a drawer over it, per site and range (1, 7, 30, 90 days or custom): totals
   (visitors, pageviews, events), a day chart (pageviews as bars, visitors as a line), hour or

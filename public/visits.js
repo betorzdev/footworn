@@ -5,8 +5,9 @@
    side by side because they arrived side by side, never because they are tied: nothing joins two
    rows. "Hide views" leaves the loads alone. Click a row and it unfolds in place with everything that row holds and
    today's counts around it (its page, its referrer, its country, its device); one open at a
-   time, its tower and lane kept lit in the scene. Events: a card per event name with today's
-   count, the spread of its commonest property and when it last happened. A row is rounded as the API rounds it (src/stats.js,
+   time, its tower and lane kept lit in the scene. Events: the same list, one row per event in its
+   own colour, under a pill per event name with today's count that filters it. Every row names
+   its site. A row is rounded as the API rounds it (src/stats.js,
    `visits`): the minute, the device class, browser and system families; nothing joins two rows,
    so a view is never hung under a visit. In the bay it lists every site, in a skyline that site
    alone. Hovering or focusing a row asks the scene to ring the tower and the lane of that visit.
@@ -17,15 +18,16 @@
   var PAGE = 200;   // rows drawn at once; "Show more" adds as many again
   var KEEP = 2000;  // rows kept per site, newest first: what /api/visits gives at most
   var STORE = 'footworn.visits.open', TAB = 'footworn.visits.tab', HIDE = 'footworn.visits.hideviews';
+  var ALL = '$all';  // the "All" pill's key: no event name starts with `$` (src/collect.js)
   var PULSE = 900;  // ms an event card's count stays lit after a live one
 
   window.FootwornVisits = function (o) {
-    /* o: { siteName(id), siteColor(id), laneColor(id, ref), pageStats(id, path) -> { pv, loads, engaged } | null,
+    /* o: { siteName(id), laneColor(id, ref), pageStats(id, path) -> { pv, loads, engaged } | null,
            openEvent(id, name), totals(site | null) -> { visitors, pageviews, events }, onHover({ site, path, ref } | null) } */
     var $ = function (id) { return document.getElementById(id); };
     function load(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
     function save(k, v) { try { localStorage.setItem(k, v); } catch (e) { /* no storage */ } }
-    var state = { rows: [], view: null, tab: load(TAB) === 'events' ? 'events' : 'visits', hide: load(HIDE) === '1', shown: PAGE, open: false, pulse: {}, row: null };
+    var state = { rows: [], view: null, tab: load(TAB) === 'events' ? 'events' : 'visits', hide: load(HIDE) === '1', shown: PAGE, open: false, pulse: {}, row: null, evf: ALL };
     var regionName = (function () { try { var d = new Intl.DisplayNames(['en'], { type: 'region' }); return function (c) { return d.of(c); }; } catch (e) { return function (c) { return c; }; } })();
     var reduced = !!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches);
 
@@ -50,18 +52,36 @@
     function isView(v) { return v.event === 'screen' && v.props && typeof v.props.view === 'string'; }
     function keep(v) { return mine(v) && (!v.event || (!state.hide && isView(v))); }
 
+    /* Every row names its site: the bay shows them all together. */
+    function siteTag(v) { return '<span class="site">' + esc(o.siteName(v.site)) + '</span>'; }
+    /* An event's colour, from its name: the same in its pill, its rows and every repaint. */
+    var EVENT_TONES = 8;
+    function tone(name) { var h = 0; for (var k = 0; k < name.length; k++) h = (h * 31 + name.charCodeAt(k)) >>> 0; return 'var(--city-site-' + (h % EVENT_TONES + 1) + ')'; }
+    function propText(p) { return p ? Object.keys(p).map(function (k) { return k + ': ' + p[k]; }).join(' · ') : ''; }
+
+    /* --- the events tab: one row per event, like the visits --- */
+    function eventRow(v, i) {
+      var open = state.row === v, where = v.country ? regionName(v.country) : '', props = propText(v.props);
+      return '<li><button type="button" class="visit event' + (v.fresh && !reduced ? ' fresh' : '') + '" data-i="' + i + '" aria-expanded="' + open + '"' + (open ? ' aria-controls="visit-detail"' : '') +
+        ' aria-label="' + esc(clock(v.minute) + ', ' + o.siteName(v.site) + ', event ' + v.event + (props ? ', ' + props : '') + ' on ' + v.path + (where ? ', ' + where : '')) + '">' +
+        '<span class="when num">' + clock(v.minute) + '</span><span class="dot" data-c="' + tone(v.event) + '"></span>' +
+        '<span class="what">' + siteTag(v) + '<span class="path">' + esc(v.event) + '</span>' + (props ? '<span class="props">' + esc(props) + '</span>' : '') + '<span class="from">' + esc(v.path) + '</span></span>' +
+        '<span class="side">' + (v.country ? '<span class="flag">' + flag(v.country) + '</span>' : '') + (FOOT[v.device] || '') + '<span class="chev" aria-hidden="true">›</span></span>' +
+        '</button>' + (open ? detail(v, true) : '') + '</li>';
+    }
+
     /* --- the visits tab --- */
     function row(v, i) {
       var open = state.row === v, cls = (v.fresh && !reduced ? ' fresh' : '') + '" data-i="' + i + '" aria-expanded="' + open + '"' + (open ? ' aria-controls="visit-detail"' : '');
       if (isView(v)) {
         return '<li><button type="button" class="visit view' + cls + ' aria-label="' + esc(clock(v.minute) + ', view ' + v.props.view + ' on ' + v.path) + '">' +
           '<span class="when num">' + clock(v.minute) + '</span><span class="dot hollow"></span>' +
-          '<span class="what">' + (state.view ? '' : '<span class="site" data-c="' + esc(o.siteColor(v.site)) + '">' + esc(o.siteName(v.site)) + '</span>') +
+          '<span class="what">' + siteTag(v) +
           '<span class="path">' + esc(v.props.view) + '</span><span class="from">' + esc(v.path) + '</span></span>' +
           '<span class="side">view<span class="chev" aria-hidden="true">›</span></span></button>' + (open ? detail(v) : '') + '</li>';
       }
       var where = v.country ? regionName(v.country) : '';
-      var site = state.view ? '' : '<span class="site" data-c="' + esc(o.siteColor(v.site)) + '">' + esc(o.siteName(v.site)) + '</span>';
+      var site = siteTag(v);
       var from = v.ref || 'direct';
       var label = clock(v.minute) + ', visit, ' + (state.view ? '' : o.siteName(v.site) + ' ') + v.path + ' from ' + from + (where ? ', ' + where : '') + (v.device ? ', ' + v.device : '');
       return '<li><button type="button" class="visit load' + cls + ' aria-label="' + esc(label) + '">' +
@@ -73,20 +93,25 @@
     /* One row, unfolded: everything it holds, then today's counts around it. Counted from the
        rows this panel holds (all of today, up to KEEP a site) and the scene's towers; never
        anything about the same person, because nothing ties two rows together. */
-    function detail(v) {
-      var view = isView(v), from = v.ref || 'direct', mineSite = function (x) { return x.site === v.site && !x.event; };
+    function detail(v, asEvent) {
+      var view = !asEvent && isView(v), from = v.ref || 'direct', mineSite = function (x) { return x.site === v.site && !x.event; };
       var rows = state.rows.filter(mineSite), firsts = rows.filter(function (x) { return x.first; });
       var fact = function (k, val) { return val ? '<dt>' + k + '</dt><dd>' + val + '</dd>' : ''; };
       var props = v.props ? Object.keys(v.props).map(function (k) { return '<span class="prop-chip">' + esc(k) + ': ' + esc(v.props[k]) + '</span>'; }).join('') : '';
       var facts = fact('Time', '<span class="num">' + clock(v.minute) + '</span> <span class="soft">to the minute</span>') + fact('Site', esc(o.siteName(v.site))) +
-        (view ? fact('On page', esc(v.path)) + fact('Properties', props) :
+        (view || asEvent ? fact('On page', esc(v.path)) + fact('Properties', props) :
           fact('From', '<span class="dot" data-c="' + esc(o.laneColor(v.site, v.ref)) + '"></span>' + esc(from)) + fact('First page today', v.first ? 'yes' : 'no')) +
         fact('Country', v.country ? flag(v.country) + ' ' + esc(regionName(v.country)) : '') + fact('Device', esc(v.device || '')) +
         fact('Browser', esc([v.browser, v.os].filter(Boolean).join(' · '))) + fact('Language', esc(v.lang || ''));
       var bar = function (label, n, total, note) { return '<div class="r"><span>' + label + '</span><span><b class="num">' + fmt(n) + '</b> ' + note + '</span><span class="meter"><i class="bar" data-w="' + (total ? Math.round(100 * n / total) : 0) + '"></i></span></div>'; };
       var pg = o.pageStats(v.site, v.path), t = o.totals(v.site), ctx = '';
       if (pg) ctx += bar(pg.other ? 'other pages <span class="soft">(outside the top 8)</span>' : esc(v.path), pg.pv, t.pageviews, 'pageviews' + (pg.loads ? ' · ' + Math.min(100, Math.round(100 * pg.engaged / pg.loads)) + '% used' : ''));
-      if (view) {
+      if (asEvent) {
+        var evs = state.rows.filter(function (x) { return x.site === v.site && x.event; }), sameEv = evs.filter(function (x) { return x.event === v.event; });
+        ctx += bar('“' + esc(v.event) + '”', sameEv.length, evs.length, 'of ' + fmt(evs.length) + ' events');
+        var key = v.props && Object.keys(v.props)[0];
+        if (key) { var withVal = sameEv.filter(function (x) { return x.props && x.props[key] === v.props[key]; }).length; ctx += bar(esc(key) + ': ' + esc(v.props[key]), withVal, sameEv.length, 'of ' + fmt(sameEv.length)); }
+      } else if (view) {
         var views = state.rows.filter(function (x) { return x.site === v.site && isView(x); }), same = views.filter(function (x) { return x.props.view === v.props.view; }).length;
         ctx += bar('“' + esc(v.props.view) + '” opened', same, views.length, 'of ' + fmt(views.length) + ' views');
       } else {
@@ -96,65 +121,59 @@
       if (v.country) { var co = firsts.filter(function (x) { return x.country === v.country; }).length; ctx += bar(flag(v.country) + ' ' + esc(regionName(v.country)), co, firsts.length, 'of ' + fmt(firsts.length) + ' visitors'); }
       if (v.device) { var dv = firsts.filter(function (x) { return x.device === v.device; }).length; ctx += bar(esc(v.device), dv, firsts.length, 'of ' + fmt(firsts.length) + ' visitors'); }
       var cut = rows.length < t.pageviews ? '<p class="soft">Counted from the latest ' + fmt(rows.length) + ' of today’s ' + fmt(t.pageviews) + ' page loads.</p>' : '';
-      var ledger = view && state.view ? '<button type="button" class="btn small" data-ev="screen">Open “screen” in the ledger</button>' : '';
+      if (asEvent && evs.length < t.events) cut += '<p class="soft">Counted from the latest ' + fmt(evs.length) + ' of today’s ' + fmt(t.events) + ' events; the ledger has them all.</p>';
+      var ledger = (view || asEvent) && state.view ? '<button type="button" class="btn small" data-ev="' + esc(v.event) + '">Open “' + esc(v.event) + '” in the ledger</button>' : '';
       var fresh = state.unfold; state.unfold = false;   // the unfold plays once, not on every live repaint
-      return '<div class="visit-detail' + (fresh ? ' unfold' : '') + '" id="visit-detail"><p class="kind' + (view ? '' : ' is-visit') + '">' + (view ? 'A view opened in a page' : 'A visit to the site') + '</p>' +
-        '<p class="page-name">' + esc(view ? v.props.view : v.path) + '</p><dl class="facts">' + facts + '</dl>' +
+      return '<div class="visit-detail' + (fresh ? ' unfold' : '') + '" id="visit-detail"><p class="kind' + (view || asEvent ? '' : ' is-visit') + '">' + (asEvent ? 'Event' : view ? 'A view opened in a page' : 'A visit to the site') + '</p>' +
+        '<p class="page-name">' + esc(asEvent ? v.event : view ? v.props.view : v.path) + '</p><dl class="facts">' + facts + '</dl>' +
         '<div class="ctx"><h3>Today, in counts</h3>' + ctx + cut + '</div>' + ledger +
         '<p class="soft">No id, no second, no width: nothing ties this row to any other.</p></div>';
     }
+    /* The open tab's rows, in hours, up to `shown`; `list` is what a row's data-i points into. */
     var list = [];
-    function paintVisits() {
-      list = state.rows.filter(keep);
+    function paintList(el, rows, draw, empty) {
+      list = rows;
       var html = '', hour = null, n = Math.min(list.length, state.shown);
       for (var i = 0; i < n; i++) {
         var h = new Date(list[i].minute * 1000).getHours();
         if (h !== hour) { hour = h; html += '<li class="hour" aria-hidden="true">' + pad(h) + ':00</li>'; }
-        html += row(list[i], i);
+        html += draw(list[i], i);
       }
-      $('visits-list').innerHTML = html || '<li class="empty">' + (state.rows.some(mine) ? 'No visit yet today.' : 'No visits yet today.') + '</li>';
-      $('visits-more').hidden = state.tab !== 'visits' || list.length <= n;
+      el.innerHTML = html || '<li class="empty">' + empty + '</li>';
+      $('visits-more').hidden = list.length <= n;
     }
-
-    /* --- the events tab: counted here from today's rows --- */
+    function paintVisits() { paintList($('visits-list'), state.rows.filter(keep), row, 'No visit yet today.'); }
+    /* Events: a pill per name with today's count (lit a moment when one comes in live), which
+       filters the list below. */
     function paintEvents() {
-      var by = {}, names = [];
-      state.rows.forEach(function (v) {
-        if (!v.event || !mine(v)) return;
-        var e = by[v.event]; if (!e) { e = by[v.event] = { name: v.event, n: 0, props: {}, last: v }; names.push(v.event); }
-        e.n++; if (v.minute > e.last.minute) e.last = v;
-        if (v.props) Object.keys(v.props).forEach(function (k) { var p = e.props[k] = e.props[k] || { n: 0, values: {} }; p.n++; p.values[v.props[k]] = (p.values[v.props[k]] || 0) + 1; });
-      });
-      names.sort(function (a, b) { return by[b].n - by[a].n; });
-      var now = Date.now(), html = names.map(function (name) {
-        var e = by[name], keys = Object.keys(e.props).sort(function (a, b) { return e.props[b].n - e.props[a].n; }), prop = '';
-        if (keys.length) {
-          var p = e.props[keys[0]], vals = Object.keys(p.values).sort(function (a, b) { return p.values[b] - p.values[a]; }).slice(0, 4), max = p.values[vals[0]];
-          prop = '<div class="prop">' + esc(keys[0]) + (keys.length > 1 ? ' <span>(+' + (keys.length - 1) + ' more in the ledger)</span>' : '') + '<div class="bars">' +
-            vals.map(function (val) { return '<span title="' + esc(val) + '">' + esc(val) + '</span><span class="bar" data-w="' + Math.round(100 * p.values[val] / max) + '"></span><span class="num">' + fmt(p.values[val]) + '</span>'; }).join('') + '</div></div>';
-        }
-        return '<div class="event-card"><div class="top"><span class="name">' + esc(name) + '</span><span class="count num' + (now - (state.pulse[name] || 0) < PULSE ? ' pulse' : '') + '">' + fmt(e.n) + '</span></div>' + prop +
-          '<div class="last">last at <b class="num">' + clock(e.last.minute) + '</b> on <b>' + esc(e.last.path) + '</b>' + (state.view ? '' : ' · ' + esc(o.siteName(e.last.site))) + '</div>' +
-          (state.view ? '<button type="button" class="btn small" data-ev="' + esc(name) + '">Open in the ledger</button>' : '') + '</div>';
-      }).join('');
-      var t = o.totals(state.view), listed = names.reduce(function (n, k) { return n + by[k].n; }, 0);
-      if (html && listed < t.events) html += '<p class="note">Counted from the latest ' + fmt(listed) + ' of today’s ' + fmt(t.events) + ' events; the ledger has them all.</p>';
-      $('events-list').innerHTML = html || '<p class="empty">No events yet today.</p>';
+      var by = Object.create(null), names = [], all = 0, now = Date.now();   // no prototype: an event may be called `constructor`
+      state.rows.forEach(function (v) { if (!v.event || !mine(v)) return; all++; if (!by[v.event]) { by[v.event] = 0; names.push(v.event); } by[v.event]++; });
+      names.sort(function (a, b) { return by[b] - by[a] || (a < b ? -1 : 1); });
+      if (state.evf !== ALL && !by[state.evf]) state.evf = ALL;
+      var pill = function (key, label, n, dot) {
+        return '<button type="button" data-evf="' + esc(key) + '" aria-pressed="' + (state.evf === key) + '">' + (dot ? '<span class="dot" data-c="' + dot + '"></span>' : '') + esc(label) +
+          ' <b class="num' + (key !== ALL && now - (state.pulse[key] || 0) < PULSE ? ' pulse' : '') + '">' + fmt(n) + '</b></button>';
+      };
+      $('event-chips').innerHTML = names.length ? pill(ALL, 'All', all) + names.map(function (k) { return pill(k, k, by[k], tone(k)); }).join('') : '';
+      var t = o.totals(state.view);
+      $('events-count').textContent = fmt(t.events) + (t.events === 1 ? ' event' : ' events') + ' today · ' + names.length + (names.length === 1 ? ' kind' : ' kinds') +
+        (all < t.events ? ' · the latest ' + fmt(all) + ' listed' : '');
+      paintList($('events-list'), state.rows.filter(function (v) { return v.event && mine(v) && (state.evf === ALL || v.event === state.evf); }), eventRow, 'No events yet today.');
     }
 
     function paint() {
       var t = o.totals(state.view), ev = state.tab === 'events';
       $('n-visits').textContent = fmt(t.pageviews); $('n-events').textContent = fmt(t.events);   // a visit here is a load of the site
       ['visits', 'events'].forEach(function (k) { var b = $('tab-' + k), on = state.tab === k; b.setAttribute('aria-selected', String(on)); b.tabIndex = on ? 0 : -1; });
-      $('visits-list').hidden = ev; $('events-list').hidden = !ev; $('visits-tools').hidden = ev; $('visits-key').hidden = ev;
+      $('visits-list').hidden = ev; $('events-list').hidden = !ev; $('visits-tools').hidden = ev; $('visits-key').hidden = ev; $('events-head').hidden = !ev;
       $('hide-views').checked = state.hide;
       var held = state.rows.filter(function (v) { return mine(v) && !v.event; }).length, views = state.rows.filter(function (v) { return mine(v) && isView(v); }).length;
       $('visits-count').textContent = fmt(t.pageviews) + (t.pageviews === 1 ? ' visit · ' : ' visits · ') + fmt(views) + (views === 1 ? ' view' : ' views') +
         (held < t.pageviews ? ' · the latest ' + fmt(held) + ' listed' : '');
       /* A live repaint rebuilds the list: the row that had the keyboard focus gets it back. */
-      var had = document.activeElement && document.activeElement.closest ? document.activeElement.closest('#visits-list button.visit') : null, focused = had ? list[Number(had.dataset.i)] : null;
-      if (ev) { paintEvents(); $('visits-more').hidden = true; } else paintVisits();
-      if (focused) { var j = list.indexOf(focused), back = j >= 0 && $('visits-list').querySelector('button.visit[data-i="' + j + '"]'); if (back) back.focus({ preventScroll: true }); }
+      var had = document.activeElement && document.activeElement.closest ? document.activeElement.closest('#visits-body button.visit') : null, focused = had ? list[Number(had.dataset.i)] : null;
+      if (ev) paintEvents(); else paintVisits();
+      if (focused) { var j = list.indexOf(focused), back = j >= 0 && openList().querySelector('button.visit[data-i="' + j + '"]'); if (back) back.focus({ preventScroll: true }); }
       /* Colours and widths from script, not inline style: the dashboard's CSP allows no inline code. */
       Array.prototype.forEach.call(document.querySelectorAll('#visits [data-c]'), function (el) { if (el.dataset.c) el.style[el.classList.contains('dot') ? 'backgroundColor' : 'color'] = el.dataset.c; });
       Array.prototype.forEach.call(document.querySelectorAll('#visits .bar[data-w]'), function (el) { el.style.width = el.dataset.w + '%'; });
@@ -169,25 +188,34 @@
     });
     $('hide-views').addEventListener('change', function () { state.hide = this.checked; save(HIDE, state.hide ? '1' : '0'); state.shown = PAGE; if (state.row && isView(state.row) && state.hide) { state.row = null; o.onHover(null); } paint(); });
     $('visits-more').addEventListener('click', function () { state.shown += PAGE; paint(); });
-    /* Hover or focus rings the visit in the scene; an open row keeps its ring when the pointer leaves. */
-    /* A view has no referrer of its own: it rings its tower, no lane. */
-    function ringOf(v) { return !v ? null : isView(v) ? { site: v.site, path: v.path } : { site: v.site, path: v.path, ref: v.ref }; }
+    /* Hover or focus rings the row in the scene; an open row keeps its ring when the pointer leaves.
+       A view or an event has no referrer of its own: it rings its tower, no lane. */
+    function ringOf(v) { return !v ? null : v.event ? { site: v.site, path: v.path } : { site: v.site, path: v.path, ref: v.ref }; }
+    function openList() { return state.tab === 'events' ? $('events-list') : $('visits-list'); }
     function point(e) { var b = e.target.closest('button.visit'); o.onHover(b ? ringOf(list[Number(b.dataset.i)]) : ringOf(state.row)); }
-    $('visits-list').addEventListener('mouseover', point);
-    $('visits-list').addEventListener('focusin', point);
-    $('visits-list').addEventListener('mouseleave', function () { o.onHover(ringOf(state.row)); });
-    $('visits-list').addEventListener('focusout', function (e) { if (!e.currentTarget.contains(e.relatedTarget)) o.onHover(ringOf(state.row)); });
-    /* A click (or Enter, or Space) unfolds a row, or folds it back; one open at a time. The list is
-       drawn again, so the focus goes back to the row that was pressed. */
-    $('visits-list').addEventListener('click', function (e) {
-      var b = e.target.closest('button.visit'); if (!b) return;
-      var v = list[Number(b.dataset.i)]; if (!v) return;
-      state.row = state.row === v ? null : v; state.unfold = !!state.row; paint(); o.onHover(ringOf(state.row || v));
-      var i = list.indexOf(v), again = i >= 0 && $('visits-list').querySelector('button.visit[data-i="' + i + '"]');
-      if (again) again.focus({ preventScroll: true });
+    ['visits-list', 'events-list'].forEach(function (id) {
+      var el = $(id);
+      el.addEventListener('mouseover', point);
+      el.addEventListener('focusin', point);
+      el.addEventListener('mouseleave', function () { o.onHover(ringOf(state.row)); });
+      el.addEventListener('focusout', function (e) { if (!e.currentTarget.contains(e.relatedTarget)) o.onHover(ringOf(state.row)); });
+      /* The ledger button inside an open row: it opens the ledger, it does not fold the row. */
+      el.addEventListener('click', function (e) { var b = e.target.closest('[data-ev]'); if (b && state.view) { e.stopPropagation(); o.openEvent(state.view, b.dataset.ev); } }, true);
+      /* A click (or Enter, or Space) unfolds a row, or folds it back; one open at a time. The list
+         is drawn again, so the focus goes back to the row that was pressed. */
+      el.addEventListener('click', function (e) {
+        var b = e.target.closest('button.visit'); if (!b) return;
+        var v = list[Number(b.dataset.i)]; if (!v) return;
+        state.row = state.row === v ? null : v; state.unfold = !!state.row; paint(); o.onHover(ringOf(state.row || v));
+        var i = list.indexOf(v), again = i >= 0 && openList().querySelector('button.visit[data-i="' + i + '"]');
+        if (again) again.focus({ preventScroll: true });
+      });
     });
-    $('visits-list').addEventListener('click', function (e) { var b = e.target.closest('[data-ev]'); if (b && state.view) { e.stopPropagation(); o.openEvent(state.view, b.dataset.ev); } }, true);
-    $('events-list').addEventListener('click', function (e) { var b = e.target.closest('[data-ev]'); if (b && state.view) o.openEvent(state.view, b.dataset.ev); });
+    $('event-chips').addEventListener('click', function (e) {
+      var b = e.target.closest('[data-evf]'); if (!b) return;
+      state.evf = b.dataset.evf; state.shown = PAGE; if (state.row) { state.row = null; o.onHover(null); } paint();
+      var again = $('event-chips').querySelector('[data-evf="' + b.dataset.evf.replace(/["\\]/g, '\\$&') + '"]'); if (again) again.focus({ preventScroll: true });
+    });
     /* On a phone the panel is a sheet: its title folds it open and shut. */
     $('visits-fold').addEventListener('click', function () {
       state.open = !state.open; $('visits').classList.toggle('open', state.open);
@@ -220,7 +248,7 @@
         if (v.event) { state.pulse[v.event] = Date.now(); setTimeout(function () { if (state.tab === 'events') paint(); }, PULSE + 50); }
         if (!state.view || m.site === state.view) paint();
       },
-      view: function (site) { state.view = site || null; state.shown = PAGE; state.row = null; o.onHover(null); paint(); },
+      view: function (site) { state.view = site || null; state.shown = PAGE; state.row = null; state.evf = ALL; o.onHover(null); paint(); },
       clear: function () { state.rows = []; state.row = null; o.onHover(null); paint(); },
       remembered: function () { try { return localStorage.getItem(STORE) !== '0'; } catch (e) { return true; } },
       remember: function (on) { try { localStorage.setItem(STORE, on ? '1' : '0'); } catch (e) { /* no storage */ } },

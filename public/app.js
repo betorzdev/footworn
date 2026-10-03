@@ -54,7 +54,15 @@
     $('gate-form').querySelector('button').disabled = true;
     start();
   });
-  $('logout').addEventListener('click', function () { save(TOKEN_KEY, null); state.token = null; $('token').value = ''; showGate(); });
+  /* Lock forgets the token, and coming back needs it again: a first press only asks, a second
+     within a few seconds locks. */
+  var arming = null;
+  function disarm() { clearTimeout(arming); arming = null; var b = $('logout'); b.textContent = 'Lock'; b.classList.remove('armed'); }
+  $('logout').addEventListener('click', function () {
+    if (!arming) { this.textContent = 'Lock? You’ll need the token'; this.classList.add('armed'); arming = setTimeout(disarm, 4000); return; }
+    disarm(); save(TOKEN_KEY, null); state.token = null; $('token').value = ''; showGate();
+  });
+  $('logout').addEventListener('blur', function () { if (arming) disarm(); });
 
   /* --- the parts --- */
   var ledger = window.FootwornLedger({
@@ -62,7 +70,7 @@
     unauthorized: function () { showGate('The token stopped working. Paste it again.'); },
     onUrl: syncUrl,
   });
-  var visits = window.FootwornVisits({ siteName: siteName, siteColor: function (id) { return scene.siteColor(id); }, laneColor: function (id, ref) { return scene.laneColor(id, ref); },
+  var visits = window.FootwornVisits({ siteName: siteName, laneColor: function (id, ref) { return scene.laneColor(id, ref); },
     pageStats: function (id, path) { return scene.pageStats(id, path); }, openEvent: function (id, name) { openEvent(id, name); },
     totals: function (site) { return scene.stats(site); }, onHover: function (h) { scene.highlight(h); } });
   state.showVisits = visits.remembered();
