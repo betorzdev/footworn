@@ -1,6 +1,7 @@
 /* Footworn's dashboard: the village. One classic script ties the parts together. It asks the token
    once (kept in localStorage), reads /api/sites and /api/scene for each site, feeds the scene
-   (village.js), keeps the live socket (live.js) and opens the ledger (ledger.js). The view lives in
+   (village.js), keeps the live socket (live.js), opens the ledger (ledger.js) and hands the
+   scene's cues to the sound (sound.js). The view lives in
    the query string (`?site=&ledger=1&days=30&event=`), so a link reopens it; the token only ever
    travels in the hash (`#token=`). */
 (function () {
@@ -74,6 +75,7 @@
     pageStats: function (id, path) { return scene.pageStats(id, path); }, openEvent: function (id, name) { openEvent(id, name); },
     totals: function (site) { return scene.stats(site); }, onHover: function (h) { scene.highlight(h); } });
   state.showVisits = visits.remembered();
+  var sound = window.FootwornSound();
   var live = window.FootwornLive({
     ticket: function () { return api('/api/live-ticket').then(function (r) { return r.ticket; }); },
     onMessage: function (msg) { if (state.buffer) state.buffer.push(msg); else { scene.live(msg); visits.live(msg); } },
@@ -107,7 +109,7 @@
       $('gate').hidden = true; $('ui').hidden = false; paintPanel();
       if (!state.started) {
         state.started = true;
-        scene.init($('scene'), { tip: $('tip'), insets: insets, onEnter: go, onLeave: leave });
+        scene.init($('scene'), { tip: $('tip'), insets: insets, onEnter: go, onLeave: leave, onCue: sound.cue });
         /* The scene measures the panels' room when it is told it changed, not in every frame. */
         if (window.ResizeObserver) {
           var ro = new ResizeObserver(function () { scene.resized(); });
@@ -244,6 +246,23 @@
     if (!state.showVisits) scene.highlight(null);
     paintPanel(); scene.refit(true);
   });
+  /* Sound is off until asked for. Remembered on from another day, it waits for the first click
+     (no browser lets a page sound before one): the button is outlined, not filled, until then.
+     The slider beside it, there while sound is on, is its volume. */
+  function paintSound(st) {
+    var b = $('sound');
+    b.setAttribute('aria-pressed', st === 'on' ? 'true' : st === 'waiting' ? 'mixed' : 'false');
+    b.classList.toggle('armed', st === 'waiting');
+    $('volume').hidden = st === 'off';
+    b.title = st === 'off' ? 'Hear the visits: steps at the gate, a bell at the door' : st === 'waiting' ? 'Sound is on: it starts with your first click' : 'Silence the village';
+  }
+  if (sound.supported) {
+    $('sound').addEventListener('click', sound.toggle); sound.onchange(paintSound); paintSound(sound.state());
+    $('volume').value = sound.volume();
+    $('volume').addEventListener('input', function () { sound.setVolume(this.value); });
+    $('volume').addEventListener('change', function () { sound.setVolume(this.value, true); });
+  }
+  else $('sound').hidden = true;
   $('open-ledger').addEventListener('click', function () { openLedger(); });
   $('close-ledger').addEventListener('click', closeLedger);
   document.addEventListener('keydown', function (e) {

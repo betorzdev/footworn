@@ -93,6 +93,7 @@ input {
 .dock { position: fixed; left: max(var(--s-4), env(safe-area-inset-left)); right: max(var(--s-4), env(safe-area-inset-right)); bottom: max(var(--s-4), env(safe-area-inset-bottom));
   padding: var(--s-2); display: flex; gap: var(--s-2); align-items: center; }
 .dock .grow { flex: 1 1 auto; }
+.dock .vol { flex: none; width: calc(var(--s-6) * 3); padding: 0; border: 0; background: transparent; cursor: pointer; }   /* the sound's volume: the browser's own slider */
 .places { list-style: none; margin: 0; padding: 0; display: flex; gap: var(--s-2); overflow-x: auto; min-width: 0; scrollbar-width: none; }
 .places .btn { white-space: nowrap; }
 .banner { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(max(var(--s-4), env(safe-area-inset-bottom)) + var(--tap) + var(--s-6)); padding: var(--s-2) var(--s-4);
@@ -287,6 +288,7 @@ td.n { text-align: right; padding-left: var(--s-3); font-family: var(--font-num)
   .stats .wide { display: none; }
   .conn span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0, 0, 0, 0); }   /* four counts fill a phone: the dot alone */
   .hud { right: max(var(--s-4), env(safe-area-inset-right)); }
+  #sound, #volume { display: none; }   /* the sound is for a second screen: a phone's dock has no room for it (sound.js keeps quiet there too) */
   .banner { bottom: auto; top: calc(max(var(--s-4), env(safe-area-inset-top)) + 88px); }
   .ledger { padding-left: var(--s-4); }
   .tiles { grid-template-columns: 1fr 1fr; }

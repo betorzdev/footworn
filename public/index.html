@@ -48,6 +48,8 @@
     <span class="grow"></span>
     <button class="btn" id="toggle-visits" type="button" aria-controls="visits" aria-pressed="true">Visits</button>
     <button class="btn" id="open-ledger" type="button" hidden aria-controls="ledger">Ledger</button>
+    <button class="btn" id="sound" type="button" aria-pressed="false">Sound</button>
+    <input class="vol" id="volume" name="volume" type="range" min="0" max="100" step="5" aria-label="Sound volume" autocomplete="off" hidden>
     <button class="btn" id="theme" type="button">Dark</button>
     <button class="btn" id="logout" type="button" title="Forget the token on this browser: coming back needs it again" aria-live="polite">Lock</button>
   </nav>
@@ -122,6 +124,7 @@
 
 <script src="gl.js"></script>
 <script src="village.js"></script>
+<script src="sound.js"></script>
 <script src="live.js"></script>
 <script src="ledger.js"></script>
 <script src="visits.js"></script>

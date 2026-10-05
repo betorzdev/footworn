@@ -12,7 +12,8 @@
      up to the tower are today's opens, and a stall nobody opened today is shut and dark;
    - every live visit is a villager with a lantern, in through its gate, across the square, home;
      every view opened live one who leaves that page's house for the stall, in a scarf of the
-     lanterns' colour; every other event fireworks over its house.
+     lanterns' colour; every other event fireworks over its house. Each of those moments is also
+     given to `onCue`, for the ear (sound.js).
    Click a village (or its sign) and the camera flies in. At UTC midnight the windows go dark and
    the day starts again. A classic script over gl.js (WebGL2), no dependencies; every colour comes
    from tokens.css. app.js feeds it (/api/scene, the live socket) through the same interface the
@@ -97,6 +98,7 @@
     s.visitors = data.today.visitors; s.pageviews = data.today.hits; s.viewsToday = data.today.viewsTotal || 0; s.events = data.today.events; s.loads = data.today.loads || 0; s.engaged = data.today.engaged || 0;
     s.yesterday = data.yesterday.visitors;
     s.hours = data.hours || [];
+    s.walkers.forEach(function (w) { cue(w.stall ? 'stall' : 'door', s, w.cue); });   // whoever was on the way is not drawn again: their bell rings now
     s.walkers = []; s.sparks = [];
     s.loaded = true;
     rebuild(s, true);   // new towers and lanes: its houses and gates are made again
@@ -131,7 +133,7 @@
     if (msg.event) {
       t.events++; s.events++;
       if (v) { rebuild(s); toStall(s, h, stallOf(s, v)); }
-      else if (h && W) s.sparks.push({ h: h, t: 0, col: T.sites[s.idx % T.sites.length] });
+      else if (h && W) { s.sparks.push({ h: h, t: 0, col: T.sites[s.idx % T.sites.length] }); cue('event', s, { house: s.houses.indexOf(h) }); }
       return;
     }
     var l = laneFor(s, msg.ref);
@@ -141,12 +143,21 @@
     rebuild(s);
     var g = gateOf(s, l);
     if (!h || !g || !W) return;
-    if (reduced) { h.flash = 1; return; }
+    var c = { lane: s.lanes.indexOf(l), house: s.houses.indexOf(h), first: !!msg.first };
+    cue('gate', s, c);
+    if (reduced) { h.flash = 1; cue('door', s, { house: c.house, first: c.first, delay: .8 }); return; }   // nobody walks: the bell follows the steps
     var side = (Math.random() - .5) * g.w * .5, tan = [-Math.sin(g.a) * side, 0, Math.cos(g.a) * side];
     var path = [[g.end[0] + tan[0], 0, g.end[2] + tan[2]], [g.pos[0] + tan[0], 0, g.pos[2] + tan[2]]];
     walkRound(path, s, g.a, h.a, R_WALK);
     path.push(h.door);
-    s.walkers.push({ path: path, d: 0, speed: 2.3 + Math.random() * .7, col: g.col, h: h, seed: Math.random() });
+    s.walkers.push({ path: path, d: 0, speed: 2.3 + Math.random() * .7, col: g.col, h: h, seed: Math.random(), cue: c });
+  }
+  /* What just happened, for the ear: the village's place in the valley goes with it. */
+  function cue(name, s, c) {
+    if (!opts.onCue) return;
+    var o = { site: s ? s.idx : 0, of: sites.length }, k;
+    for (k in c) o[k] = c[k];
+    opts.onCue(name, o);
   }
   /* Onto a walker's path: round the square at radius `r`, the short way from angle `a0` to `a1`. */
   function walkRound(path, s, a0, a1, r) {
@@ -157,12 +168,12 @@
      market to the stall. */
   function toStall(s, h, st) {
     if (!h || !st || !W) return;
-    if (reduced) { st.flash = 1; return; }
+    if (reduced) { st.flash = 1; cue('stall', s, { view: st.k }); return; }
     var step = TAU / 24, cross = (Math.floor((h.a + Math.PI / 2) / step) + .5) * step - Math.PI / 2;
     var path = [h.door.slice(), at(s.o, cross, R_POST + .9)];
     walkRound(path, s, cross, st.a, R_MARKET);
     path.push(st.front.slice());
-    s.walkers.push({ path: path, d: 0, speed: 2.3 + Math.random() * .7, col: T.view, stall: st, seed: Math.random() });
+    s.walkers.push({ path: path, d: 0, speed: 2.3 + Math.random() * .7, col: T.view, stall: st, seed: Math.random(), cue: { view: st.k } });
   }
   function houseOf(s, t) { for (var i = 0; i < s.houses.length; i++) if (s.houses[i].t === t) return s.houses[i]; return null; }
   function gateOf(s, l) { for (var i = 0; i < s.gates.length; i++) if (s.gates[i].l === l) return s.gates[i]; return null; }
@@ -604,7 +615,7 @@
       if (s.walkers.length || s.sparks.length) busy = true;
       s.walkers = s.walkers.filter(function (w) {
         w.d += dt * w.speed; var a = G.along(w.path, w.d);
-        if (a.done) { (w.stall || w.h).flash = 1; return false; }
+        if (a.done) { (w.stall || w.h).flash = 1; cue(w.stall ? 'stall' : 'door', s, w.cue); return false; }
         villager(M, a.p, a.dir, w.col, Math.abs(Math.sin(w.d * 5)) * .05, w.seed);
         return true;
       });
@@ -688,7 +699,7 @@
   }
 
   window.FootwornCity = {
-    /* canvas, { tip, insets() -> {top, bottom, right}, onEnter(id), onLeave() } */
+    /* canvas, { tip, insets() -> {top, bottom, right}, onEnter(id), onLeave(), onCue(name, cue) } */
     init: function (canvas, o) {
       cv = canvas; opts = o || {}; tip = opts.tip || null;
       readTokens();
@@ -774,7 +785,7 @@
     /* The day's cut: the windows go dark from the top down, then `done` (app.js reloads the counts). */
     dayCut: function (done) {
       if (failed || !W) { if (done) done(); return; }
-      if (!state.blackout) state.blackout = { t0: performance.now(), dur: reduced ? 1 : BLACKOUT_MS, done: done };
+      if (!state.blackout) { state.blackout = { t0: performance.now(), dur: reduced ? 1 : BLACKOUT_MS, done: done }; cue('midnight'); }
       W.wake();
     },
     /* Rings one visit's house and gate ({ site, path, ref }), a view's house and stall

@@ -56,6 +56,15 @@ house for the stall; every other event, fireworks over the roof. Drag to turn, w
 pinch to come closer; hover, or tap, a house, a gate or a stall for its numbers. At UTC midnight
 (the day's cut) the windows go dark from the top down and the day starts again.
 
+**Sound**, off until its button in the dock asks for it, says the same for the ear, for a
+dashboard left on a second screen: two steps in the snow when a villager comes through a gate
+(each gate has its own, darker or brighter), a hand bell when they reach the house (the page is
+the pitch, the top page the lowest; a new visitor's bell is answered an octave up), a wind chime
+at the stall, the fireworks far off, and one stroke of the tower at UTC midnight. Each village
+sounds from its side of the valley. All of it is synthesised in the browser (Web Audio, no
+files); nothing plays between visits, and the audio goes to sleep a few seconds after the last
+one. The slider beside the button is its volume. Not on a phone.
+
 ![Hallownest up close: houses round a clock square, the tallest for the busiest pages, warm windows from the ground up, labels with today's pageviews and the used share; street lamps round the square for the hours; gates in the palisade with lanterns in each referrer's colour and their counts; villagers with lanterns walking in.](docs/screenshots/site.png)
 
 **Today, one by one.** A panel beside the scene, in two tabs. *Visits* lists every visit to the
@@ -237,7 +246,7 @@ src/stats.js      the API's queries
 src/live.js       the live view: what a live message carries, and the Live Durable Object that relays it
 src/ticket.js     the live socket's 60-second ticket
 src/auth.js       the bearer check
-public/           footworn.js, the dashboard (index.html, app.js, gl.js, village.js, live.js, ledger.js, theme.js, style.css, tokens.css), privacy, demo,
+public/           footworn.js, the dashboard (index.html, app.js, gl.js, village.js, sound.js, live.js, ledger.js, visits.js, theme.js, style.css, tokens.css), privacy, demo,
                   _headers (nosniff and no-referrer everywhere; the dashboard's CSP: no inline code, no framing)
 migrations/       the D1 schema
 test/             node --test
