@@ -115,8 +115,12 @@
       }).join('');
       if (!sites.length) showError('No sites registered yet. Register one with: npm run site:add -- <id> "<name>" <origin> --remote');
       var want = state.site; state.site = null;
-      if (want && sites.some(function (s) { return s.id === want; })) go(want, true); else paintView();
-      if (want && state.site && state.ledgerOnBoot) openLedger();
+      restoring = true;
+      try {
+        if (want && sites.some(function (s) { return s.id === want; })) go(want, true); else paintView();
+        if (want && state.site && state.ledgerOnBoot) openLedger();
+      } finally { restoring = false; }
+      syncUrl(true);
       live.start();
       reloadAll();
     }).catch(function (e) {
@@ -240,13 +244,37 @@
     }, 300);
   });
 
-  /* `?site=`, and `&ledger=1&days=…&event=…` when the ledger is open. */
-  function syncUrl() {
+  /* `?site=`, and `&ledger=1&days=…&event=…` when the ledger is open. Each level (all sites, a
+     site, its ledger) is an entry in the browser's history, so Back walks up them; a range or an
+     event picked inside the ledger only rewrites the current entry. Going up with the dashboard's
+     own buttons to the entry just behind is a step back, not a new entry. */
+  var restoring = false;
+  function level(site, ledgerOpen) { return site ? (ledgerOpen ? 2 : 1) : 0; }
+  function syncUrl(replace) {
+    if (restoring) return;
     var q = [];
     if (state.site) q.push('site=' + encodeURIComponent(state.site));
     if (state.site && ledger.isOpen()) q.push('ledger=1', ledger.query());
-    history.replaceState(null, '', location.pathname + (q.length ? '?' + q.join('&') : ''));
+    var url = location.pathname + (q.length ? '?' + q.join('&') : ''), here = location.pathname + location.search;
+    if (url === here) return;
+    var was = params(location.search.slice(1)), now = level(state.site, ledger.isOpen());
+    if (replace === true || (was.site || null) === state.site && level(was.site, was.ledger === '1') === now) history.replaceState(history.state, '', url);
+    else if (now < level(was.site, was.ledger === '1') && history.state && history.state.from === url) history.back();
+    else history.pushState({ from: here }, '', url);
   }
+  /* Back and Forward: the view follows the URL, without writing it again. */
+  window.addEventListener('popstate', function () {
+    var q = params(location.search.slice(1));
+    if (!state.started) { state.site = q.site || null; state.ledgerOnBoot = q.ledger === '1'; ledger.restore(q); return; }
+    var site = q.site && state.sites.some(function (s) { return s.id === q.site; }) ? q.site : null;
+    restoring = true;
+    try {
+      if (!site) { if (state.site) leave(); return; }
+      if (ledger.isOpen() && (q.ledger !== '1' || site !== state.site)) closeLedger();
+      if (site !== state.site) go(site);
+      if (q.ledger === '1' && !ledger.isOpen()) { ledger.restore(q); openLedger(); }
+    } finally { restoring = false; }
+  });
 
   /* --- boot --- */
   function params(s) {
