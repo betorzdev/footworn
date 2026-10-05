@@ -74,6 +74,8 @@
   --village-window-dark: #2c3c5c;  /* one that was only opened */
   --village-lamp: #ffb35c;         /* street lamps, door lamps, a villager's lantern */
   --village-coat: #3a3442; --village-skin: #e8c4a6; --village-smoke: #9ea8c2; --village-flake: #f2f6ff;
+  --village-view: #8ce8b4;         /* a view opened inside a page: the lanterns of its stall, the scarf of who walks to it, its label */
+  --village-awning: #a8473f; --village-awning-2: #e4d9c4;   /* the canvas of the market stalls, one and the next */
   /* One plaster per house, in turn: */
   --village-wall-1: #c9b49a; --village-wall-2: #b9a58e; --village-wall-3: #d2c2a8; --village-wall-4: #a99484;
   --village-wall-5: #c4ae9c; --village-wall-6: #bfae94; --village-wall-7: #cbb8a2; --village-wall-8: #b3a08c;

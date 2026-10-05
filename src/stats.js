@@ -99,8 +99,12 @@ export async function eventStats(db, { site, name, from, to }) {
 /* What the bay draws for one site, all of it counts:
    - `pages`, `refs`: the 30-day top 8 pages (its towers, in a fixed order) and top 5 referrers
      (the lanes of its skyline, with elsewhere and direct);
+   - `views`: the 30-day top 8 views opened inside a page (a `screen` event with a `view`), the
+     stalls of its market, in a fixed order;
    - `today`: totals, and per page its pageviews, `loads` and used loads (`engaged`, the used
-     rate is engaged / loads, as in `stats`) and events, and pageviews per referrer;
+     rate is engaged / loads, as in `stats`) and events, pageviews per referrer, `views`: how
+     many times each view was opened, and `viewPages`: from which pages (the top 200 pairs, for
+     the stall's tooltip; the counts are the ones in `views`);
    - `live`: pageviews in the last 5 minutes;
    - `yesterday`: visitors yesterday up to this time of day, for the change on the sign;
    - `hours`: pageviews by UTC hour, today and yesterday, for the day's rhythm. */
@@ -108,6 +112,7 @@ export async function scene(db, { site, now = Date.now() }) {
   const today = new Date(now).toISOString().slice(0, 10), from = addDays(today, -29), yesterday = addDays(today, -1);
   const secs = Math.floor(now / 1000), LOADS = await loadsSince(db, site);
   const month = 'site = ?1 AND day BETWEEN ?2 AND ?3 AND event IS NULL';
+  const VIEW = "event = 'screen' AND json_type(props, '$.view') = 'text'";  // a `view` that is not text is no view
   const m = sql => db.prepare(sql).bind(site, from, today);
   const d = sql => db.prepare(sql).bind(site, today);
   const rows = await db.batch([
@@ -122,6 +127,12 @@ export async function scene(db, { site, now = Date.now() }) {
     db.prepare(`SELECT COUNT(*) AS hits FROM hits WHERE site = ?1 AND day = ?2 AND ts > ?3 AND event IS NULL`).bind(site, today, secs - 300),
     db.prepare(`SELECT day, CAST(strftime('%H', ts, 'unixepoch') AS INTEGER) AS hour, COUNT(*) AS hits FROM hits
                 WHERE site = ?1 AND day IN (?2, ?3) AND event IS NULL GROUP BY day, hour`).bind(site, today, yesterday),
+    m(`SELECT json_extract(props, '$.view') AS value, COUNT(*) AS hits FROM hits
+       WHERE site = ?1 AND day BETWEEN ?2 AND ?3 AND ${VIEW} GROUP BY value ORDER BY hits DESC, value LIMIT 8`),
+    d(`SELECT json_extract(props, '$.view') AS view, COUNT(*) AS hits FROM hits
+       WHERE site = ?1 AND day = ?2 AND ${VIEW} GROUP BY view ORDER BY hits DESC, view LIMIT 200`),
+    d(`SELECT path, json_extract(props, '$.view') AS view, COUNT(*) AS hits FROM hits
+       WHERE site = ?1 AND day = ?2 AND ${VIEW} GROUP BY path, view ORDER BY hits DESC, path, view LIMIT 200`),
   ]);
   const res = rows.map(r => r.results || []);
   const t = res[2][0] || {};
@@ -129,8 +140,8 @@ export async function scene(db, { site, now = Date.now() }) {
   for (const r of res[7]) if (r.hour >= 0 && r.hour < 24) hours[r.hour][r.day === today ? 'today' : 'yesterday'] = r.hits;
   return {
     site, day: today, now: secs,
-    pages: res[0], refs: res[1],
-    today: { hits: t.hits || 0, visitors: t.visitors || 0, events: t.events || 0, loads: t.loads || 0, engaged: t.engaged || 0, pages: res[3], refs: res[4] },
+    pages: res[0], refs: res[1], views: res[8],
+    today: { hits: t.hits || 0, visitors: t.visitors || 0, events: t.events || 0, loads: t.loads || 0, engaged: t.engaged || 0, pages: res[3], refs: res[4], views: res[9], viewPages: res[10] },
     live: (res[6][0] && res[6][0].hits) || 0,
     yesterday: { visitors: (res[5][0] && res[5][0].visitors) || 0 },
     hours,

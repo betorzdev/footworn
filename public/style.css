@@ -52,12 +52,16 @@ input {
   background: var(--village-sign); border: 1px solid var(--village-sign-line); color: var(--village-ink); text-align: center;
   font-size: var(--fs-xs); }
 .scene-labels .v-house > div::after { content: ""; position: absolute; left: 50%; bottom: -8px; width: 1px; height: 7px; background: var(--village-sign-line); }
-.scene-labels .v-house, .scene-labels .v-gate { pointer-events: auto; }
+.scene-labels .v-house, .scene-labels .v-gate, .scene-labels .v-view { pointer-events: auto; }
 .scene-labels .p { font-weight: 600; }
 .scene-labels .num { font-family: var(--font-num); font-weight: 700; color: var(--village-ink-num); }
 .scene-labels .s { display: block; color: var(--village-ink-soft); font-size: var(--fs-xs); }
 .scene-labels .v-gate > div { border-color: var(--lane); }
 .scene-labels .v-gate .p { color: var(--lane); }
+/* A stall's label is bare text, a step below the houses' signs; ringed from the panel, it is a sign too. */
+.scene-labels .v-view > div { background: none; border-color: transparent; padding: 0 var(--s-1); text-shadow: 0 1px 2px var(--village-sky-top), 0 0 5px var(--village-sky-top), 0 0 9px var(--village-sky-top); }
+.scene-labels .v-view.hl > div { background: var(--village-sign); text-shadow: none; }
+.scene-labels .v-view .p { color: var(--village-view); }
 .scene-labels .v-tick span { display: block; transform: translate(-50%, -50%); font: 600 var(--fs-xs) var(--font-num); color: var(--village-ink-num); text-shadow: 0 1px 3px var(--village-sky-top); }
 .scene-labels .hl > div, .scene-labels .hl .vsign { border-color: var(--village-hover); box-shadow: 0 0 0 1px var(--village-hover); }
 .vsign { pointer-events: auto; cursor: pointer; font: inherit; font-size: var(--fs-s); padding: var(--s-2) var(--s-3); border-left: var(--s-1) solid var(--site); text-align: left; touch-action: manipulation; user-select: none; }

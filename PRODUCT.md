@@ -48,8 +48,13 @@ URL is a bookmark to a site, the open ledger, its range and an open event.
   one scale for every site, warm windows from the ground up for the share of loads used
   (`$engaged`); 24 street lamps round the square for today's pageviews by UTC hour, a brass ring
   at yesterday's, the current hour glowing; a gate per referrer (top 5, elsewhere, direct) in the
-  palisade, as wide as today's arrivals; every live pageview a villager walking from its gate to
-  its house, every event fireworks over the roof; a sign per village (visitors, live, used,
+  palisade, as wide as today's arrivals; a market stall per view opened inside a page (`screen`
+  events with a `view`, since 2026-10-05; the owner asked for the views in the scene and picked
+  the market of three options: 30-day top 8, plus other views) round the clock tower, the green
+  lanterns lit on its garland today's opens on one scale for every site, shut and dark when
+  nobody opened it; every live pageview a villager walking from its gate to its house, every
+  view opened one walking from that house to the stall, every other event fireworks over the
+  roof; a sign per village (visitors, live, used,
   change against yesterday). Clicking a village flies the camera in; drag turns, wheel or pinch
   zooms. Moon shadows, warm pools of light on the snow, ink outlines, smoke and snowfall; at UTC
   midnight the windows go dark. WebGL2 written by hand (`public/gl.js`, the scene in
@@ -66,7 +71,7 @@ URL is a bookmark to a site, the open ledger, its range and an open event.
   with today's count that filters it, an open row linking to the ledger's event detail. Every row
   names its site. Rounded so a row is not a fingerprint (the minute, the device class, browser and
   system families; no width, no second, no id), never joining a view to a visit, empty at UTC midnight.
-  Pointing at a row rings its house and gate in the scene.
+  Pointing at a row rings its house and gate in the scene, or a view's house and stall.
 - The ledger, a drawer over it, per site and range (1, 7, 30, 90 days or custom): totals
   (visitors, pageviews, events), a day chart (pageviews as bars, visitors as a line), hour or
   weekday and screen-width profiles, and top-30 tables for pages, referrers, events, countries,

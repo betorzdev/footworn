@@ -46,10 +46,15 @@ view); the label over the roof gives both. Round the square, 24 street lamps, on
 clockwise from midnight at the top: each as tall as that hour's pageviews, with a brass ring at
 yesterday's, the current one glowing. In the palisade, a gate per referrer (the top five, then
 *elsewhere* and *direct*), as wide as today's arrivals, its lanterns in the referrer's colour.
+Between the lamps and the tower, a market: a stall per view opened inside a page (a `screen`
+event with a `view`; the 30-day top 8, and *other views*), with a garland up to the tower whose
+green lanterns light up with today's opens, on one scale for every site; a stall nobody opened
+today is shut and dark.
 Every pageview is a villager with a scarf in that colour who walks in through the gate, across
-the square and into the house; every event, fireworks over the roof. Drag to turn, wheel or
-pinch to come closer; hover, or tap, a house or a gate for its numbers. At UTC midnight (the
-day's cut) the windows go dark from the top down and the day starts again.
+the square and into the house; every view opened, one in a green scarf who leaves that page's
+house for the stall; every other event, fireworks over the roof. Drag to turn, wheel or
+pinch to come closer; hover, or tap, a house, a gate or a stall for its numbers. At UTC midnight
+(the day's cut) the windows go dark from the top down and the day starts again.
 
 ![Hallownest up close: houses round a clock square, the tallest for the busiest pages, warm windows from the ground up, labels with today's pageviews and the used share; street lamps round the square for the hours; gates in the palisade with lanterns in each referrer's colour and their counts; villagers with lanterns walking in.](docs/screenshots/site.png)
 

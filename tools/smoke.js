@@ -118,6 +118,9 @@ try {
   assert.deepEqual(sc.pages.map(p => [p.value, p.hits]), [['/', 3], ['/map/', 1]], 'scene towers');
   assert.deepEqual(sc.refs.map(r => r.value).sort(), ['discord', 'reddit.com'], 'scene lanes');
   assert.deepEqual(sc.today.pages.map(p => [p.path, p.hits, p.loads, p.engaged, p.events]).sort(), [['/', 3, 3, 1, 2], ['/map/', 1, 1, 0, 1]], 'scene today by page');
+  assert.deepEqual(sc.views, [{ value: 'combat', hits: 1 }, { value: 'map', hits: 1 }], 'scene stalls: the views, ties by name');
+  assert.deepEqual(sc.today.views, [{ view: 'combat', hits: 1 }, { view: 'map', hits: 1 }], 'scene views today');
+  assert.deepEqual(sc.today.viewPages, [{ path: '/', view: 'combat', hits: 1 }, { path: '/map/', view: 'map', hits: 1 }], 'scene views today by page');
   assert.equal(sc.live, 4, 'scene live: the last 5 minutes');
   assert.equal(sc.hours.length, 24, 'scene hours');
   assert.equal(sc.hours.reduce((n, h) => n + h.today, 0), 4, 'scene hours sum to today');

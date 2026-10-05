@@ -88,7 +88,8 @@ person.
   who wants less can drop fields from `visits` and `liveMessage` (the country first); the counts
   are unaffected.
 
-Everything else the API answers is a count per day or per value of one dimension.
+Everything else the API answers is a count: per day, per value of one dimension, or, for an
+event and for a view opened inside a page, per page and per property value as well.
 
 ## Guarantees the guide asks of the publisher
 

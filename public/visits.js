@@ -23,7 +23,7 @@
 
   window.FootwornVisits = function (o) {
     /* o: { siteName(id), laneColor(id, ref), pageStats(id, path) -> { pv, loads, engaged } | null,
-           openEvent(id, name), totals(site | null) -> { visitors, pageviews, events }, onHover({ site, path, ref } | null) } */
+           openEvent(id, name), totals(site | null) -> { visitors, pageviews, events }, onHover({ site, path, ref } | { site, path, view } | null) } */
     var $ = function (id) { return document.getElementById(id); };
     function load(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
     function save(k, v) { try { localStorage.setItem(k, v); } catch (e) { /* no storage */ } }
@@ -195,8 +195,8 @@
     $('hide-views').addEventListener('change', function () { state.hide = this.checked; save(HIDE, state.hide ? '1' : '0'); state.shown = PAGE; if (state.row && isView(state.row) && state.hide) { state.row = null; o.onHover(null); } paint(); });
     $('visits-more').addEventListener('click', function () { state.shown += PAGE; paint(); });
     /* Hover or focus rings the row in the scene; an open row keeps its ring when the pointer leaves.
-       A view or an event has no referrer of its own: it rings its house, no gate. */
-    function ringOf(v) { return !v ? null : v.event ? { site: v.site, path: v.path } : { site: v.site, path: v.path, ref: v.ref }; }
+       A view or an event has no referrer of its own: it rings its house, no gate; a view its stall too. */
+    function ringOf(v) { return !v ? null : isView(v) ? { site: v.site, path: v.path, view: v.props.view } : v.event ? { site: v.site, path: v.path } : { site: v.site, path: v.path, ref: v.ref }; }
     function openList() { return state.tab === 'events' ? $('events-list') : $('visits-list'); }
     function point(e) { var b = e.target.closest('button.visit'); o.onHover(b ? ringOf(list[Number(b.dataset.i)]) : ringOf(state.row)); }
     ['visits-list', 'events-list'].forEach(function (id) {

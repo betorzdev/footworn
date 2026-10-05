@@ -196,7 +196,7 @@
     $('open-ledger').hidden = !inSite;
     paintPanel();
     $('title').textContent = inSite ? siteName(state.site) : 'Your sites';
-    $('sub').textContent = 'Today · ' + (state.day || utcDay()) + ' UTC · ' + (inSite ? (touch ? 'tap' : 'hover') + ' the houses and gates · drag to turn' : 'pick a village');
+    $('sub').textContent = 'Today · ' + (state.day || utcDay()) + ' UTC · ' + (inSite ? (touch ? 'tap' : 'hover') + ' the houses, gates and stalls · drag to turn' : 'pick a village');
     paintStats();
   }
   function paintStats() {
