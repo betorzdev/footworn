@@ -16,14 +16,19 @@ const NOW = Date.UTC(2026, 9, 5, 12, 0, 30);
 
 test('the views of a site: the 30-day top 8, and today per page', async () => {
   const answers = [];
-  answers[8] = [{ value: 'charms', hits: 40 }, { value: 'map', hits: 12 }];
-  answers[9] = [{ view: 'charms', hits: 3 }, { view: 'map', hits: 1 }];
-  answers[10] = [{ path: '/', view: 'charms', hits: 2 }, { path: '/es/', view: 'charms', hits: 1 }, { path: '/es/', view: 'map', hits: 1 }];
+  answers[2] = [{ hits: 9, visitors: 2, events: 6, views: 4 }];
+  answers[7] = [{ value: 'charms', hits: 40 }, { value: 'map', hits: 12 }];
+  answers[8] = [{ view: 'charms', hits: 3 }, { view: 'map', hits: 1 }];
+  answers[9] = [{ path: '/', view: 'charms', hits: 2 }, { path: '/es/', view: 'charms', hits: 1 }, { path: '/es/', view: 'map', hits: 1 }];
   const db = fakeDb(answers);
   const out = await scene(db, { site: 'one', now: NOW });
-  assert.deepEqual(out.views, answers[8]);
-  assert.deepEqual(out.today.views, answers[9]);
-  assert.deepEqual(out.today.viewPages, answers[10]);
+  assert.deepEqual(out.views, answers[7]);
+  assert.deepEqual(out.today.views, answers[8]);
+  assert.deepEqual(out.today.viewPages, answers[9]);
+  /* Every view opened today, not the sum of a list cut at 200 names; they are inside `events`. */
+  assert.equal(out.today.viewsTotal, 4);
+  assert.equal(out.today.events, 6);
+  assert.match(db.seen.find(st => st.sql.includes('AS loads') && !st.sql.includes('GROUP BY')).sql, /SUM\(event = 'screen' AND json_type\(props, '\$\.view'\) = 'text'\) AS views/);
 
   const [top, today, pages] = db.seen.slice(-3);
   assert.deepEqual(top.args, ['one', '2026-09-06', '2026-10-05']);
@@ -47,5 +52,7 @@ test('a site with no views answers empty lists', async () => {
   assert.deepEqual(out.views, []);
   assert.deepEqual(out.today.views, []);
   assert.deepEqual(out.today.viewPages, []);
+  assert.equal(out.today.viewsTotal, 0);
   assert.equal(out.hours.length, 24);
+  assert.ok(!('live' in out));   // the count of the last 5 minutes is gone: the dashboard shows views and events
 });

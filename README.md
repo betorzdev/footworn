@@ -12,7 +12,7 @@
   <img alt="Cloudflare Workers, free plan" src="https://img.shields.io/badge/Cloudflare_Workers-free_plan-4a5a4e">
 </p>
 
-<img alt="The Footworn valley on a winter night: three sites as snowed-in villages, each a ring of houses round a clock square inside a palisade, lamps and windows lit warm on the snow. Each village has a sign with its name, visitors today, how many came in the last five minutes, the share of loads used and the change against yesterday." src="docs/screenshots/village.png">
+<img alt="The Footworn valley on a winter night: three sites as snowed-in villages, each a ring of houses round a clock square inside a palisade, lamps and windows lit warm on the snow. Each village has a sign with its name, visitors today and the change against yesterday, the views opened, the other events and the share of loads used." src="docs/screenshots/village.png">
 
 <p align="center"><sub>The valley: one village per site, every page a house, all on one scale, live. Click one to look closer.</sub></p>
 
@@ -218,7 +218,7 @@ the width, no id), live and as the day's history; earlier days are only counts. 
 | | |
 |---|---|
 | `GET /api/sites` | `[{ id, name }]` |
-| `GET /api/scene?site=` | what the village draws, all counts: `pages` and `refs` (30-day top 8 and top 5, `[{ value, hits }]`), `today: { hits, visitors, events, loads, engaged, pages: [{ path, hits, loads, engaged, events }], refs: [{ ref, hits }] }` (the used rate is `engaged / loads`, as in `/api/stats`), `live` (pageviews in the last 5 minutes), `yesterday: { visitors }` up to this time of day, and `hours: [{ hour, today, yesterday }]`, pageviews by UTC hour |
+| `GET /api/scene?site=` | what the village draws, all counts: `pages`, `refs` and `views` (30-day top 8, top 5 and top 8, `[{ value, hits }]`), `today: { hits, visitors, events, viewsTotal, loads, engaged, pages: [{ path, hits, loads, engaged, events }], refs: [{ ref, hits }], views: [{ view, hits }], viewPages: [{ path, view, hits }] }` (the used rate is `engaged / loads`, as in `/api/stats`; a view is a `screen` event with a `view`, so `viewsTotal` is inside `events`), `yesterday: { visitors }` up to this time of day, and `hours: [{ hour, today, yesterday }]`, pageviews by UTC hour |
 | `GET /api/visits?site=` | today's visits (UTC), newest first, at most 2000, rounded: `{ day, now, visits: [{ minute, path, ref, device, browser, os, lang, country, first, event, props }] }`. Never the width, the second or an id |
 | `GET /api/live-ticket` | `{ ticket }`, good for 60 s, to open the live socket |
 | `GET /live?ticket=` | WebSocket: one JSON message per counted hit, `{ site, t, path, ref, device, browser, os, lang, first, country, event, props }`; send `ping`, get `pong` |

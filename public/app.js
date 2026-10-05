@@ -43,7 +43,7 @@
   /* --- gate --- */
   function showGate(msg) {
     if (live) live.stop();
-    $('ui').hidden = true; $('gate').hidden = false;
+    $('ui').hidden = true; $('gate').hidden = false; connQuiet();
     $('gate-error').hidden = !msg; $('gate-error').textContent = msg || '';
     $('token').focus();
   }
@@ -204,19 +204,27 @@
     var t = scene.stats(state.site);
     put('s-visitors', fmt(t.visitors));
     put('s-hits', fmt(t.pageviews));
-    put('s-live', fmt(t.live));
+    put('s-views', fmt(t.views));
+    put('s-events', fmt(t.other));   // `events` counts the views too: the Events tab's number
     var label = (state.site ? siteName(state.site) : 'All sites') + ' today: ' + fmt(t.visitors) + ' visitors, ' +
-      fmt(t.pageviews) + ' pageviews, ' + fmt(t.events) + ' events, ' + fmt(t.live) + ' in the last 5 minutes. The ledger has every count as a table.';
+      fmt(t.pageviews) + ' pageviews, ' + fmt(t.views) + ' views, ' + fmt(t.other) + ' other events. The ledger has every count as a table.';
     if (label !== shown.scene) { shown.scene = label; $('scene').setAttribute('aria-label', label); }
   }
   /* Asked twice a second, written only when a number changed. */
   var shown = {};
   function put(id, text) { if (shown[id] !== text) { shown[id] = text; $(id).textContent = text; } }
   setInterval(paintStats, 500);
+  /* The bar is silent while the socket works. Not open for two seconds (a load, or a tab coming
+     back, takes less), it says why the counts stopped moving. A socket closed on purpose (the tab
+     put away, the gate) is not down. */
+  var connTimer = null, connFailed = false;
+  function connQuiet() { clearTimeout(connTimer); connTimer = null; connFailed = false; $('s-conn').hidden = true; }
   function paintLive(st) {
     if (st === 'unauthorized') { showGate('The token stopped working. Paste it again.'); return; }
-    $('s-live-box').dataset.state = st;
-    $('s-live-label').textContent = st === 'open' ? 'live · last 5 min' : st === 'connecting' ? 'connecting…' : 'offline · retrying';
+    if (st === 'open' || document.hidden || $('ui').hidden) { connQuiet(); return; }
+    if (st === 'closed') connFailed = true;
+    $('s-conn-label').textContent = connFailed ? 'offline · retrying' : 'connecting…';
+    if (!connTimer && $('s-conn').hidden) connTimer = setTimeout(function () { connTimer = null; $('s-conn').hidden = false; }, 2000);
   }
 
   $('places').addEventListener('click', function (e) { var b = e.target.closest('button.place'); if (b) go(b.dataset.id); });

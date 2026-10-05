@@ -121,7 +121,8 @@ try {
   assert.deepEqual(sc.views, [{ value: 'combat', hits: 1 }, { value: 'map', hits: 1 }], 'scene stalls: the views, ties by name');
   assert.deepEqual(sc.today.views, [{ view: 'combat', hits: 1 }, { view: 'map', hits: 1 }], 'scene views today');
   assert.deepEqual(sc.today.viewPages, [{ path: '/', view: 'combat', hits: 1 }, { path: '/map/', view: 'map', hits: 1 }], 'scene views today by page');
-  assert.equal(sc.live, 4, 'scene live: the last 5 minutes');
+  assert.equal(sc.today.viewsTotal, 2, 'scene views today, all of them');
+  assert.ok(!('live' in sc), 'no count of the last 5 minutes any more');
   assert.equal(sc.hours.length, 24, 'scene hours');
   assert.equal(sc.hours.reduce((n, h) => n + h.today, 0), 4, 'scene hours sum to today');
   assert.ok(!('recent' in sc) && !('wear' in sc), 'no footprints any more');

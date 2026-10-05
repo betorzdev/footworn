@@ -25,7 +25,7 @@
   'use strict';
 
   var G = window.FootwornGL, TAU = Math.PI * 2;
-  var LIVE_WINDOW = 5 * 60 * 1000, BLACKOUT_MS = 4200;
+  var BLACKOUT_MS = 4200;
   var REBUILD_MS = 2000;   // a village that keeps changing is drawn again this often at most
   var NOW_LOW = .5;        // the lamp of the hour breathes between this and 1
   var R_POST = 6.4, R_HOUSE = 11.2, R_WALL = 16, R_WALK = 8.7, FLOOR = .95, SPACING = 37;
@@ -71,7 +71,7 @@
   function makeSite(s, i) {
     return { id: s.id, name: s.name, idx: i, tint: T.sites[i % T.sites.length], towers: [], towerBy: {}, other: null, lanes: [], laneBy: {},
       views: [], viewBy: {}, otherView: null, stalls: [],
-      visitors: 0, pageviews: 0, events: 0, loads: 0, engaged: 0, yesterday: 0, liveBase: 0, liveAt: 0, recent: [], hours: [], loaded: false,
+      visitors: 0, pageviews: 0, viewsToday: 0, events: 0, loads: 0, engaged: 0, yesterday: 0, hours: [], loaded: false,
       o: [0, 0, 0], houses: [], gates: [], walkers: [], sparks: [], sign: null,
       layer: null, sig: null, pending: false, builtAt: 0, labels: {}, pools: [], occ: [], glow: [] };
   }
@@ -94,8 +94,8 @@
     (data.today.views || []).forEach(function (v) { viewOf(s, v.view).n += v.hits; });
     (data.today.viewPages || []).forEach(function (v) { cameFrom(viewOf(s, v.view), towerOf(s, v.path), v.hits); });
     if (s.otherView.n) s.views.push(s.otherView);
-    s.visitors = data.today.visitors; s.pageviews = data.today.hits; s.events = data.today.events; s.loads = data.today.loads || 0; s.engaged = data.today.engaged || 0;
-    s.yesterday = data.yesterday.visitors; s.liveBase = data.live || 0; s.liveAt = performance.now(); s.recent = [];
+    s.visitors = data.today.visitors; s.pageviews = data.today.hits; s.viewsToday = data.today.viewsTotal || 0; s.events = data.today.events; s.loads = data.today.loads || 0; s.engaged = data.today.engaged || 0;
+    s.yesterday = data.yesterday.visitors;
     s.hours = data.hours || [];
     s.walkers = []; s.sparks = [];
     s.loaded = true;
@@ -117,15 +117,14 @@
   }
   /* `n` opens of a view came from a page: kept for its tooltip. */
   function cameFrom(v, t, n) { v.by[t.label] = (v.by[t.label] || 0) + n; }
-  /* Hits in the last five minutes: the count the API gave at load, worn off evenly over the five
-     minutes after it, plus every live hit since. */
-  function liveCount(s, now) { return Math.round(s.liveBase * clamp(1 - (now - s.liveAt) / LIVE_WINDOW, 0, 1)) + s.recent.filter(function (t) { return now - t < LIVE_WINDOW; }).length; }
+  /* Today's events that are not views: a view is stored as an event, and is counted as a view. */
+  function otherEvents(s) { return Math.max(0, s.events - s.viewsToday); }
 
   /* One hit from the live socket. */
   function live(msg) {
     var s = byId[msg.site]; if (!s || !s.loaded || state.blackout) return;
-    var now = performance.now(), t = towerFor(s, msg.path), v = isView(msg) ? viewFor(s, msg.props.view) : null;
-    if (v) { v.n++; if (!v.other) v.total++; cameFrom(v, t, 1); }   // before the village is drawn: a stall that is new opens lit
+    var t = towerFor(s, msg.path), v = isView(msg) ? viewFor(s, msg.props.view) : null;
+    if (v) { v.n++; s.viewsToday++; if (!v.other) v.total++; cameFrom(v, t, 1); }   // before the village is drawn: a stall that is new opens lit
     if (s.sig == null) refresh(true);   // a village not drawn yet (just loaded, or with a new house or stall) has no door to walk to
     var h = houseOf(s, t);
     if (W) W.wake();
@@ -136,7 +135,7 @@
       return;
     }
     var l = laneFor(s, msg.ref);
-    s.pageviews++; if (msg.first) s.visitors++; t.pv++; l.count++; s.recent.push(now);
+    s.pageviews++; if (msg.first) s.visitors++; t.pv++; l.count++;
     if (s.loads) { s.loads++; t.loads++; }
     var hr = s.hours[new Date().getUTCHours()]; if (hr) hr.today++;
     rebuild(s);
@@ -491,15 +490,22 @@
   function arrow(d) { return d == null ? '' : d > 0 ? '▲ ' + d + '%' : d < 0 ? '▼ ' + Math.abs(d) + '%' : '± 0%'; }
   /* A label's text, written only when it changes. */
   function write(L, html, into) { if (L.html === html) return false; L.html = html; (into || L.el).innerHTML = html; return true; }
+  /* The small row of a village's sign: its views, its other events and the used share, each only
+     when there is any; a village with none of them says its pageviews. */
+  function signRow(s) {
+    var parts = [], ev = otherEvents(s);
+    if (s.viewsToday) parts.push(plural(s.viewsToday, 'view', 'views'));
+    if (ev) parts.push(plural(ev, 'event', 'events'));
+    if (s.loads) parts.push(pct(s.engaged, s.loads) + '% used');
+    return parts.length ? parts.join(' · ') : plural(s.pageviews, 'pageview', 'pageviews');
+  }
   function paintLabels() {
-    var now = performance.now();
     sites.forEach(function (s) {
       if (s.sign) {
         var d = change(s), up = d == null || d >= 0, b = s.sign.el.firstChild;
         if (write(s.sign, '<span class="name">' + esc(s.name) + '</span>' +
-          '<span class="row"><b class="num">' + fmt(s.visitors) + '</b> visitors <span class="live">● ' + liveCount(s, now) + ' live</span></span>' +
-          '<span class="row small">' + (s.loads ? pct(s.engaged, s.loads) + '% used' : plural(s.pageviews, 'pageview', 'pageviews')) +
-          (d == null ? '' : ' <span class="' + (up ? 'up' : 'down') + '">' + arrow(d) + '</span>') + '</span>' +
+          '<span class="row"><b class="num">' + fmt(s.visitors) + '</b> visitors' + (d == null ? '' : ' <span class="small ' + (up ? 'up' : 'down') + '">' + arrow(d) + '</span>') + '</span>' +
+          '<span class="row small">' + signRow(s) + '</span>' +
           (s.loaded && !s.towers.length ? '<span class="row small">no visits yet</span>' : ''), b))
           b.setAttribute('aria-label', s.name + ': ' + plural(s.visitors, 'visitor', 'visitors') + ' today. Look closer');
       }
@@ -781,9 +787,9 @@
        is outside the 30-day top 8 and the counts are those of every such page together. */
     pageStats: function (id, path) { var s = byId[id]; if (!s || !s.loaded) return null; var t = towerOf(s, path); return { pv: t.pv, loads: t.loads, engaged: t.engaged, other: !!t.other }; },
     stats: function (id) {
-      var list = id ? [byId[id]].filter(Boolean) : sites, now = performance.now();
-      return list.reduce(function (t, s) { t.visitors += s.visitors; t.pageviews += s.pageviews; t.events += s.events; t.live += liveCount(s, now); return t; },
-        { visitors: 0, pageviews: 0, events: 0, live: 0 });
+      var list = id ? [byId[id]].filter(Boolean) : sites;
+      return list.reduce(function (t, s) { t.visitors += s.visitors; t.pageviews += s.pageviews; t.views += s.viewsToday; t.events += s.events; t.other += otherEvents(s); return t; },
+        { visitors: 0, pageviews: 0, views: 0, events: 0, other: 0 });
     },
   };
 })();

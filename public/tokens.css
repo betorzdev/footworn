@@ -22,7 +22,7 @@
   --hover: #e6ecf4;
   --text: #1d2433;      /* ink */
   --muted: #4f5a70;     /* pencil; 6.9:1 on the paper */
-  --accent: #c8402f;    /* trail-marker red: the live dot, the pressed range, focus, the visitors line */
+  --accent: #c8402f;    /* trail-marker red: the pressed range, focus, the visitors line */
   --accent-ink: #ffffff;
   --bar: #5a6c90;       /* the chart's bars: the footprint's blue */
   --bar-soft: #c3cfe0;  /* the share bar under a table value */
@@ -86,7 +86,6 @@
   --village-ink: #fff4dc;
   --village-ink-soft: #c5cde0;
   --village-ink-num: #ffd68c;
-  --village-live: #ff8478;
   --village-up: #7fe3ad;
   --village-down: #ff9a8e;
   --village-hover: rgba(255, 214, 140, .9);   /* the ring round what the pointer or a visit row points at */

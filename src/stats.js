@@ -101,11 +101,10 @@ export async function eventStats(db, { site, name, from, to }) {
      (the lanes of its skyline, with elsewhere and direct);
    - `views`: the 30-day top 8 views opened inside a page (a `screen` event with a `view`), the
      stalls of its market, in a fixed order;
-   - `today`: totals, and per page its pageviews, `loads` and used loads (`engaged`, the used
+   - `today`: totals (`viewsTotal` is every view opened: they are events too, and inside `events`), and per page its pageviews, `loads` and used loads (`engaged`, the used
      rate is engaged / loads, as in `stats`) and events, pageviews per referrer, `views`: how
      many times each view was opened, and `viewPages`: from which pages (the top 200 pairs, for
      the stall's tooltip; the counts are the ones in `views`);
-   - `live`: pageviews in the last 5 minutes;
    - `yesterday`: visitors yesterday up to this time of day, for the change on the sign;
    - `hours`: pageviews by UTC hour, today and yesterday, for the day's rhythm. */
 export async function scene(db, { site, now = Date.now() }) {
@@ -118,13 +117,12 @@ export async function scene(db, { site, now = Date.now() }) {
   const rows = await db.batch([
     m(`SELECT path AS value, COUNT(*) AS hits FROM hits WHERE ${month} GROUP BY path ORDER BY hits DESC LIMIT 8`),
     m(`SELECT ref AS value, COUNT(*) AS hits FROM hits WHERE ${month} AND ref IS NOT NULL GROUP BY ref ORDER BY hits DESC LIMIT 5`),
-    d(`SELECT SUM(event IS NULL) AS hits, SUM(first) AS visitors, SUM(${USER}) AS events, SUM(${LOADS}) AS loads, SUM(${ENGAGED}) AS engaged FROM hits
+    d(`SELECT SUM(event IS NULL) AS hits, SUM(first) AS visitors, SUM(${USER}) AS events, SUM(${VIEW}) AS views, SUM(${LOADS}) AS loads, SUM(${ENGAGED}) AS engaged FROM hits
        WHERE site = ?1 AND day = ?2`),
     d(`SELECT path, SUM(event IS NULL) AS hits, SUM(${LOADS}) AS loads, SUM(${ENGAGED}) AS engaged, SUM(${USER}) AS events FROM hits
        WHERE site = ?1 AND day = ?2 GROUP BY path HAVING hits > 0 OR events > 0 ORDER BY hits DESC LIMIT 200`),
     d(`SELECT ref, COUNT(*) AS hits FROM hits WHERE site = ?1 AND day = ?2 AND event IS NULL GROUP BY ref ORDER BY hits DESC LIMIT 200`),
     db.prepare(`SELECT SUM(first) AS visitors FROM hits WHERE site = ?1 AND day = ?2 AND ts <= ?3 AND event IS NULL`).bind(site, yesterday, secs - 86400),
-    db.prepare(`SELECT COUNT(*) AS hits FROM hits WHERE site = ?1 AND day = ?2 AND ts > ?3 AND event IS NULL`).bind(site, today, secs - 300),
     db.prepare(`SELECT day, CAST(strftime('%H', ts, 'unixepoch') AS INTEGER) AS hour, COUNT(*) AS hits FROM hits
                 WHERE site = ?1 AND day IN (?2, ?3) AND event IS NULL GROUP BY day, hour`).bind(site, today, yesterday),
     m(`SELECT json_extract(props, '$.view') AS value, COUNT(*) AS hits FROM hits
@@ -137,12 +135,11 @@ export async function scene(db, { site, now = Date.now() }) {
   const res = rows.map(r => r.results || []);
   const t = res[2][0] || {};
   const hours = Array.from({ length: 24 }, (_, hour) => ({ hour, today: 0, yesterday: 0 }));
-  for (const r of res[7]) if (r.hour >= 0 && r.hour < 24) hours[r.hour][r.day === today ? 'today' : 'yesterday'] = r.hits;
+  for (const r of res[6]) if (r.hour >= 0 && r.hour < 24) hours[r.hour][r.day === today ? 'today' : 'yesterday'] = r.hits;
   return {
     site, day: today, now: secs,
-    pages: res[0], refs: res[1], views: res[8],
-    today: { hits: t.hits || 0, visitors: t.visitors || 0, events: t.events || 0, loads: t.loads || 0, engaged: t.engaged || 0, pages: res[3], refs: res[4], views: res[9], viewPages: res[10] },
-    live: (res[6][0] && res[6][0].hits) || 0,
+    pages: res[0], refs: res[1], views: res[7],
+    today: { hits: t.hits || 0, visitors: t.visitors || 0, events: t.events || 0, viewsTotal: t.views || 0, loads: t.loads || 0, engaged: t.engaged || 0, pages: res[3], refs: res[4], views: res[8], viewPages: res[9] },
     yesterday: { visitors: (res[5][0] && res[5][0].visitors) || 0 },
     hours,
   };

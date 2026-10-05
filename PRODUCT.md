@@ -54,8 +54,8 @@ URL is a bookmark to a site, the open ledger, its range and an open event.
   lanterns lit on its garland today's opens on one scale for every site, shut and dark when
   nobody opened it; every live pageview a villager walking from its gate to its house, every
   view opened one walking from that house to the stall, every other event fireworks over the
-  roof; a sign per village (visitors, live, used,
-  change against yesterday). Clicking a village flies the camera in; drag turns, wheel or pinch
+  roof; a sign per village (visitors, change against
+  yesterday, views, other events, used). Clicking a village flies the camera in; drag turns, wheel or pinch
   zooms. Moon shadows, warm pools of light on the snow, ink outlines, smoke and snowfall; at UTC
   midnight the windows go dark. WebGL2 written by hand (`public/gl.js`, the scene in
   `public/village.js`); without WebGL2 a note sends the owner to the ledger. The rule behind it:

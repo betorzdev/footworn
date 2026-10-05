@@ -71,7 +71,6 @@ input {
 .vsign .row { display: block; color: var(--village-ink-soft); }
 .vsign .row .num { font-size: var(--fs-m); }
 .vsign .small { font-size: var(--fs-xs); font-family: var(--font-num); }
-.vsign .live { color: var(--village-live); font-family: var(--font-num); font-size: var(--fs-xs); margin-left: var(--s-1); }
 .vsign .up { color: var(--village-up); } .vsign .down { color: var(--village-down); }
 .scene-fallback { position: fixed; left: 50%; top: 40%; transform: translate(-50%, -50%); max-width: 360px; padding: var(--s-4) var(--s-5); text-align: center; }
 .glass {
@@ -88,13 +87,9 @@ input {
 .stats div { display: flex; flex-direction: column; align-items: flex-end; }
 .stats b { font-size: var(--fs-stat); line-height: 1.15; font-weight: 600; display: flex; align-items: center; gap: var(--s-2); }
 .stats div > span { font-size: var(--fs-xs); color: var(--muted); letter-spacing: .04em; white-space: nowrap; }
-/* The live dot: red and breathing while the socket is open, hollow while it is not. In steps:
-   a smooth breath would have the browser compose the page at the screen's rate for 8 pixels. */
-.live i { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); }
-.live[data-state="open"] i { animation: breathe 1.6s steps(4) infinite; }
-.live:not([data-state="open"]) i { background: transparent; box-shadow: inset 0 0 0 1.5px var(--muted); }
-.live:not([data-state="open"]) b { color: var(--muted); }
-@keyframes breathe { 50% { opacity: .25; } }
+/* The live socket, only when it has not been open for a while: a hollow dot and why the counts stopped moving. */
+.stats .conn { flex-direction: row; align-items: center; gap: var(--s-2); align-self: center; }
+.conn i { width: 8px; height: 8px; border-radius: 50%; box-shadow: inset 0 0 0 1.5px var(--muted); }
 .dock { position: fixed; left: max(var(--s-4), env(safe-area-inset-left)); right: max(var(--s-4), env(safe-area-inset-right)); bottom: max(var(--s-4), env(safe-area-inset-bottom));
   padding: var(--s-2); display: flex; gap: var(--s-2); align-items: center; }
 .dock .grow { flex: 1 1 auto; }
@@ -287,7 +282,10 @@ td.n { text-align: right; padding-left: var(--s-3); font-family: var(--font-num)
   .visits:not(.open) .tabs, .visits:not(.open) .tools, .visits:not(.open) .events-head, .visits:not(.open) .key, .visits:not(.open) .visits-body, .visits:not(.open) > .more { display: none; }
 }
 @media (max-width: 760px) {
-  .stats { top: auto; bottom: calc(max(var(--s-4), env(safe-area-inset-bottom)) + var(--tap) + var(--s-2) * 2 + var(--s-3)); left: max(var(--s-4), env(safe-area-inset-left)); justify-content: space-between; padding: var(--s-2) var(--s-4); }
+  .stats { top: auto; bottom: calc(max(var(--s-4), env(safe-area-inset-bottom)) + var(--tap) + var(--s-2) * 2 + var(--s-3)); left: max(var(--s-4), env(safe-area-inset-left)); justify-content: space-between; gap: var(--s-3); padding: var(--s-2) var(--s-4); }
+  .stats b { font-size: var(--fs-l); }
+  .stats .wide { display: none; }
+  .conn span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0, 0, 0, 0); }   /* four counts fill a phone: the dot alone */
   .hud { right: max(var(--s-4), env(safe-area-inset-right)); }
   .banner { bottom: auto; top: calc(max(var(--s-4), env(safe-area-inset-top)) + 88px); }
   .ledger { padding-left: var(--s-4); }
@@ -312,7 +310,7 @@ td.n { text-align: right; padding-left: var(--s-3); font-family: var(--font-num)
 @media (prefers-reduced-motion: reduce) {
   .btn, .tile .v, [aria-busy="true"] .chart, [aria-busy="true"] .grid, [aria-busy="true"] .detail { transition: none; }
   .btn:active { transform: none; }
-  .live[data-state="open"] i, .ledger, .detail:not([hidden]), .visit.fresh, .visit-detail.unfold { animation: none; }
+  .ledger, .detail:not([hidden]), .visit.fresh, .visit-detail.unfold { animation: none; }
 }
 
 /* Under 16px iOS zooms the page into a focused input. */
