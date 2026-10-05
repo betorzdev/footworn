@@ -1,0 +1,386 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>C · Clock square, redone</title>
+<link rel="stylesheet" href="village.css">
+<style>
+  body { background: #0a1124; }
+  .lbl > div { backdrop-filter: blur(6px); background: rgba(10, 14, 28, .62); border-color: rgba(255, 220, 160, .28); border-radius: 9px; box-shadow: 0 4px 14px rgba(0, 0, 0, .25); }
+  .lbl > div::after { content: ""; position: absolute; left: 50%; bottom: -7px; width: 1px; height: 7px; background: rgba(255, 220, 160, .45); }
+  .lbl > div { position: relative; }
+  .lbl.tick > div::after, .lbl.road > div::after { display: none; }
+  .lbl.tick > div { background: none; backdrop-filter: none; box-shadow: none; color: #ffe0b0; text-shadow: 0 1px 3px #000; }
+  body.story .lbl > div { background: rgba(255, 250, 240, .9); color: #2a2238; border-color: rgba(60, 40, 80, .25); }
+  body.story .lbl b { color: #b0442c; }
+  body.story .lbl.tick > div { background: none; color: #fff; }
+</style>
+</head>
+<body>
+<canvas id="cv" aria-label="Two snowy villages, each round a clock square"></canvas>
+<div id="ov"></div>
+<button class="back" id="back" hidden>← Both villages</button>
+<section class="panel">
+  <h1 id="h">C · Clock square</h1>
+  <div id="style-note"></div>
+  <ul>
+    <li><b>Hour</b> = one of 24 street lamps round the square, clockwise from midnight at the top; <b>height</b> = pageviews that hour; the brass ring = yesterday; the bright one is now.</li>
+    <li><b>Page</b> = a house, busiest at twelve o’clock; <b>storeys</b> = today’s pageviews; warm windows = used.</li>
+    <li><b>Referrer</b> = a gate in the palisade with lanterns in its colour, as wide as its arrivals.</li>
+    <li><b>Visit</b> = a villager with a lantern, in through the gate, across the square, home.</li>
+    <li><b>Event</b> = fireworks over that roof.</li>
+  </ul>
+  <p class="hint">Drag to turn · wheel to zoom · click a village, a house or a gate.</p>
+</section>
+<div class="feed" id="feed"></div>
+<script src="gl2.js"></script>
+<script src="data.js"></script>
+<script>
+(function () {
+  'use strict';
+  var H = G.hex, rand = G.rand, TAU = Math.PI * 2;
+  var q = new URLSearchParams(location.search), STYLE = q.get('style') || 'lamplight';
+
+  /* Three art directions on the same village. */
+  var PRESETS = {
+    lamplight: {
+      note: 'Lamplight: a clear winter night. Cool moonlight and real moon shadows on the snow, warm pools under every lit window and lamp, a thin ink line round the shapes.',
+      env: { moonDir: [-.45, .62, .55], moon: [.42, .5, .75], skyAmb: [.2, .25, .42], gndAmb: [.06, .07, .12], rim: [.08, .1, .2],
+        fog: H('#1d2b52'), fogD: .0075, fogH: 25, skyTop: H('#03060f'), skyMid: H('#0b1738'), skyLow: H('#1d2b52'), moonSky: [-.5, .35, -.8], moonTint: [.95, .97, 1],
+        edge: .55, edgeCol: [.35, .4, .6], sat: .92, vig: .55, stars: 1, poolK: 1.9, lift: 0 },
+      snow: H('#e9eef7'), snow2: H('#dfe6f2'), path: H('#b8bfcc'), stone: H('#8d8794'), stone2: H('#6f6a78'), timber: H('#5b3f2e'),
+      walls: ['#c9b49a', '#b9a58e', '#d2c2a8', '#a99484', '#c4ae9c', '#bfae94', '#cbb8a2', '#b3a08c'], roof: H('#4a3a3e'), pine: H('#21423a'), pane: H('#ffc77a'), cool: H('#2c3c5c'), lamp: H('#ffb35c'),
+    },
+    story: {
+      note: 'Storybook: blue hour, after Townscaper and Bad North. Pastel houses, bold ink outlines, two-tone toon light, a pink horizon: playful and very readable.',
+      env: { moonDir: [-.5, .55, .6], moon: [.62, .6, .74], skyAmb: [.3, .31, .5], gndAmb: [.12, .1, .18], rim: [.15, .12, .2],
+        fog: H('#b78fb0'), fogD: .0042, fogH: 30, skyTop: H('#24306a'), skyMid: H('#6e6aac'), skyLow: H('#e7a3a8'), moonSky: [-.45, .4, -.8], moonTint: [1, .95, .9],
+        edge: 1, edgeCol: [.12, .1, .2], sat: 1.05, vig: .35, stars: .5, bands: 1, poolK: 1.3, lift: .01 },
+      snow: H('#f4f1fa'), snow2: H('#ebe6f4'), path: H('#c9bfd2'), stone: H('#a99db0'), stone2: H('#8c7f96'), timber: H('#6e4a3c'),
+      walls: ['#f2a7a0', '#9fd0c4', '#f6d59a', '#a9b8ec', '#f2b3d2', '#b9e0a2', '#f7c39a', '#c8b0ec'], roof: H('#5a3e5e'), pine: H('#2f6a5a'), pane: H('#ffd27a'), cool: H('#59609a'), lamp: H('#ffc46a'),
+    },
+    bluehour: {
+      note: 'Blue hour: the last light, after Alto’s Adventure. Layered mountains fading into a pale horizon, a handful of hues, no outlines, the lamps just coming on.',
+      env: { moonDir: [-.3, .35, -.9], moon: [.55, .55, .7], skyAmb: [.36, .42, .6], gndAmb: [.14, .15, .22], rim: [.25, .2, .3],
+        fog: H('#8c9cc4'), fogD: .0072, fogH: 40, skyTop: H('#121c44'), skyMid: H('#4a5c96'), skyLow: H('#b3b8d8'), moonSky: [-.3, .25, -.9], moonTint: [1, .9, .85],
+        edge: 0, sat: .82, vig: .4, stars: .35, poolK: 1.4, lift: 0 },
+      snow: H('#e6ebf6'), snow2: H('#dce2f0'), path: H('#b4bacb'), stone: H('#8a8aa0'), stone2: H('#6c6c84'), timber: H('#4e3c40'),
+      walls: ['#9aa4c2', '#a6a0bc', '#b0b6cc', '#9696b4', '#a8aec6', '#a0a8c0', '#aaa4c0', '#9ea6bc'], roof: H('#3c3a52'), pine: H('#2a3a4c'), pane: H('#ffc070'), cool: H('#3a4466'), lamp: H('#ffb060'),
+    },
+  };
+  var S = PRESETS[STYLE] || PRESETS.lamplight;
+  if (STYLE === 'story') document.body.classList.add('story');
+  document.getElementById('style-note').textContent = S.note;
+  var env = S.env; env.drift = .02; env.minDist = 5; env.maxDist = 120; env.box = [-56, -52, 112]; env.shadowCenter = [2, 0, -3]; env.shadowHalf = 52;
+  var W = G.world(document.getElementById('cv'), document.getElementById('ov'), env);
+
+  var C = { snow: S.snow, snow2: S.snow2, path: S.path, stone: S.stone, stone2: S.stone2, timber: S.timber, roof: S.roof, pine: S.pine, pane: S.pane, cool: S.cool, lamp: S.lamp,
+    iron: H('#26232c'), brass: H('#d9a650'), face: H('#fff1c8'), skin: H('#e8c4a6'), coat: H('#3a3442'), trunk: H('#4a3428'), rock: H('#7c7a88') };
+  var sites = DATA.sites, hourNow = new Date().getUTCHours();
+  var maxPv = Math.max.apply(null, sites.map(function (s) { return Math.max.apply(null, s.pages.map(function (p) { return p.pv; })); }));
+  var maxHour = Math.max.apply(null, sites.map(function (s) { return Math.max.apply(null, s.hours.map(function (h) { return Math.max(h.today, h.yesterday); })); }));
+  var UNIT = Math.ceil(maxPv / 6), FLOOR = .95, R_POST = 6.4, R_HOUSE = 11.2, R_WALL = 16;
+  function floors(p) { return Math.max(1, Math.round(p.pv / UNIT)); }
+  function ang(k, n) { return -Math.PI / 2 + k / n * TAU; }
+  function at(o, a, r) { return [o[0] + Math.cos(a) * r, 0, o[2] + Math.sin(a) * r]; }
+
+  var villages = sites.map(function (s, i) {
+    var o = i === 0 ? [-17, 0, 2] : [20, 0, -8];
+    var pages = s.pages.slice().sort(function (a, b) { return b.pv - a.pv; });
+    var v = { s: s, o: o, houses: [], gates: [], walkers: [], sparks: [] };
+    pages.forEach(function (p, k) { var a = ang(k, pages.length); v.houses.push({ p: p, a: a, pos: at(o, a, R_HOUSE), wall: H(S.walls[k % S.walls.length]), seed: i * 31 + k, flash: 0 }); });
+    var maxN = Math.max.apply(null, s.refs.map(function (r) { return r.n; }));
+    s.refs.forEach(function (r, k) {
+      var a = ang(k + .5, s.refs.length) + .1;
+      v.gates.push({ r: r, a: a, w: 1.1 + 2.4 * r.n / maxN, col: H(r.color), pos: at(o, a, R_WALL), end: at(o, a, R_WALL + 9) });
+    });
+    return v;
+  });
+
+  function hf(x, z) {
+    var d = Math.min.apply(null, villages.map(function (v) { return Math.hypot(x - v.o[0], z - v.o[2]); }));
+    var dune = Math.sin(x * .21 + Math.cos(z * .17) * 2) * .25 + Math.sin(z * .13 - x * .05) * .3;
+    var out = G.clamp((d - R_WALL - 1.5) / 6, 0, 1);
+    return out * (dune + .25) + Math.max(0, d - 30) * .05 * (1 + .6 * Math.sin(x * .07 + z * .05)) + Math.max(0, -z - 50) * .08;
+  }
+
+  var land = W.layer(), town = W.layer(), landOcc = null;
+  function buildLand() {
+    var M = land.mesh; M.clear(); landOcc = [];
+    M.terrain(-110, -110, 230, 110, hf, function (h, x, z) { return G.mix(C.snow, C.snow2, (Math.sin(x * .3) * Math.cos(z * .27) + 1) / 2); });
+    // the mountains, three ridges further and further into the haze
+    for (var k = 0; k < 3; k++) {
+      var R = 170 + k * 60, n = 260, base = -4;
+      var peak = function (a) { return 10 + k * 12 + (Math.sin(a * (2 + k) + k * 1.7) * .5 + .5) * (14 + k * 9) + Math.pow(Math.abs(Math.sin(a * (5 + k * 2) + k)), 3) * (10 + k * 6) + Math.sin(a * 17 + k) * 1.5; };
+      for (var i = 0; i < n; i++) {
+        var a = i / n * TAU, b = (i + 1) / n * TAU, ha = peak(a), hb = peak(b);
+        var pa = [Math.cos(a) * R, base, Math.sin(a) * R], pb = [Math.cos(b) * R, base, Math.sin(b) * R];
+        var ta = [Math.cos(a) * (R - 25), ha, Math.sin(a) * (R - 25)], tb = [Math.cos(b) * (R - 25), hb, Math.sin(b) * (R - 25)];
+        var ma = [(pa[0] + ta[0]) / 2, ha * .6, (pa[2] + ta[2]) / 2], mb = [(pb[0] + tb[0]) / 2, hb * .6, (pb[2] + tb[2]) / 2];
+        M.quad(pb, pa, ma, mb, G.mix(G.mix(C.stone2, C.snow, .25 + k * .2), env.skyMid, .25), .55);
+        M.quad(mb, ma, ta, tb, G.mix(C.snow, env.skyMid, .3), .55);
+      }
+    }
+    // pines in clumps outside the walls, rocks
+    for (var t = 0; t < 420; t++) {
+      var x = -100 + rand(t, 1) * 200, z = -95 + rand(t, 2) * 190;
+      var clump = Math.sin(x * .08) * Math.cos(z * .09) + Math.sin(x * .03 + z * .04);
+      if (clump < .2) continue;
+      var near = villages.some(function (v) {
+        var d = Math.hypot(x - v.o[0], z - v.o[2]); if (d < R_WALL + 3) return true;
+        return v.gates.some(function (g) { var aa = Math.atan2(z - v.o[2], x - v.o[0]); return d < R_WALL + 14 && Math.abs(Math.atan2(Math.sin(aa - g.a), Math.cos(aa - g.a))) < .3; });
+      });
+      if (near) continue;
+      pine(M, x, hf(x, z) - .1, z, .8 + rand(t, 3) * .9, t);
+    }
+    for (var r2 = 0; r2 < 50; r2++) {
+      var rx = -80 + rand(r2, 11) * 160, rz = -70 + rand(r2, 12) * 140;
+      if (villages.some(function (v) { return Math.hypot(rx - v.o[0], rz - v.o[2]) < R_WALL + 2; })) continue;
+      var rs = .4 + rand(r2, 13) * .8, ry = hf(rx, rz) - .1;
+      M.lump(rx, ry, rz, rs, rs * .8, 7, C.rock, r2); M.lump(rx, ry + rs * .55, rz, rs * .7, rs * .35, 7, C.snow, r2 + 3);
+    }
+    W.upload(land); var keep = landOcc; landOcc = null; buildLand.occ = keep;
+  }
+  function pine(M, x, y, z, s, seed) {
+    M.cyl(x, y, z, .12 * s, .7 * s, 5, C.trunk);
+    for (var k = 0; k < 3; k++) {
+      var ty = y + (.5 + k * .75) * s, r = (1.05 - k * .27) * s, h = 1.25 * s;
+      M.cone(x, ty, z, r, h, 7, C.pine, 0, true);
+      M.cone(x, ty + h * .42, z, r * .6, h * .58, 7, C.snow, 0, true);
+    }
+    if (landOcc) landOcc.push([x, z, 1.6 * s]); else W.occlude(x, z, 1.6 * s, 1.6 * s, 0, .35);
+  }
+
+  function house(M, h, dark) {
+    var f = floors(h.p), rot = -h.a - Math.PI / 2, P = G.frame(h.pos[0], h.pos[2], rot), warm = Math.round(f * h.p.used);
+    var y = 0, w = 2.5, d = 2.1, lit = dark == null ? f : Math.floor(f * (1 - dark));
+    M.box(h.pos[0], 0, h.pos[2], w + .1, .45, d + .1, C.stone2, 0, rot);                   // plinth
+    for (var j = 0; j < f; j++) {
+      var ww = w + Math.min(j, 1) * .14, dd = d + Math.min(j, 1) * .14;                   // jettied upper storeys
+      M.box(h.pos[0], y + (j ? 0 : .45), h.pos[2], ww, FLOOR - (j ? 0 : .45), dd, j === 0 ? C.stone : h.wall, 0, rot);
+      if (j) { M.box(h.pos[0], y, h.pos[2], ww + .06, .1, dd + .06, C.timber, 0, rot); }  // the beam under the storey
+      for (var qq = 0; qq < 2; qq++) {
+        if (j === 0 && qq === 0) continue;
+        var on = j < lit && j < warm, wx = -.62 + qq * 1.24, wy = y + .32, fz = dd / 2 + .02;
+        var fp = P(wx, 0, fz), pp = P(wx, 0, fz + .02), sill = P(wx, 0, fz + .06);
+        M.box(fp[0], wy - .03, fp[2], .5, .56, .04, C.timber, 0, rot);
+        M.box(pp[0], wy, pp[2], .38, .46, .03, on ? C.pane : C.cool, on ? 1 : .35, rot);
+        M.box(pp[0], wy + .22, pp[2], .03, .02, .03, C.timber, 0, rot);
+        M.box(sill[0], wy - .06, sill[2], .56, .07, .14, C.snow, 0, rot);
+        if (on) { var g = P(wx, 0, fz + .25); W.addGlow(W.staticGlow, [g[0], wy + .23, g[2]], C.pane, .16, 1.4); var pl = P(wx, 0, fz + 1.1); W.pool(pl[0], pl[2], 1.5 + j * .15, C.pane, .5); }
+      }
+      y += FLOOR;
+    }
+    // the door, its lamp, a snow heap by it
+    var door = P(-.62, 0, d / 2 + .03), lampP = P(-.62, 0, d / 2 + .18);
+    M.box(door[0], .45, door[2], .58, .95, .05, C.timber, 0, rot);
+    M.box(lampP[0], 1.55, lampP[2], .16, .2, .16, C.lamp, 1, rot);
+    W.addGlow(W.staticGlow, [lampP[0], 1.65, lampP[2]], C.lamp, .5, 2.2);
+    var dp = P(-.62, 0, d / 2 + 1.4); W.pool(dp[0], dp[2], 2.4, C.lamp, .55);
+    var heap = P(1.1, 0, d / 2 + .5); M.lump(heap[0], 0, heap[2], .38, .3, 6, C.snow, h.seed);
+    // the roof: shingles, then its blanket of snow; a chimney
+    var top = y, rw = w + .14, rd = d + .14;
+    M.roof(h.pos[0], top, h.pos[2], rw, 1.15, rd, C.roof, rot, .32, h.wall);
+    M.roof(h.pos[0], top + .09, h.pos[2], rw - .1, 1.12, rd, C.snow, rot, .22);
+    var ch = P(.7, 0, -.35); M.box(ch[0], top + .3, ch[2], .36, 1.2, .36, C.stone2, 0, rot); M.box(ch[0], top + 1.5, ch[2], .44, .1, .44, C.snow, 0, rot);
+    h.chimney = [ch[0], top + 1.6, ch[2]]; h.top = top; h.door = P(-.62, 0, d / 2 + .9);
+    W.occlude(h.pos[0], h.pos[2], w + 1.2, d + 1.2, rot, .6);
+  }
+
+  function lampPost(M, x, z, ht, on, now) {
+    M.cyl(x, 0, z, .16, .25, 8, C.stone2);
+    M.cyl(x, .25, z, .055, ht - .25, 6, C.iron);
+    if (!on) { M.cone(x, .25, z, .14, .12, 8, C.snow); return; }
+    M.box(x, ht, z, .26, .04, .26, C.iron);
+    M.box(x, ht + .04, z, .2, .26, .2, C.lamp, now ? 1 : .85);
+    M.cone(x, ht + .3, z, .2, .16, 4, C.iron); M.cone(x, ht + .33, z, .14, .1, 4, C.snow);
+    W.pool(x, z, 1.4 + ht * .45, C.lamp, now ? .75 : .45);
+  }
+
+  function build(dark) {
+    var M = town.mesh; M.clear(); W.staticGlow = []; W.clearMaps();
+    W.labels.forEach(function (L) { L.el.remove(); }); W.labels = [];
+    villages.forEach(function (v) {
+      var o = v.o;
+      // the square: cobbles in rings, a kerb, a trodden ring of snow round it
+      for (var rr = 0; rr < 8; rr++) M.ring(o[0], .03, o[2], rr * .95, (rr + 1) * .95, 48, rr % 2 ? C.stone : G.mix(C.stone, C.stone2, .35));
+      M.ring(o[0], .05, o[2], 7.6, 7.9, 48, C.stone2); M.ring(o[0], .02, o[2], 7.9, 9.6, 48, C.path);
+      // the clock tower
+      M.box(o[0], 0, o[2], 2.6, .5, 2.6, C.stone2); M.box(o[0], .5, o[2], 2.2, 3.4, 2.2, C.stone);
+      M.box(o[0], 3.9, o[2], 2.4, .16, 2.4, C.timber); M.box(o[0], 4.06, o[2], 1.9, 3.3, 1.9, G.mix(C.stone, C.snow, .2));
+      [[0, 1], [0, -1], [1, 0], [-1, 0]].forEach(function (f) {
+        var fx = o[0] + f[0] * .97, fz = o[2] + f[1] * .97;
+        M.box(fx, 5.25, fz, f[0] ? .05 : 1.1, 1.1, f[1] ? .05 : 1.1, C.iron);
+        M.box(o[0] + f[0] * 1, 5.33, o[2] + f[1] * 1, f[0] ? .05 : .92, .92, f[1] ? .05 : .92, C.face, .95);
+        W.addGlow(W.staticGlow, [o[0] + f[0] * 1.2, 5.8, o[2] + f[1] * 1.2], C.face, .35, 3.4);
+        W.pool(o[0] + f[0] * 4, o[2] + f[1] * 4, 4.5, C.face, .35);
+      });
+      M.box(o[0], 7.36, o[2], 2.3, .14, 2.3, C.timber);
+      M.cone(o[0], 7.5, o[2], 1.75, 3.2, 4, C.roof); M.cone(o[0], 8.5, o[2], 1.2, 2.25, 4, C.snow);
+      M.cyl(o[0], 10.7, o[2], .04, .7, 4, C.brass);
+      W.occlude(o[0], o[2], 3.4, 3.4, 0, .7);
+      // the 24 hours as street lamps; the brass ring is yesterday
+      v.s.hours.forEach(function (hh) {
+        var a = ang(hh.hour, 24), p = at(o, a, R_POST), ht = .55 + 4.6 * hh.today / maxHour, hy = .55 + 4.6 * hh.yesterday / maxHour;
+        var future = hh.hour > hourNow, now = hh.hour === hourNow;
+        lampPost(M, p[0], p[2], future ? .7 : ht, !future, now);
+        var from = future ? .7 : ht + .5;
+        if (hy > from) M.cyl(p[0], from, p[2], .022, hy - from, 5, C.brass, .2);   // yesterday, where today has not reached
+        M.cyl(p[0], hy, p[2], .17, .06, 10, C.brass, .3);
+        if (!future) W.addGlow(W.staticGlow, [p[0], ht + .17, p[2]], C.lamp, now ? 0 : .45, 2.2);
+        if (now) v.nowLamp = [p[0], ht + .17, p[2]];
+        if (hh.hour % 6 === 0) W.label([o[0] + Math.cos(a) * (R_POST + 1.05), .1, o[2] + Math.sin(a) * (R_POST + 1.05)], '<div>' + String(hh.hour).padStart(2, '0') + ':00</div>', 'tick', function (d) { return d < 42; });
+      });
+      // paths from the square to each house and gate
+      v.houses.forEach(function (h) {
+        var a = at(o, h.a, 9.4), b = at(o, h.a, R_HOUSE - 1.3), mid = [(a[0] + b[0]) / 2, 0, (a[2] + b[2]) / 2];
+        M.flat(mid[0], .025, mid[2], 1.3, Math.hypot(b[0] - a[0], b[2] - a[2]) + .4, C.path, 0, Math.atan2(Math.cos(h.a), Math.sin(h.a)));
+        house(M, h, dark);
+        h.label = W.label([h.pos[0], h.top + 2.2, h.pos[2]], '', '', function (d) { return d < 40; });
+      });
+      // a few small trees between the houses
+      v.houses.forEach(function (h, k) {
+        var a = h.a + Math.PI / v.houses.length, p = at(o, a, R_HOUSE + .6);
+        if (!v.gates.some(function (g) { return Math.abs(Math.atan2(Math.sin(a - g.a), Math.cos(a - g.a))) < .25; })) pine(M, p[0], 0, p[2], .55 + rand(k, 9) * .25, k + 300);
+      });
+      // the palisade with a snow bank, broken by a gate per referrer
+      M.ring(o[0], .04, o[2], R_WALL - .9, R_WALL + .9, 96, C.snow2);
+      for (var k = 0; k < 170; k++) {
+        var a2 = k / 170 * TAU, p2 = at(o, a2, R_WALL + (rand(k, 4) - .5) * .12);
+        var inGate = v.gates.some(function (g) { return Math.abs(Math.atan2(Math.sin(a2 - g.a), Math.cos(a2 - g.a))) * R_WALL < g.w / 2 + .45; });
+        if (inGate) continue;
+        var ph = 1.7 + rand(k, 2) * .4;
+        M.cyl(p2[0], 0, p2[2], .19, ph, 6, C.timber); M.cone(p2[0], ph, p2[2], .19, .35, 6, C.timber);
+      }
+      v.gates.forEach(function (g) {
+        var tan = [-Math.sin(g.a), 0, Math.cos(g.a)];
+        [-1, 1].forEach(function (sd) {
+          var p = [g.pos[0] + tan[0] * sd * (g.w / 2 + .4), 0, g.pos[2] + tan[2] * sd * (g.w / 2 + .4)];
+          M.box(p[0], 0, p[2], .65, 3, .65, C.timber, 0, -g.a);
+          M.cone(p[0], 3, p[2], .62, .8, 4, C.roof); M.cone(p[0], 3.25, p[2], .42, .55, 4, C.snow);
+          var lp = [p[0] + Math.cos(g.a) * .4, 2.3, p[2] + Math.sin(g.a) * .4];
+          M.box(lp[0], lp[1], lp[2], .22, .28, .22, g.col, 1);
+          W.addGlow(W.staticGlow, [lp[0], lp[1] + .14, lp[2]], g.col, .8, 2.6);
+          W.pool(lp[0] + Math.cos(g.a) * 1, lp[2] + Math.sin(g.a) * 1, 2.6, g.col, .5);
+        });
+        var lint = [g.pos[0], 2.7, g.pos[2]];
+        M.box(lint[0], lint[1], lint[2], .3, .25, g.w + 1.4, C.timber, 0, -g.a);
+        M.box(lint[0] + Math.cos(g.a) * .17, 2.05, lint[2] + Math.sin(g.a) * .17, .04, .62, Math.min(1.4, g.w * .6), g.col, .2, -g.a);
+        // the road out, as wide as its arrivals, and the trodden path in to the square
+        var mid = [(g.pos[0] + g.end[0]) / 2, 0, (g.pos[2] + g.end[2]) / 2], rot = Math.atan2(Math.cos(g.a), Math.sin(g.a));
+        M.flat(mid[0], .03 + hf(mid[0], mid[2]) * 0, mid[2], g.w, 9.5, C.path, 0, rot);
+        var ia = at(o, g.a, 9.4), ib = at(o, g.a, R_WALL), im = [(ia[0] + ib[0]) / 2, 0, (ia[2] + ib[2]) / 2];
+        M.flat(im[0], .028, im[2], Math.max(1, g.w * .7), R_WALL - 9.4, C.path, 0, rot);
+        g.label = W.label([g.end[0], 1.4, g.end[2]], '<div style="color:' + g.r.color + '"><span class="p">' + g.r.ref + '</span> <b>' + g.r.n + '</b></div>', 'road', function (d) { return d < 46; });
+      });
+      v.label = W.label([o[0], 14, o[2]], '', 'big', function (d) { return d > 22; });
+    });
+    (buildLand.occ || []).forEach(function (o) { W.occlude(o[0], o[1], o[2], o[2], 0, .35); });
+    W.uploadMaps(); W.upload(town); relabel();
+  }
+  function trend(s) { var d = s.visitors - s.yesterday, p = Math.round(100 * d / s.yesterday); return (d >= 0 ? '▲ ' : '▼ ') + Math.abs(p) + '%'; }
+  function relabel() {
+    villages.forEach(function (v) {
+      v.houses.forEach(function (h) { h.label.el.innerHTML = '<div><span class="p">' + h.p.path + '</span> <b>' + h.p.pv + '</b><div class="s">' + Math.round(h.p.used * 100) + '% used · ' + h.p.events + ' events</div></div>'; });
+      v.label.el.innerHTML = '<div style="border-color:' + v.s.tint + '"><span class="p">' + v.s.name + '</span><div><b>' + v.s.visitors + '</b> visitors · <b>' + v.s.live + '</b> live</div><div class="s">' + v.s.pageviews + ' pageviews · ' + trend(v.s) + ' vs yesterday</div></div>';
+    });
+  }
+
+  /* ---------- live ---------- */
+  var feedEl = document.getElementById('feed'), rows = [];
+  function arrive(hit) {
+    var v = villages.filter(function (x) { return x.s === hit.site; })[0], h = v.houses.filter(function (x) { return x.p === hit.page; })[0];
+    var g = v.gates.filter(function (x) { return x.r === hit.ref; })[0], side = (Math.random() - .5) * g.w * .5;
+    var t = [-Math.sin(g.a) * side, 0, Math.cos(g.a) * side];
+    var path = [[g.end[0] + t[0], 0, g.end[2] + t[2]], [g.pos[0] + t[0], 0, g.pos[2] + t[2]], at(v.o, g.a, 8.7), at(v.o, h.a, 8.7), h.door];
+    v.walkers.push({ path: path, d: 0, speed: 2.3 + Math.random() * .7, col: g.col, hit: hit, h: h, seed: Math.random() });
+    rows.unshift('<p><i style="background:' + g.r.color + '"></i>' + hit.site.id + ' <b>' + hit.page.path + '</b> · ' + g.r.ref + (hit.event ? ' · event' : '') + '</p>');
+    rows.length = Math.min(rows.length, 7); feedEl.innerHTML = rows.join('');
+  }
+  DATA.feed(arrive);
+  for (var i = 0; i < 10; i++) (function (k) { setTimeout(function () { var s = DATA.pick(sites, function (x) { return x.pageviews; }); arrive({ site: s, page: DATA.pick(s.pages, function (p) { return p.pv; }), ref: DATA.pick(s.refs, function (r) { return r.n; }) }); }, k * 200); })(i);
+
+  function villager(M, p, dir, col, bob, seed) {
+    var P = G.frame(p[0], p[2], dir);
+    M.cone(p[0], bob, p[2], .22, .62, 7, G.mix(C.coat, col, .25), 0, true);
+    M.cyl(p[0], .5 + bob, p[2], .13, .08, 7, col, .35);                      // scarf in the gate's colour
+    M.cyl(p[0], .56 + bob, p[2], .11, .18, 7, C.skin, 0, .1, true);
+    M.cone(p[0], .72 + bob, p[2], .13, .2, 7, seed > .5 ? col : C.coat, 0, true);
+    var lh = P(.2, 0, .12);
+    M.cyl(lh[0], .28 + bob, lh[2], .01, .12, 3, C.iron);
+    M.box(lh[0], .2 + bob, lh[2], .09, .11, .09, C.lamp, 1);
+    W.addGlow(W.glow, [lh[0], .26 + bob, lh[2]], C.lamp, .9, 1.5);
+    if (W.lights.length < 16) W.lights.push({ p: [lh[0], .5, lh[2]], r: 2.6, c: G.scale(C.lamp, .9) });
+  }
+
+  var flakes = []; for (var f = 0; f < 900; f++) flakes.push([rand(f, 1) * 70 - 35, rand(f, 2) * 26, rand(f, 3) * 70 - 35, .4 + rand(f, 4) * .6]);
+  var smoke = [], pending = false;
+  W.onFrame = function (t, dt) {
+    var M = W.dyn, ct = W.cam.target;
+    flakes.forEach(function (fl, k) {
+      fl[1] -= dt * fl[3] * 1.3; if (fl[1] < 0) fl[1] += 26;
+      var x = ((fl[0] + Math.sin(t * .5 + k) * .7 - ct[0] + 35) % 70 + 70) % 70 - 35 + ct[0], z = ((fl[2] + Math.cos(t * .4 + k) * .5 - ct[2] + 35) % 70 + 70) % 70 - 35 + ct[2];
+      W.puffs.push(x, fl[1], z, .95, .97, 1, .7 * fl[3], .14);
+    });
+    villages.forEach(function (v) {
+      if (v.nowLamp) { var pu = .75 + .25 * Math.sin(t * 2.4); W.addGlow(W.glow, v.nowLamp, C.lamp, pu * 1.2, 4.2); W.lights.push({ p: v.nowLamp, r: 6, c: G.scale(C.lamp, pu) }); }
+      v.houses.forEach(function (h) {
+        if (Math.random() < dt * 1.6) smoke.push({ p: h.chimney.slice(), t: 0, s: Math.random() });
+        if (h.flash > 0) { h.flash = Math.max(0, h.flash - dt * 1.1); W.addGlow(W.glow, [h.door[0], .8, h.door[2]], C.pane, h.flash, 5); }
+      });
+      v.walkers = v.walkers.filter(function (w) {
+        w.d += dt * w.speed; var a = G.along(w.path, w.d);
+        if (a.done) {
+          w.h.flash = 1; w.hit.page.pv++; w.hit.site.pageviews++; pending = true;
+          if (w.hit.event) { w.hit.page.events++; v.sparks.push({ p: [w.h.pos[0], w.h.top + 3, w.h.pos[2]], t: 0, col: w.col }); }
+          return false;
+        }
+        villager(M, a.p, a.dir, w.col, Math.abs(Math.sin(w.d * 5)) * .05, w.seed);
+        return true;
+      });
+      v.sparks = v.sparks.filter(function (s) {
+        s.t += dt;
+        for (var k = 0; k < 22; k++) {
+          var a = k / 22 * TAU, el = Math.sin(k * 2.3) * .8, r = s.t * 2.4;
+          var y = s.p[1] + Math.sin(el) * r - s.t * s.t * .9;
+          W.addGlow(W.glow, [s.p[0] + Math.cos(a) * Math.cos(el) * r, y, s.p[2] + Math.sin(a) * Math.cos(el) * r], k % 3 ? s.col : C.pane, Math.max(0, 1 - s.t / 1.9), 1.3);
+        }
+        return s.t < 1.9;
+      });
+    });
+    smoke = smoke.filter(function (s) {
+      s.t += dt; var k = s.t / 5;
+      W.puffs.push(s.p[0] + s.t * .35 + Math.sin(s.t + s.s * 6) * .15, s.p[1] + s.t * .55, s.p[2] - s.t * .1, .62, .66, .76, .28 * (1 - k) * Math.min(1, s.t * 3), .5 + s.t * .5);
+      return k < 1;
+    });
+    if (pending && Math.floor(t * 2) % 2 === 0) {
+      pending = false;
+      var grow = villages.some(function (v) { return v.houses.some(function (h) { return Math.abs(h.top - floors(h.p) * FLOOR) > .01; }); });
+      if (grow) build(); else relabel();
+    }
+  };
+
+  var overview = { target: [2, 3, -4], yaw: .12, pitch: .3, dist: 66 };
+  W.cam.target = overview.target.slice(); W.cam.yaw = overview.yaw; W.cam.pitch = overview.pitch; W.cam.dist = overview.dist;
+  var back = document.getElementById('back');
+  back.onclick = function () { W.flyTo(overview, 1600); back.hidden = true; };
+  W.onPick = function (x, y) {
+    var best = null, bd = 70;
+    villages.forEach(function (v) {
+      [v.label].concat(v.houses.map(function (h) { return h.label; }), v.gates.map(function (g) { return g.label; })).forEach(function (L) {
+        if (L.el.hidden) return; var d = Math.hypot(L.sx - x, L.sy - y); if (d < bd) { bd = d; best = { v: v, L: L }; }
+      });
+    });
+    if (!best) return;
+    if (best.L === best.v.label) W.flyTo({ target: [best.v.o[0], 2, best.v.o[2]], pitch: .5, dist: 32 });
+    else W.flyTo({ target: [best.L.p[0], 1.8, best.L.p[2]], pitch: .3, dist: 13 });
+    back.hidden = false;
+  };
+  buildLand(); build();
+  if (location.hash === '#near') { W.cam.target = [-17, 2, 2]; W.cam.yaw = .25; W.cam.pitch = .42; W.cam.dist = 30; back.hidden = false; }
+  if (location.hash === '#street') { W.cam.target = [-17, 2.5, -6]; W.cam.yaw = .35; W.cam.pitch = .2; W.cam.dist = 14; back.hidden = false; }
+})();
+</script>
+</body>
+</html>

@@ -33,7 +33,7 @@ ever stored. `docs/privacy.md` maps every stored column to the AEPD's list.
 ## Operating Context
 
 Deployed at `footworn.<account>.workers.dev`. The dashboard (`public/index.html`, `app.js`) asks
-for the admin token once, keeps it in `localStorage`, reads `/api/scene` for the bay and
+for the admin token once, keeps it in `localStorage`, reads `/api/scene` for the village and
 `/api/stats` and `/api/event` for the ledger, and listens on `/live` (a WebSocket relayed by the
 `Live` Durable Object, opened with a 60-second ticket). The view lives in the query string, so a
 URL is a bookmark to a site, the open ledger, its range and an open event.
@@ -41,26 +41,32 @@ URL is a bookmark to a site, the open ledger, its range and an open event.
 
 ## Capabilities and Constraints
 
-- The bay (since 2026-10-03, replacing the snowfield, which read as unclear): a night bay seen
-  from the front, one district per site with a tower per page (30-day top 8, plus other pages),
-  heights today's pageviews on one scale for every site, warm windows from the ground up for the
-  share of loads used (`$engaged`), cool for the rest; a sign per district (visitors, live, used,
-  change against yesterday); every live hit a light on the shore road. Clicking a district zooms
-  into its skyline: towers from busiest to quietest, a lane per referrer (top 5, elsewhere,
-  direct), every hit a car with a trail, every event a searchlight. Rain, reflections, always
-  night; at UTC midnight the windows go dark. A 2D canvas (`public/city.js`). The rule behind it,
-  from three rounds of design options: atmosphere in the light, a chart's structure in the forms
-  (front views so heights compare as bars, only data objects in focus, a number beside each).
+- The village (since 2026-10-05, replacing the bay; the owner asked for 3D and picked the clock
+  square of three village options, then three art directions after web research): snowed-in
+  villages on a winter night, one per site, side by side in a valley. In each, a house per page
+  (30-day top 8, plus other pages) in a ring round a clock square, storeys today's pageviews on
+  one scale for every site, warm windows from the ground up for the share of loads used
+  (`$engaged`); 24 street lamps round the square for today's pageviews by UTC hour, a brass ring
+  at yesterday's, the current hour glowing; a gate per referrer (top 5, elsewhere, direct) in the
+  palisade, as wide as today's arrivals; every live pageview a villager walking from its gate to
+  its house, every event fireworks over the roof; a sign per village (visitors, live, used,
+  change against yesterday). Clicking a village flies the camera in; drag turns, wheel or pinch
+  zooms. Moon shadows, warm pools of light on the snow, ink outlines, smoke and snowfall; at UTC
+  midnight the windows go dark. WebGL2 written by hand (`public/gl.js`, the scene in
+  `public/village.js`); without WebGL2 a note sends the owner to the ledger. The rule behind it:
+  atmosphere in the light, a chart's structure in the forms (storeys compare as bars, one channel
+  per metric, a number beside each), and real rendering craft (light, shadow, outline), because
+  flat-shaded boxes read as ugly.
 - Today, one by one (since 2026-10-03; two tabs since the same day, the single list read as
   confusing): a panel beside the scene (a sheet on a phone). *Visits*: newest first, live, every
-  page load in bold with its referrer's lane colour, and between them, lighter and stepped in, the
+  page load in bold with its referrer's gate colour, and between them, lighter and stepped in, the
   views opened in a page (`screen` events with a `view`), *Hide views* to hide those; a click
   unfolds a row with every field it holds and today's counts around it (page, referrer, country,
   device). *Events*: the same list, one row per event with its properties, under a pill per name
   with today's count that filters it, an open row linking to the ledger's event detail. Every row
   names its site. Rounded so a row is not a fingerprint (the minute, the device class, browser and
   system families; no width, no second, no id), never joining a view to a visit, empty at UTC midnight.
-  Pointing at a row rings its tower and lane in the scene.
+  Pointing at a row rings its house and gate in the scene.
 - The ledger, a drawer over it, per site and range (1, 7, 30, 90 days or custom): totals
   (visitors, pageviews, events), a day chart (pageviews as bars, visitors as a line), hour or
   weekday and screen-width profiles, and top-30 tables for pages, referrers, events, countries,
@@ -68,6 +74,10 @@ URL is a bookmark to a site, the open ledger, its range and an open event.
   and property breakdowns. It is the scene's text alternative.
 - Zero runtime dependencies, no framework, no build: classic scripts and plain CSS. The
   dashboard's CSP allows no inline code, so no inline styles or scripts.
+- The dashboard lives on a second screen, so it has to cost next to nothing at rest: the lit
+  scene is drawn once and kept, a frame is that picture plus what moves (30 a second while it
+  snows, none with reduced motion until a visit comes), no `backdrop-filter` over the canvas,
+  and no CSS animation that runs at the screen's rate (they go in `steps()`).
 - Every colour, typeface and spacing of the dashboard comes from `public/tokens.css`, the only
   design source; there is no DESIGN.md by decision (`docs/backlog.md`).
 - Web fonts are possible only if self-hosted or allowed by `public/_headers`; the current CSP

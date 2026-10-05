@@ -1,0 +1,26 @@
+/* Shared chrome of the option pages: the sky is CSS, the world a transparent canvas over it. */
+html, body { margin: 0; height: 100%; overflow: hidden; font: 13px/1.35 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+body { background: var(--sky, #0b1020); color: #fff4dc; }
+canvas { position: fixed; inset: 0; width: 100%; height: 100%; touch-action: none; cursor: grab; }
+canvas:active { cursor: grabbing; }
+#ov { position: fixed; inset: 0; pointer-events: none; overflow: hidden; }
+.lbl { position: absolute; left: 0; top: 0; white-space: nowrap; will-change: transform; }
+.lbl > div { transform: translate(-50%, -100%); padding: 3px 7px; border-radius: 7px; background: var(--sign, rgba(8, 12, 24, .78)); border: 1px solid var(--sign-line, rgba(255, 214, 140, .4)); text-align: center; }
+.lbl b { font: 700 13px ui-monospace, "SF Mono", Menlo, Consolas, monospace; color: var(--num, #ffd68c); }
+.lbl .p { font-weight: 600; }
+.lbl .s { opacity: .78; font-size: 11px; }
+.lbl.big > div { padding: 6px 11px; font-size: 14px; }
+.lbl.big b { font-size: 16px; }
+.lbl.road > div { border-color: currentColor; }
+.lbl.tick > div { padding: 0 4px; background: none; border: 0; font: 600 10px ui-monospace, monospace; opacity: .8; }
+.lbl.ghost > div { background: none; border: 0; padding: 0; font-size: 11px; opacity: .7; }
+.panel { position: fixed; left: 16px; bottom: 16px; max-width: 360px; padding: 12px 14px; border-radius: 12px; background: rgba(8, 12, 24, .72); border: 1px solid rgba(255, 255, 255, .12); backdrop-filter: blur(8px); pointer-events: auto; }
+.panel h1 { margin: 0 0 4px; font-size: 15px; }
+.panel ul { margin: 6px 0 0; padding-left: 18px; }
+.panel li { margin: 2px 0; }
+.panel .hint { opacity: .7; font-size: 12px; margin-top: 6px; }
+.feed { position: fixed; right: 16px; bottom: 16px; width: 240px; padding: 10px 12px; border-radius: 12px; background: rgba(8, 12, 24, .72); border: 1px solid rgba(255, 255, 255, .12); font-size: 12px; pointer-events: none; }
+.feed p { margin: 2px 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.feed i { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; }
+.back { position: fixed; left: 16px; top: 16px; padding: 8px 12px; border-radius: 10px; border: 1px solid rgba(255, 255, 255, .2); background: rgba(8, 12, 24, .72); color: inherit; font: inherit; cursor: pointer; }
+@media (max-width: 640px) { .feed { display: none; } .panel { right: 16px; max-width: none; } }

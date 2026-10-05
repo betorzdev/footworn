@@ -1,17 +1,20 @@
-/* Every colour, typeface and spacing of the dashboard lives here, the canvas included: city.js
-   reads the --city-* tokens with getComputedStyle.
-   The world: a bay at night. Every site is a district on the shore, every page a tower; warm
-   windows are the loads that were used, cool ones the rest; every live hit is a light on the
-   shore road. The scene keeps its own night; the scheme only changes the glass panels over it
+/* Every colour, typeface and spacing of the dashboard lives here, the 3D scene included:
+   village.js reads the --village-* tokens with getComputedStyle.
+   The world: snowed-in villages on a winter night. Every site is a village round a clock square,
+   every page a house, every referrer a gate, every hour of the day a street lamp; warm windows
+   are the loads that were used; every live visit is a villager walking home. The scene keeps its
+   own night; the scheme only changes the glass panels over it
    and the ledger (`data-theme="dark"` on <html>, set by theme.js from the system's preference
    unless the user's switch says otherwise). */
 :root {
   color-scheme: light;
-  /* The panels: frosted glass over the bay, and the ledger, a field notebook with feint blue rules. */
+  /* The panels: glass over the village, solid enough to read on with no blur behind it (a blur
+     is worked out again each time the snow moves), and the ledger, a field notebook with feint
+     blue rules. */
   --bg: #f4f7fb;        /* the ledger's paper */
   --rule: #d5deea;      /* its feint ruled line, every --lh */
   --border: var(--rule);
-  --glass: rgba(248, 250, 253, .84);
+  --glass: rgba(248, 250, 253, .92);
   --glass-line: rgba(29, 36, 51, .14);
   --glass-shadow: 0 8px 30px rgba(20, 30, 60, .14);
   --surface: #ffffff;   /* a field that stands apart: the token input */
@@ -50,57 +53,55 @@
   --track: .12em;
   --t-fast: 150ms; --t-base: 220ms;
 
-  /* The city. Sky, towers, windows, water, the shore road, and what is written over them. */
-  --city-sky-top: #040814;
-  --city-sky-low: #141c38;
-  --city-horizon: #2d2a4e;
-  --city-moon: #ebf0ff;
-  --city-hills: #121933;
-  --city-haze: rgba(70, 80, 130, .35);
-  --city-tower: #1d273d;
-  --city-tower-lit: #232f48;       /* a tower's lit flank */
-  --city-tower-dark: #141b2b;      /* its shaded flank */
-  --city-warm: #ffce80;            /* a window of a load that was used */
-  --city-cool: #96beff;            /* a window of one that was only opened */
-  --city-water-top: #0a1222;
-  --city-water-deep: #03060c;
-  --city-ripple: rgba(160, 190, 240, .08);
-  --city-road: #1a1f2c;
-  --city-lamp: #ffa046;            /* sodium light on the wet road */
-  --city-rain: rgba(170, 195, 235, .2);
-  --city-beacon: #ff3c32;          /* the red light on a roof */
-  --city-beam: #dcebff;            /* an event's searchlight */
-  --city-glare: #fff8dc;           /* headlights */
-  --city-sign: rgba(8, 12, 24, .84);
-  --city-sign-line: rgba(255, 214, 140, .45);
-  --city-ink: #fff4dc;             /* labels in the night */
-  --city-ink-soft: #c5cde0;
-  --city-ink-num: #ffd68c;
-  --city-ink-halo: rgba(5, 7, 12, .9);
-  --city-live: #ff8478;
-  --city-up: #7fe3ad;
-  --city-down: #ff9a8e;
-  --city-hover: rgba(255, 214, 140, .9);   /* the ring round what the pointer or a visit row points at */
-  --font-city: 600 12px system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-  --font-city-big: 700 14px system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-  --font-city-num: 600 12px ui-monospace, "SF Mono", Menlo, Consolas, monospace;
-  --font-city-big-num: 700 14px ui-monospace, "SF Mono", Menlo, Consolas, monospace;   /* visitors on a district's sign */
-  --font-city-small: 500 11px system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;  /* the rhythm card's title */
-  --font-city-tick: 600 10px ui-monospace, "SF Mono", Menlo, Consolas, monospace;       /* the used share on a tower, the hours */
-  --city-fade: rgba(5, 7, 12, 0);  /* where a haze or a reflection fades to nothing */
-  /* One colour per site, in the order the API lists them; the same in its lights and its sign. */
-  --city-site-1: #8fb8ff; --city-site-2: #ff8d6b; --city-site-3: #b9a8ff; --city-site-4: #7fe0b0;
-  --city-site-5: #ffd36b; --city-site-6: #ff9ed0; --city-site-7: #a6e36f; --city-site-8: #9ad6ff;
-  /* One colour per lane of a skyline: its top 5 referrers, then elsewhere and direct. */
-  --city-lane-1: #6fa3ff; --city-lane-2: #ff7a45; --city-lane-3: #4fd0ff; --city-lane-4: #ff4f6d;
-  --city-lane-5: #a08cff; --city-lane-elsewhere: #9aa3b8; --city-lane-direct: #e6ebf7;
+  /* The village on a winter night. village.js reads every --village-* colour with getComputedStyle.
+     The sky and the haze it fades into: */
+  --village-sky-top: #03060f;
+  --village-sky-mid: #0b1738;
+  --village-sky-low: #1d2b52;      /* the horizon, and the fog distance fades everything to */
+  --village-moon: #f2f5ff;         /* the disc in the sky */
+  --village-moonlight: #6b80bf;    /* the light it casts, and its shadows */
+  --village-sky-light: #33406b;    /* what the sky gives a surface facing up */
+  --village-ground-light: #0f121f; /* and what the snow gives back to one facing down */
+  --village-rim: #141a33;          /* the cool edge round a shape against the night */
+  --village-edge: #5a6699;         /* the ink line round the shapes (a multiplier: lighter is fainter) */
+  /* The things in it: */
+  --village-snow: #e9eef7; --village-snow-2: #dfe6f2; --village-path: #b8bfcc;
+  --village-stone: #8d8794; --village-stone-dark: #6f6a78; --village-rock: #7c7a88;
+  --village-timber: #5b3f2e; --village-trunk: #4a3428; --village-pine: #21423a;
+  --village-roof: #4a3a3e; --village-iron: #26232c; --village-brass: #d9a650;
+  --village-clock: #fff1c8;        /* the lit faces of the clock tower */
+  --village-window: #ffc77a;       /* a window of a load that was used: lit, with its pool on the snow */
+  --village-window-dark: #2c3c5c;  /* one that was only opened */
+  --village-lamp: #ffb35c;         /* street lamps, door lamps, a villager's lantern */
+  --village-coat: #3a3442; --village-skin: #e8c4a6; --village-smoke: #9ea8c2; --village-flake: #f2f6ff;
+  /* One plaster per house, in turn: */
+  --village-wall-1: #c9b49a; --village-wall-2: #b9a58e; --village-wall-3: #d2c2a8; --village-wall-4: #a99484;
+  --village-wall-5: #c4ae9c; --village-wall-6: #bfae94; --village-wall-7: #cbb8a2; --village-wall-8: #b3a08c;
+  /* What is written over it: labels pinned to the houses, gates and villages. */
+  --village-star: #e6edff;
+  --village-sign: rgba(10, 14, 28, .9);   /* solid enough that an hour's label behind a house's does not read through it */
+  --village-sign-line: rgba(255, 220, 160, .3);
+  --village-ink: #fff4dc;
+  --village-ink-soft: #c5cde0;
+  --village-ink-num: #ffd68c;
+  --village-live: #ff8478;
+  --village-up: #7fe3ad;
+  --village-down: #ff9a8e;
+  --village-hover: rgba(255, 214, 140, .9);   /* the ring round what the pointer or a visit row points at */
+  /* One colour per site, in the order the API lists them: its sign's edge, its events' tone. */
+  --village-site-1: #8fb8ff; --village-site-2: #ff8d6b; --village-site-3: #b9a8ff; --village-site-4: #7fe0b0;
+  --village-site-5: #ffd36b; --village-site-6: #ff9ed0; --village-site-7: #a6e36f; --village-site-8: #9ad6ff;
+  /* One colour per gate of a village: its top 5 referrers, then elsewhere and direct. The lanterns,
+     the banner, a villager's scarf, and the dot of a visit row in the panel. */
+  --village-lane-1: #6fa3ff; --village-lane-2: #ff7a45; --village-lane-3: #4fd0ff; --village-lane-4: #ff4f6d;
+  --village-lane-5: #a08cff; --village-lane-elsewhere: #9aa3b8; --village-lane-direct: #e6ebf7;
 }
 /* The dark stock: the panels and the ledger only. The scene keeps its own light. */
 :root[data-theme="dark"] {
   color-scheme: dark;
   --bg: #141b2b;
   --rule: #263149;
-  --glass: rgba(16, 22, 36, .82);
+  --glass: rgba(16, 22, 36, .9);
   --glass-line: rgba(230, 235, 245, .14);
   --glass-shadow: 0 8px 30px rgba(0, 0, 0, .35);
   --surface: #1b2438;

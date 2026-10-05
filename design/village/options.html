@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Village options</title>
+<style>
+  html, body { margin: 0; height: 100%; background: #0b1020; color: #fff4dc; font: 14px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  body { display: grid; grid-template-rows: auto 1fr; }
+  nav { display: flex; gap: 8px; align-items: center; padding: 10px 16px; border-bottom: 1px solid rgba(255, 255, 255, .12); flex-wrap: wrap; }
+  nav h1 { font-size: 15px; margin: 0 12px 0 0; }
+  nav button { font: inherit; color: inherit; background: rgba(255, 255, 255, .06); border: 1px solid rgba(255, 255, 255, .18); border-radius: 10px; padding: 7px 12px; cursor: pointer; }
+  nav button[aria-selected="true"] { background: #ffd68c; color: #1a1408; border-color: #ffd68c; }
+  nav .rec { font-size: 11px; font-weight: 700; margin-left: 6px; padding: 1px 6px; border-radius: 6px; background: #2f8a5b; color: #fff; }
+  nav p { margin: 0 0 0 auto; opacity: .7; font-size: 12px; }
+  iframe { width: 100%; height: 100%; border: 0; display: block; }
+</style>
+</head>
+<body>
+<nav>
+  <h1>Footworn · the village</h1>
+  <button data-src="c2.html?style=lamplight" aria-selected="true">C · Lamplight <span class="rec">Recommended</span></button>
+  <button data-src="c2.html?style=story" aria-selected="false">C · Storybook</button>
+  <button data-src="c2.html?style=bluehour" aria-selected="false">C · Blue hour</button>
+  <button data-src="c.html" aria-selected="false">C · first draft</button>
+  <button data-src="a.html" aria-selected="false">A · Tower village</button>
+  <button data-src="b.html" aria-selected="false">B · One house per visit</button>
+  <p>Made-up data, live feed simulated · hand-written WebGL, no libraries</p>
+</nav>
+<iframe id="f" src="c2.html?style=lamplight" title="Option"></iframe>
+<script>
+  var bs = document.querySelectorAll('nav button'), f = document.getElementById('f');
+  bs.forEach(function (b) { b.onclick = function () { bs.forEach(function (x) { x.setAttribute('aria-selected', String(x === b)); }); f.src = b.dataset.src; }; });
+</script>
+</body>
+</html>

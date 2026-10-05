@@ -1,0 +1,174 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>B · One house per visit</title>
+<link rel="stylesheet" href="village.css">
+<style>
+  body { --sky: linear-gradient(#2c3f6e 0%, #8a7aa6 45%, #f2b38a 78%, #ffd9a8 100%); background: var(--sky); color: #2a2230;
+    --sign: rgba(255, 250, 242, .9); --sign-line: rgba(80, 50, 40, .25); --num: #b0442c; }
+  .panel, .feed, .back { color: #fff4dc; }
+  .lbl > div { box-shadow: 0 2px 8px rgba(60, 30, 20, .2); }
+</style>
+</head>
+<body>
+<canvas id="cv" aria-label="Two floating islands with a cottage for every visit"></canvas>
+<div id="ov"></div>
+<button class="back" id="back" hidden>← Both islands</button>
+<section class="panel">
+  <h1>B · One house per visit</h1>
+  <div>Each site is a floating island at golden hour; the village on it grows through the day, one cottage at a time. At UTC midnight it is empty again.</div>
+  <ul>
+    <li><b>Page</b> = a quarter of the village, with its name and count.</li>
+    <li><b>Pageview</b> = one cottage (count them: the quarter is a pictogram chart).</li>
+    <li><b>Roof colour</b> = where that visit came from (referrer).</li>
+    <li><b>Lit window</b> = that load was used; dark = only opened.</li>
+    <li><b>Event</b> = a balloon over the quarter. <b>Live</b> = a cottage dropping in.</li>
+  </ul>
+  <p class="hint">Drag to turn · wheel to zoom · click an island or a quarter.</p>
+</section>
+<div class="feed" id="feed"></div>
+<script src="gl.js"></script>
+<script src="data.js"></script>
+<script>
+(function () {
+  'use strict';
+  var H = V3.hex, rand = V3.rand;
+  var W = V3.world(document.getElementById('cv'), document.getElementById('ov'), {
+    sunDir: [-.6, .5, .45], sun: [1.05, .82, .62], skyAmb: [.42, .45, .6], gndAmb: [.28, .2, .2],
+    fog: H('#e8b49a'), fogD: .0065, drift: .03, minDist: 5, maxDist: 110,
+  });
+  var C = { grass: H('#7fae5a'), grass2: H('#73a252'), cliff: H('#8a6a52'), cliff2: H('#6e5444'), path: H('#e0cfa8'), wall: H('#f3e6d0'), wallSide: H('#dccbb0'),
+    dark: H('#3a3448'), lit: H('#ffd27a'), cloud: H('#fff3ea'), tree: H('#4f7a3c'), trunk: H('#6a4a34'), balloon: H('#ff6a4a') };
+  var CELL = .62, HOUSE = .44;
+  var sites = DATA.sites;
+
+  /* every site an island; its pages quarters on a grid; every pageview a cottage with a referrer and a used flag */
+  var islands = sites.map(function (s, i) {
+    var isl = { s: s, ox: i === 0 ? -9 : 15, oz: i === 0 ? 0 : -6, quarters: [], drops: [], balloons: [] };
+    var pages = s.pages.slice().sort(function (a, b) { return b.pv - a.pv; });
+    pages.forEach(function (p, k) {
+      var q = { p: p, homes: [] };
+      for (var j = 0; j < p.pv; j++) q.homes.push({ ref: DATA.pick(s.refs, function (r) { return r.n; }), used: rand(k * 31 + j, i) < p.used, seed: rand(j, k + 7 * i) });
+      isl.quarters.push(q);
+    });
+    layout(isl);
+    return isl;
+  });
+  /* quarters as squares packed in rows, the busiest first */
+  function layout(isl) {
+    var rowW = 0, x = 0, z = 0, rowD = 0, maxW = 13;
+    isl.quarters.forEach(function (q) {
+      q.cols = Math.max(2, Math.ceil(Math.sqrt(q.homes.length)));
+      var w = q.cols * CELL, d = Math.ceil(q.homes.length / q.cols) * CELL;
+      if (x > 0 && x + w > maxW) { z += rowD + 1.1; x = 0; rowD = 0; }
+      q.x = x; q.z = z; q.w = w; q.d = Math.max(d, CELL); x += w + 1.1; rowD = Math.max(rowD, q.d); rowW = Math.max(rowW, x);
+    });
+    isl.w = rowW - 1.1; isl.d = z + rowD;
+    isl.quarters.forEach(function (q) { q.x += isl.ox - isl.w / 2; q.z += isl.oz - isl.d / 2; });
+    isl.R = Math.max(isl.w, isl.d) / 2 + 2.6;
+  }
+  function slot(q, j) { var c = j % q.cols, r = Math.floor(j / q.cols); return [q.x + (c + .5) * CELL, q.z + (r + .5) * CELL]; }
+  function cottage(M, x, y, z, h) {
+    var rot = (h.seed - .5) * .25, col = H(h.ref.color);
+    M.box(x, y, z, HOUSE, .32, HOUSE * .8, C.wall, 0, rot, { side: C.wallSide });
+    M.roof(x, y + .32, z, HOUSE, .22, HOUSE * .8, V3.mix(col, [.2, .15, .2], .25), rot, .05);
+    var P = V3.frame(x, z, rot), w = P(0, 0, HOUSE * .4 + .006);
+    M.box(w[0], y + .1, w[2], .12, .12, .01, h.used ? C.lit : C.dark, h.used ? 1 : 0, rot);
+  }
+
+  function build() {
+    var M = W.stat; M.clear(); W.staticGlow = [];
+    W.labels.forEach(function (L) { L.el.remove(); }); W.labels = [];
+    islands.forEach(function (isl, i) {
+      var R = isl.R;
+      // the island: a grassy cap and a rocky underside tapering into the haze
+      M.cyl(isl.ox, -.4, isl.oz, R, .4, 28, C.grass);
+      M.cyl(isl.ox, -2.2, isl.oz, R * .86, 1.8, 28, C.cliff, 0, R);
+      M.cyl(isl.ox, -6.5, isl.oz, R * .25, 4.3, 14, C.cliff2, 0, R * .86);
+      M.cone(isl.ox + 1, -6.5, isl.oz - .5, R * .25, -3.5, 10, C.cliff2);
+      isl.quarters.forEach(function (q, k) {
+        M.flat(q.x + q.w / 2, .01, q.z + q.d / 2, q.w + .7, q.d + .7, C.path);
+        q.homes.forEach(function (h, j) { var s = slot(q, j); cottage(M, s[0], .01, s[1], h); });
+        var lit = q.homes.filter(function (h) { return h.used; }).length;
+        q.label = W.label([q.x + q.w / 2, 1.5, q.z + q.d / 2], '<div><span class="p">' + q.p.path + '</span> <b>' + q.p.pv + '</b><div class="s">' + Math.round(100 * lit / Math.max(1, q.homes.length)) + '% used · ' + q.p.events + ' events</div></div>', '', function (d) { return d < 34; });
+      });
+      // trees round the rim
+      for (var t = 0; t < 26; t++) {
+        var a = rand(t, i) * Math.PI * 2, r = R - .6 - rand(i, t) * .6, tx = isl.ox + Math.cos(a) * r, tz = isl.oz + Math.sin(a) * r;
+        M.cyl(tx, 0, tz, .07, .3, 5, C.trunk); M.cone(tx, .25, tz, .35, .9 + rand(t, 3) * .4, 6, C.tree);
+      }
+      isl.label = W.label([isl.ox, 5.5, isl.oz], '', 'big', function (d) { return d > 18; });
+    });
+    // the sea of clouds
+    for (var c = 0; c < 70; c++) {
+      var cx = -70 + rand(c, 1) * 150, cz = -60 + rand(c, 2) * 110, cr = 3 + rand(c, 3) * 6;
+      M.cyl(cx, -12 - rand(c, 4) * 3, cz, cr, 1.2, 10, C.cloud, .35, cr * .6);
+    }
+    W.build(); relabel();
+  }
+  function trend(s) { var d = s.visitors - s.yesterday, p = Math.round(100 * d / s.yesterday); return (d >= 0 ? '▲ ' : '▼ ') + Math.abs(p) + '%'; }
+  function relabel() {
+    islands.forEach(function (isl) {
+      isl.label.el.innerHTML = '<div style="border-color:' + isl.s.tint + '"><span class="p">' + isl.s.name + '</span><div><b>' + isl.s.pageviews + '</b> houses · <b>' + isl.s.visitors + '</b> visitors · <b>' + isl.s.live + '</b> live</div><div class="s">' + trend(isl.s) + ' visitors vs yesterday</div></div>';
+    });
+  }
+
+  /* ---------- live: a cottage drops into its quarter ---------- */
+  var feedEl = document.getElementById('feed'), rows = [], pending = false;
+  DATA.feed(function (hit) {
+    var isl = islands.filter(function (x) { return x.s === hit.site; })[0], q = isl.quarters.filter(function (x) { return x.p === hit.page; })[0];
+    var h = { ref: hit.ref, used: hit.used, seed: Math.random() }, j = q.homes.length;
+    var cols = Math.max(2, Math.ceil(Math.sqrt(j + 1)));
+    if (cols !== q.cols) { q.homes.push(h); q.p.pv++; hit.site.pageviews++; pending = true; }
+    else { var s = slot(q, j); isl.drops.push({ h: h, q: q, x: s[0], z: s[1], t: 0, hit: hit }); }
+    if (hit.event) isl.balloons.push({ x: q.x + Math.random() * q.w, z: q.z + Math.random() * q.d, t: 0, s: Math.random(), col: H(['#ff6a4a', '#ffc94a', '#5ab0ff', '#ff8ad0'][Math.floor(Math.random() * 4)]) });
+    rows.unshift('<p><i style="background:' + hit.ref.color + '"></i>' + hit.site.id + ' <b>' + hit.page.path + '</b> · ' + hit.ref.ref + (hit.event ? ' · event' : '') + '</p>');
+    rows.length = Math.min(rows.length, 7); feedEl.innerHTML = rows.join('');
+  });
+
+  W.onFrame = function (t, dt) {
+    var M = W.dyn;
+    islands.forEach(function (isl) {
+      isl.drops = isl.drops.filter(function (d) {
+        d.t += dt; var k = Math.min(1, d.t / 1.1), y = (1 - k * k) * 9;
+        if (k >= 1) {
+          if (d.t < 1.7) { W.addGlow(W.glow, [d.x, .1, d.z], [1, .95, .85], (1.7 - d.t) * 1.1, 4); }
+          if (!d.done) { d.done = true; d.q.homes.push(d.h); d.q.p.pv++; d.hit.site.pageviews++; pending = true; }
+          return d.t < 1.7;
+        }
+        cottage(M, d.x, y + .01, d.z, d.h); return true;
+      });
+      isl.balloons = isl.balloons.filter(function (b) {
+        b.t += dt; var y = 1 + b.t * .55, x = b.x + Math.sin(b.t * .8 + b.s * 5) * .4, fade = b.t < 14;
+        M.cyl(x, y, b.z, .16, .26, 8, b.col, .25, .22); M.cone(x, y + .26, b.z, .22, .18, 8, b.col, .25);
+        M.cyl(x, y - .3, b.z, .01, .3, 3, C.trunk);
+        return fade;
+      });
+    });
+    if (pending && Math.floor(t * 2) % 2 === 0) { pending = false; build(); }
+  };
+
+  var overview = { target: [3, 0, -2], yaw: .35, pitch: .55, dist: 46 };
+  W.cam.target = overview.target.slice(); W.cam.yaw = overview.yaw; W.cam.pitch = overview.pitch; W.cam.dist = overview.dist;
+  var back = document.getElementById('back');
+  back.onclick = function () { W.flyTo(overview, 1500); back.hidden = true; };
+  W.onPick = function (x, y) {
+    var best = null, bd = 70;
+    islands.forEach(function (isl) {
+      [isl.label].concat(isl.quarters.map(function (q) { return q.label; })).forEach(function (L) {
+        if (L.el.hidden) return; var d = Math.hypot(L.sx - x, L.sy - y); if (d < bd) { bd = d; best = { isl: isl, L: L }; }
+      });
+    });
+    if (!best) return;
+    if (best.L === best.isl.label) W.flyTo({ target: [best.isl.ox, 0, best.isl.oz], pitch: .62, dist: 22 });
+    else W.flyTo({ target: [best.L.p[0], 0, best.L.p[2] + 1.5], pitch: .5, dist: 10 });
+    back.hidden = false;
+  };
+  build();
+  if (location.hash === '#near') { W.cam.target = [-9, 0, 0]; W.cam.yaw = .35; W.cam.pitch = .6; W.cam.dist = 20; back.hidden = false; }
+})();
+</script>
+</body>
+</html>

@@ -56,17 +56,23 @@ errors, loading state, URL state, reduced motion, focus rings and press feedback
   the single design source. `.impeccable/` (the surface brief with the direction contract, the
   review screenshots) is gitignored, session material only.
 
-## The bay, next (agreed 2026-10-03, carried over from the snowfield)
+## The village, next (agreed 2026-10-05, carried over from the bay)
 
-- **Replay**: a day, or a week, played back in about 20 seconds with a scrubber (cars and shore
-  lights from the hour counts, or from 10-minute blocks added back to `/api/scene`).
-- **Sound**: an optional sonification, one soft note per hit (page as pitch, lane as timbre).
-- **Sky by the clock**: the bay is always at night; if wanted, a dusk or day sky by the viewer's
-  hour, as the snowfield had.
+- **Replay**: a day, or a week, played back in about 20 seconds with a scrubber (villagers and
+  lamps from the hour counts, or from 10-minute blocks added back to `/api/scene`).
+- **Sound**: an optional sonification, one soft step per villager (page as pitch, gate as timbre).
+- **Sky by the clock**: the village is always at night; if wanted, the blue-hour or day light of
+  the 2026-10-05 design round (Blue hour, Storybook) by the viewer's hour.
 - **Country off the live view**: a switch (a var in `wrangler.toml`) for publishers who prefer
   not to see it per visit; `docs/privacy.md` already says how.
 - **Big numbers in the ledger's column charts**: the left axis clips labels past four digits
   (`frame()` in `public/ledger.js`, `L: 36`).
+- **Performance on weak GPUs**: done on 2026-10-05 for the resting cost (the scene is drawn once
+  and kept, see the head of `public/gl.js`; `PRODUCT.md` has the rule). Still open: the camera's
+  flight draws the whole scene 60 times a second, with a 2048 shadow map; if a phone struggles
+  there, drop the shadow map to 1024 and `DRAFT_PX` in `gl.js`.
+- **The visits list, row by row**: a live visit redraws the 200 rows of the panel (four times a
+  second at most); insert the new row instead if a busy site makes that show.
 
 ## Measuring the calculators, next (agreed 2026-10-03)
 

@@ -2,7 +2,8 @@
 
 A cookie-free visit counter for static sites, as a Cloudflare Worker: the collector, a 1 KB
 tracker, a D1 database, a read API, a live relay (the `Live` Durable Object) and a dashboard
-where every site is a district of a bay at night and every visit a light on its shore. Built
+where every site is a snowed-in 3D village (hand-written WebGL2) and every visit a villager
+walking home. Built
 for the Hallownest and Pharloom calculators, but it knows nothing about them: any site with an
 id and an allowed origin can use it.
 `README.md` is the tour and the deploy steps; `docs/privacy.md` is the record of what is stored

@@ -1,16 +1,16 @@
-/* Today, one by one: the panel beside the bay, in two tabs. Visits: every visit to a site (a page
-   load) stands out, newest first, grouped by hour, with a dot in its referrer's lane colour from
+/* Today, one by one: the panel beside the village, in two tabs. Visits: every visit to a site (a page
+   load) stands out, newest first, grouped by hour, with a dot in its referrer's gate colour from
    the scene; between them, stepped back, every view opened inside a page (an event `screen` with
    a `view`, the convention README.md gives: "charms", "game"…), in the order they came. They sit
    side by side because they arrived side by side, never because they are tied: nothing joins two
    rows. "Hide views" leaves the loads alone. Click a row and it unfolds in place with everything that row holds and
    today's counts around it (its page, its referrer, its country, its device); one open at a
-   time, its tower and lane kept lit in the scene. Events: the same list, one row per event in its
+   time, its house and gate kept lit in the scene. Events: the same list, one row per event in its
    own colour, under a pill per event name with today's count that filters it. Every row names
    its site. A row is rounded as the API rounds it (src/stats.js,
    `visits`): the minute, the device class, browser and system families; nothing joins two rows,
-   so a view is never hung under a visit. In the bay it lists every site, in a skyline that site
-   alone. Hovering or focusing a row asks the scene to ring the tower and the lane of that visit.
+   so a view is never hung under a visit. Over the valley it lists every site, in a village that site
+   alone. Hovering or focusing a row asks the scene to ring the house and the gate of that visit.
    Empties at UTC midnight, when the windows go dark. */
 (function () {
   'use strict';
@@ -52,11 +52,11 @@
     function isView(v) { return v.event === 'screen' && v.props && typeof v.props.view === 'string'; }
     function keep(v) { return mine(v) && (!v.event || (!state.hide && isView(v))); }
 
-    /* Every row names its site: the bay shows them all together. */
+    /* Every row names its site: the valley shows them all together. */
     function siteTag(v) { return '<span class="site">' + esc(o.siteName(v.site)) + '</span>'; }
     /* An event's colour, from its name: the same in its pill, its rows and every repaint. */
     var EVENT_TONES = 8;
-    function tone(name) { var h = 0; for (var k = 0; k < name.length; k++) h = (h * 31 + name.charCodeAt(k)) >>> 0; return 'var(--city-site-' + (h % EVENT_TONES + 1) + ')'; }
+    function tone(name) { var h = 0; for (var k = 0; k < name.length; k++) h = (h * 31 + name.charCodeAt(k)) >>> 0; return 'var(--village-site-' + (h % EVENT_TONES + 1) + ')'; }
     function propText(p) { return p ? Object.keys(p).map(function (k) { return k + ': ' + p[k]; }).join(' · ') : ''; }
 
     /* --- the events tab: one row per event, like the visits --- */
@@ -91,7 +91,7 @@
         '</button>' + (open ? detail(v) : '') + '</li>';
     }
     /* One row, unfolded: everything it holds, then today's counts around it. Counted from the
-       rows this panel holds (all of today, up to KEEP a site) and the scene's towers; never
+       rows this panel holds (all of today, up to KEEP a site) and the scene's houses; never
        anything about the same person, because nothing ties two rows together. */
     function detail(v, asEvent) {
       var view = !asEvent && isView(v), from = v.ref || 'direct', mineSite = function (x) { return x.site === v.site && !x.event; };
@@ -161,7 +161,13 @@
       paintList($('events-list'), state.rows.filter(function (v) { return v.event && mine(v) && (state.evf === ALL || v.event === state.evf); }), eventRow, 'No events yet today.');
     }
 
+    /* Nothing is drawn while the panel is put away: `shown` catches up when it comes back. Live
+       rows are drawn together, a few times a second at most (`later`). */
+    var stale = false, timer = null, pulsing = null;
+    function later() { if (!timer) timer = setTimeout(function () { timer = null; paint(); }, 250); }
     function paint() {
+      if ($('visits').hidden) { stale = true; state.rows.forEach(function (v) { v.fresh = false; }); return; }   // nothing walks in when it comes back
+      stale = false;
       var t = o.totals(state.view), ev = state.tab === 'events';
       $('n-visits').textContent = fmt(t.pageviews); $('n-events').textContent = fmt(t.events);   // a visit here is a load of the site
       ['visits', 'events'].forEach(function (k) { var b = $('tab-' + k), on = state.tab === k; b.setAttribute('aria-selected', String(on)); b.tabIndex = on ? 0 : -1; });
@@ -189,7 +195,7 @@
     $('hide-views').addEventListener('change', function () { state.hide = this.checked; save(HIDE, state.hide ? '1' : '0'); state.shown = PAGE; if (state.row && isView(state.row) && state.hide) { state.row = null; o.onHover(null); } paint(); });
     $('visits-more').addEventListener('click', function () { state.shown += PAGE; paint(); });
     /* Hover or focus rings the row in the scene; an open row keeps its ring when the pointer leaves.
-       A view or an event has no referrer of its own: it rings its tower, no lane. */
+       A view or an event has no referrer of its own: it rings its house, no gate. */
     function ringOf(v) { return !v ? null : v.event ? { site: v.site, path: v.path } : { site: v.site, path: v.path, ref: v.ref }; }
     function openList() { return state.tab === 'events' ? $('events-list') : $('visits-list'); }
     function point(e) { var b = e.target.closest('button.visit'); o.onHover(b ? ringOf(list[Number(b.dataset.i)]) : ringOf(state.row)); }
@@ -245,11 +251,13 @@
           if (state.rows[i] === state.row) { state.row = null; o.onHover(null); }   // the open row fell off the end
           state.rows.splice(i, 1); break;
         }
-        if (v.event) { state.pulse[v.event] = Date.now(); setTimeout(function () { if (state.tab === 'events') paint(); }, PULSE + 50); }
-        if (!state.view || m.site === state.view) paint();
+        if (v.event) { state.pulse[v.event] = Date.now(); clearTimeout(pulsing); pulsing = setTimeout(function () { if (state.tab === 'events') paint(); }, PULSE + 50); }
+        if (!state.view || m.site === state.view) later();
       },
       view: function (site) { state.view = site || null; state.shown = PAGE; state.row = null; state.evf = ALL; o.onHover(null); paint(); },
       clear: function () { state.rows = []; state.row = null; o.onHover(null); paint(); },
+      /* The panel is on screen again. */
+      shown: function () { if (stale) paint(); },
       remembered: function () { try { return localStorage.getItem(STORE) !== '0'; } catch (e) { return true; } },
       remember: function (on) { try { localStorage.setItem(STORE, on ? '1' : '0'); } catch (e) { /* no storage */ } },
     };

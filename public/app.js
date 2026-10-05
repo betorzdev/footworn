@@ -1,6 +1,6 @@
-/* Footworn's dashboard: the bay. One classic script ties the parts together. It asks the token
+/* Footworn's dashboard: the village. One classic script ties the parts together. It asks the token
    once (kept in localStorage), reads /api/sites and /api/scene for each site, feeds the scene
-   (city.js), keeps the live socket (live.js) and opens the ledger (ledger.js). The view lives in
+   (village.js), keeps the live socket (live.js) and opens the ledger (ledger.js). The view lives in
    the query string (`?site=&ledger=1&days=30&event=`), so a link reopens it; the token only ever
    travels in the hash (`#token=`). */
 (function () {
@@ -108,6 +108,11 @@
       if (!state.started) {
         state.started = true;
         scene.init($('scene'), { tip: $('tip'), insets: insets, onEnter: go, onLeave: leave });
+        /* The scene measures the panels' room when it is told it changed, not in every frame. */
+        if (window.ResizeObserver) {
+          var ro = new ResizeObserver(function () { scene.resized(); });
+          ['.hud', '.stats', '.dock', '#visits', '#ledger'].forEach(function (sel) { ro.observe(document.querySelector(sel)); });
+        }
       }
       scene.setSites(sites);
       $('places').innerHTML = sites.map(function (s) {
@@ -129,7 +134,7 @@
     });
   }
 
-  /* Every district from /api/scene and every site's visits from /api/visits. Live hits that
+  /* Every village from /api/scene and every site's visits from /api/visits. Live hits that
      arrive meanwhile wait; once the answers are in, each is replayed only where it is newer than
      that answer, so a hit is not drawn or listed twice. A reload started later wins: an older
      one that finishes after it changes nothing. */
@@ -191,18 +196,22 @@
     $('open-ledger').hidden = !inSite;
     paintPanel();
     $('title').textContent = inSite ? siteName(state.site) : 'Your sites';
-    $('sub').textContent = 'Today · ' + (state.day || utcDay()) + ' UTC · ' + (inSite ? (touch ? 'tap' : 'hover') + ' the towers and lanes' : 'pick a district');
+    $('sub').textContent = 'Today · ' + (state.day || utcDay()) + ' UTC · ' + (inSite ? (touch ? 'tap' : 'hover') + ' the houses and gates · drag to turn' : 'pick a village');
     paintStats();
   }
   function paintStats() {
     if (!state.started) return;
     var t = scene.stats(state.site);
-    $('s-visitors').textContent = fmt(t.visitors);
-    $('s-hits').textContent = fmt(t.pageviews);
-    $('s-live').textContent = fmt(t.live);
-    $('scene').setAttribute('aria-label', (state.site ? siteName(state.site) : 'All sites') + ' today: ' + fmt(t.visitors) + ' visitors, ' +
-      fmt(t.pageviews) + ' pageviews, ' + fmt(t.events) + ' events, ' + fmt(t.live) + ' in the last 5 minutes. The ledger has every count as a table.');
+    put('s-visitors', fmt(t.visitors));
+    put('s-hits', fmt(t.pageviews));
+    put('s-live', fmt(t.live));
+    var label = (state.site ? siteName(state.site) : 'All sites') + ' today: ' + fmt(t.visitors) + ' visitors, ' +
+      fmt(t.pageviews) + ' pageviews, ' + fmt(t.events) + ' events, ' + fmt(t.live) + ' in the last 5 minutes. The ledger has every count as a table.';
+    if (label !== shown.scene) { shown.scene = label; $('scene').setAttribute('aria-label', label); }
   }
+  /* Asked twice a second, written only when a number changed. */
+  var shown = {};
+  function put(id, text) { if (shown[id] !== text) { shown[id] = text; $(id).textContent = text; } }
   setInterval(paintStats, 500);
   function paintLive(st) {
     if (st === 'unauthorized') { showGate('The token stopped working. Paste it again.'); return; }
@@ -219,6 +228,7 @@
   /* The visits panel: shown unless the reader put it away (remembered), and never under the ledger. */
   function paintPanel() {
     $('visits').hidden = !state.showVisits || ledger.isOpen();
+    visits.shown();
     $('toggle-visits').setAttribute('aria-pressed', String(!!state.showVisits));
   }
   $('toggle-visits').addEventListener('click', function () {
@@ -295,7 +305,7 @@
   /* The scheme of the panels and the ledger (the scene keeps its own light): theme.js applied it
      before paint; the button offers the other one. Cosmetic: without theme.js the rest works. */
   var meta = document.querySelector('meta[name="theme-color"]'), theme = window.footwornTheme;
-  if (meta) meta.content = getComputedStyle(document.documentElement).getPropertyValue('--city-sky-top').trim();
+  if (meta) meta.content = getComputedStyle(document.documentElement).getPropertyValue('--village-sky-top').trim();
   function other() { return theme.current() === 'dark' ? 'light' : 'dark'; }
   function paintTheme() { var b = $('theme'), o = other(); b.textContent = o === 'dark' ? 'Dark' : 'Light'; b.title = 'Switch the panels to the ' + o + ' scheme'; }
   if (theme) {

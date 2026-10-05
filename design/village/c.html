@@ -1,0 +1,230 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>C · Clock square</title>
+<link rel="stylesheet" href="village.css">
+<style>
+  body { --sky: linear-gradient(#02040b 0%, #0b1530 50%, #1c2a4a 82%, #2a3a5c 100%); background: var(--sky); }
+</style>
+</head>
+<body>
+<canvas id="cv" aria-label="Two snowy villages, each round a clock square"></canvas>
+<div id="ov"></div>
+<button class="back" id="back" hidden>← Both villages</button>
+<section class="panel">
+  <h1>C · Clock square</h1>
+  <div>Each site is a snowed-in village round a clock tower on a winter night. The square is the day; the ring of houses the pages; the palisade the ways in.</div>
+  <ul>
+    <li><b>Hour</b> = one of 24 lamp posts round the square (clockwise from midnight at the top); <b>height</b> = pageviews in that hour; the ring on it = yesterday’s; the lit one is now.</li>
+    <li><b>Page</b> = a house in the ring, busiest at twelve o’clock; <b>floors</b> = today’s pageviews; warm windows = used.</li>
+    <li><b>Referrer</b> = a gate in the palisade, as wide as its arrivals.</li>
+    <li><b>Visit</b> = a villager walking in through the gate, across the square, home.</li>
+    <li><b>Event</b> = a spark burst over that roof.</li>
+  </ul>
+  <p class="hint">Drag to turn · wheel to zoom · click a village, a house or a gate.</p>
+</section>
+<div class="feed" id="feed"></div>
+<script src="gl.js"></script>
+<script src="data.js"></script>
+<script>
+(function () {
+  'use strict';
+  var H = V3.hex, rand = V3.rand, TAU = Math.PI * 2;
+  var W = V3.world(document.getElementById('cv'), document.getElementById('ov'), {
+    sunDir: [-.4, .7, .5], sun: [.3, .36, .55], skyAmb: [.24, .28, .42], gndAmb: [.08, .08, .12],
+    fog: H('#22304f'), fogD: .009, drift: .025, minDist: 6, maxDist: 110,
+  });
+  var C = { snow: H('#c3cfe4'), snow2: H('#b4c2da'), plaza: H('#5a5e6c'), stone: H('#7a7684'), stoneDark: H('#565260'), wood: H('#4a3426'),
+    roof: H('#e8eef8'), wall: H('#8a6a58'), wallSide: H('#6e5446'), warm: H('#ffce80'), cool: H('#4a6a9a'), lamp: H('#ffb060'),
+    pine: H('#1f3a34'), face: H('#fff2c8'), post: H('#2e2a30') };
+  var sites = DATA.sites, hourNow = new Date().getUTCHours();
+  var maxPv = Math.max.apply(null, sites.map(function (s) { return Math.max.apply(null, s.pages.map(function (p) { return p.pv; })); }));
+  var maxHour = Math.max.apply(null, sites.map(function (s) { return Math.max.apply(null, s.hours.map(function (h) { return Math.max(h.today, h.yesterday); })); }));
+  var UNIT = Math.ceil(maxPv / 7), FLOOR = .72, R_POST = 6.2, R_HOUSE = 11, R_WALL = 15.5;
+  function floors(p) { return Math.max(1, Math.round(p.pv / UNIT)); }
+  function ang(k, n) { return -Math.PI / 2 + k / n * TAU; } // 0 at the top (−z), clockwise seen from above
+  function at(o, a, r) { return [o[0] + Math.cos(a) * r, 0, o[2] + Math.sin(a) * r]; }
+
+  var villages = sites.map(function (s, i) {
+    var o = i === 0 ? [-15, 0, 0] : [19, 0, -5];
+    var pages = s.pages.slice().sort(function (a, b) { return b.pv - a.pv; });
+    var v = { s: s, o: o, houses: [], gates: [], walkers: [], sparks: [] };
+    pages.forEach(function (p, k) { var a = ang(k, pages.length); v.houses.push({ p: p, a: a, pos: at(o, a, R_HOUSE), flash: 0 }); });
+    var maxN = Math.max.apply(null, s.refs.map(function (r) { return r.n; }));
+    s.refs.forEach(function (r, k) {
+      var a = ang(k + .5, s.refs.length) + .12;
+      v.gates.push({ r: r, a: a, w: .9 + 2.2 * r.n / maxN, col: H(r.color), pos: at(o, a, R_WALL), end: at(o, a, R_WALL + 6) });
+    });
+    return v;
+  });
+
+  function hf(x, z) {
+    var d = Math.min.apply(null, villages.map(function (v) { return Math.hypot(x - v.o[0], z - v.o[2]); }));
+    return Math.max(0, d - 24) * .06 * (1 + .5 * Math.sin(x * .11 + z * .07));
+  }
+  function build() {
+    var M = W.stat; M.clear(); W.staticGlow = [];
+    W.labels.forEach(function (L) { L.el.remove(); }); W.labels = [];
+    M.terrain(-90, -80, 190, 80, hf, function (h, x, z) { return rand(Math.floor(x * .7), Math.floor(z * .7)) > .5 ? C.snow : C.snow2; });
+    villages.forEach(function (v) {
+      var o = v.o;
+      // the square, the tower and its four lit faces
+      M.disc(o[0], .03, o[2], R_POST + 1.2, 32, C.plaza);
+      M.box(o[0], 0, o[2], 1.7, 7.5, 1.7, C.stone, 0, 0, { side: C.stoneDark });
+      M.cone(o[0], 7.5, o[2], 1.45, 2.4, 4, C.roof);
+      [[0, .86], [0, -.86], [.86, 0], [-.86, 0]].forEach(function (f) {
+        M.box(o[0] + f[0], 5.6, o[2] + f[1], f[0] ? .04 : .9, .9, f[1] ? .04 : .9, C.face, .95);
+      });
+      W.addGlow(W.staticGlow, [o[0], 6.05, o[2] + 1], C.face, .5, 4); W.addGlow(W.staticGlow, [o[0], 6.05, o[2] - 1], C.face, .5, 4);
+      // the 24 hours
+      v.posts = [];
+      v.s.hours.forEach(function (h) {
+        var a = ang(h.hour, 24), p = at(o, a, R_POST), ht = .2 + 5 * h.today / maxHour, hy = .2 + 5 * h.yesterday / maxHour;
+        var future = h.hour > hourNow;
+        M.cyl(p[0], 0, p[2], .09, future ? .2 : ht, 6, C.post);
+        M.cyl(p[0], hy, p[2], .24, .05, 10, H('#8fa4c8'), .4);     // yesterday's ring
+        if (!future) {
+          var now = h.hour === hourNow;
+          M.box(p[0], ht, p[2], .22, .26, .22, C.lamp, now ? 1 : .7);
+          W.addGlow(W.staticGlow, [p[0], ht + .13, p[2]], C.lamp, now ? 0 : .35, 2);
+          if (now) v.nowLamp = [p[0], ht + .13, p[2]];
+        }
+        if (h.hour % 6 === 0) W.label(at(o, a, R_POST + 1.1).map(function (c, i) { return i === 1 ? .2 : c; }), '<div>' + String(h.hour).padStart(2, '0') + ':00</div>', 'tick', function (d) { return d < 40; });
+        v.posts.push({ h: h, p: [p[0], ht, p[2]] });
+      });
+      // the houses, facing the square
+      v.houses.forEach(function (h, k) {
+        var f = floors(h.p), top = f * FLOOR, warm = Math.round(f * h.p.used), rot = -h.a - Math.PI / 2;
+        M.box(h.pos[0], 0, h.pos[2], 2.2, top, 2, C.wall, 0, rot, { side: C.wallSide });
+        M.roof(h.pos[0], top, h.pos[2], 2.2, 1, 2, C.roof, rot);
+        var P = V3.frame(h.pos[0], h.pos[2], rot);
+        for (var j = 0; j < f; j++) for (var q = 0; q < 2; q++) {
+          if (j === 0 && q === 0) { var dd = P(-.45, 0, 1.01); M.box(dd[0], 0, dd[2], .45, .7, .02, C.wood, 0, rot); continue; }
+          var lit = j < warm, w = P(-.45 + q * .9, 0, 1.01), wy = j * FLOOR + .3;
+          M.box(w[0], wy, w[2], .32, .34, .02, lit ? C.warm : C.cool, lit ? 1 : .5, rot);
+          if (lit) { var g = P(-.45 + q * .9, 0, 1.2); W.addGlow(W.staticGlow, [g[0], wy + .17, g[2]], C.warm, .2, 1.5); }
+        }
+        h.top = top; h.door = P(-.45, 0, 1.5);
+        h.label = W.label([h.pos[0], top + 1.4, h.pos[2]], '<div><span class="p">' + h.p.path + '</span> <b>' + h.p.pv + '</b><div class="s">' + Math.round(h.p.used * 100) + '% used · ' + h.p.events + ' events</div></div>', '', function (d) { return d < 38; });
+      });
+      // the palisade, broken by a gate per referrer
+      for (var k = 0; k < 140; k++) {
+        var a = k / 140 * TAU, p = at(o, a, R_WALL);
+        var inGate = v.gates.some(function (g) { var d = Math.abs(((a - g.a) % TAU + TAU * 1.5) % TAU - Math.PI); return d * R_WALL < g.w / 2 + .2; });
+        if (!inGate) M.cyl(p[0], 0, p[2], .16, 1.6 + rand(k, 2) * .3, 5, C.wood, 0, .05);
+      }
+      v.gates.forEach(function (g) {
+        var tan = [-Math.sin(g.a), 0, Math.cos(g.a)];
+        [-1, 1].forEach(function (sd) {
+          var p = [g.pos[0] + tan[0] * sd * (g.w / 2 + .25), 0, g.pos[2] + tan[2] * sd * (g.w / 2 + .25)];
+          M.box(p[0], 0, p[2], .3, 2.4, .3, C.wood); M.box(p[0], 2.4, p[2], .26, .3, .26, g.col, 1);
+          W.addGlow(W.staticGlow, [p[0], 2.55, p[2]], g.col, .8, 2.6);
+        });
+        var mid = [(g.pos[0] + g.end[0]) / 2, 0, (g.pos[2] + g.end[2]) / 2];
+        M.flat(mid[0], .04, mid[2], g.w, 7, V3.mix(C.snow2, g.col, .15), 0, Math.atan2(Math.cos(g.a), Math.sin(g.a)));
+        g.label = W.label([g.end[0], 1.2, g.end[2]], '<div style="color:' + g.r.color + '"><span class="p">' + g.r.ref + '</span> <b>' + g.r.n + '</b></div>', 'road', function (d) { return d < 44; });
+      });
+      // pines outside
+      for (var t = 0; t < 60; t++) {
+        var ta = rand(t, o[0]) * TAU, tr = R_WALL + 3 + rand(o[0], t) * 14, tp = at(o, ta, tr);
+        if (v.gates.some(function (g) { return Math.abs(Math.atan2(Math.sin(ta - g.a), Math.cos(ta - g.a))) < .22; })) continue;
+        var y = hf(tp[0], tp[2]), sz = 1 + rand(t, 5);
+        M.cone(tp[0], y, tp[2], .8 * sz, 2.4 * sz, 7, C.pine); M.cone(tp[0], y + 1.6 * sz, tp[2], .45 * sz, 1.1 * sz, 7, C.roof);
+      }
+      v.label = W.label([o[0], 12, o[2]], '', 'big', function (d) { return d > 20; });
+    });
+    for (var st = 0; st < 300; st++) {
+      var a2 = rand(st, 9) * TAU, e = .15 + rand(st, 8) * 1.2, R = 380;
+      W.addGlow(W.staticGlow, [Math.cos(a2) * Math.cos(e) * R, Math.sin(e) * R, Math.sin(a2) * Math.cos(e) * R], [1, 1, 1], .2 + rand(st, 7) * .5, 3 + rand(st, 6) * 4);
+    }
+    W.build(); relabel();
+  }
+  function trend(s) { var d = s.visitors - s.yesterday, p = Math.round(100 * d / s.yesterday); return (d >= 0 ? '▲ ' : '▼ ') + Math.abs(p) + '%'; }
+  function relabel() {
+    villages.forEach(function (v) {
+      v.label.el.innerHTML = '<div style="border-color:' + v.s.tint + '"><span class="p">' + v.s.name + '</span><div><b>' + v.s.visitors + '</b> visitors · <b>' + v.s.live + '</b> live</div><div class="s">' + v.s.pageviews + ' pageviews · ' + trend(v.s) + ' vs yesterday</div></div>';
+    });
+  }
+
+  var feedEl = document.getElementById('feed'), rows = [];
+  function arrive(hit) {
+    var v = villages.filter(function (x) { return x.s === hit.site; })[0], h = v.houses.filter(function (x) { return x.p === hit.page; })[0];
+    var g = v.gates.filter(function (x) { return x.r === hit.ref; })[0];
+    var path = [g.end, g.pos, at(v.o, g.a, R_POST + 1.6), at(v.o, h.a, R_POST + 1.6), h.door];
+    v.walkers.push({ path: path, d: 0, speed: 2.4 + Math.random() * .8, col: g.col, hit: hit, h: h });
+    rows.unshift('<p><i style="background:' + g.r.color + '"></i>' + hit.site.id + ' <b>' + hit.page.path + '</b> · ' + g.r.ref + (hit.event ? ' · event' : '') + '</p>');
+    rows.length = Math.min(rows.length, 7); feedEl.innerHTML = rows.join('');
+  }
+  DATA.feed(arrive);
+  for (var i = 0; i < 8; i++) (function (k) { setTimeout(function () { var s = DATA.pick(sites, function (x) { return x.pageviews; }); arrive({ site: s, page: DATA.pick(s.pages, function (p) { return p.pv; }), ref: DATA.pick(s.refs, function (r) { return r.n; }) }); }, k * 150); })(i);
+
+  /* snow round the camera's target */
+  var flakes = []; for (var f = 0; f < 700; f++) flakes.push([rand(f, 1) * 60 - 30, rand(f, 2) * 24, rand(f, 3) * 60 - 30, .4 + rand(f, 4) * .6]);
+  var pending = false;
+  W.onFrame = function (t, dt) {
+    var M = W.dyn, ct = W.cam.target;
+    flakes.forEach(function (fl, k) {
+      fl[1] -= dt * fl[3] * 1.6; if (fl[1] < 0) fl[1] += 24;
+      var x = ((fl[0] + Math.sin(t * .4 + k) * .8 - ct[0] + 30) % 60 + 60) % 60 - 30 + ct[0], z = ((fl[2] - ct[2] + 30) % 60 + 60) % 60 - 30 + ct[2];
+      W.addGlow(W.glow, [x, fl[1], z], [.85, .9, 1], .55 * fl[3], .32);
+    });
+    villages.forEach(function (v) {
+      if (v.nowLamp) { var pu = .7 + .3 * Math.sin(t * 3); W.addGlow(W.glow, v.nowLamp, C.lamp, pu, 4.5); W.lights.push({ p: v.nowLamp, r: 6, c: [1 * pu, .6 * pu, .25 * pu] }); }
+      W.lights.push({ p: [v.o[0], 6, v.o[2]], r: 9, c: [.5, .45, .3] });
+      v.walkers = v.walkers.filter(function (w) {
+        w.d += dt * w.speed; var a = V3.along(w.path, w.d);
+        if (a.done) {
+          w.h.flash = 1; w.hit.page.pv++; w.hit.site.pageviews++; pending = true;
+          if (w.hit.event) { w.hit.page.events++; v.sparks.push({ p: [w.h.pos[0], w.h.top + 1.3, w.h.pos[2]], t: 0 }); }
+          return false;
+        }
+        var bob = Math.abs(Math.sin(w.d * 5)) * .06, p = a.p;
+        M.box(p[0], bob, p[2], .26, .48, .2, V3.scale(w.col, .5), .15, a.dir);
+        M.box(p[0], .5 + bob, p[2], .2, .2, .2, H('#d8c0a8'), .1, a.dir);
+        var lx = p[0] + Math.cos(a.dir) * .22, lz = p[2] - Math.sin(a.dir) * .22;
+        M.box(lx, .3 + bob, lz, .1, .12, .1, w.col, 1);
+        W.addGlow(W.glow, [lx, .36 + bob, lz], w.col, .9, 1.4);
+        if (W.lights.length < 16) W.lights.push({ p: [lx, .6, lz], r: 2.4, c: V3.scale(w.col, .8) });
+        return true;
+      });
+      v.houses.forEach(function (h) { if (h.flash > 0) { h.flash = Math.max(0, h.flash - dt * 1.2); W.addGlow(W.glow, [h.door[0], .6, h.door[2]], C.warm, h.flash, 5); } });
+      v.sparks = v.sparks.filter(function (s) {
+        s.t += dt;
+        for (var k = 0; k < 14; k++) {
+          var a = k / 14 * TAU, r = s.t * 2.2, y = s.p[1] + s.t * 1.5 - s.t * s.t * .9;
+          W.addGlow(W.glow, [s.p[0] + Math.cos(a) * r, y, s.p[2] + Math.sin(a) * r], k % 2 ? C.lamp : C.face, Math.max(0, 1 - s.t / 1.8), 1.6);
+        }
+        return s.t < 1.8;
+      });
+    });
+    if (pending && Math.floor(t * 2) % 2 === 0) {
+      pending = false;
+      var grow = villages.some(function (v) { return v.houses.some(function (h) { return Math.abs(h.top - floors(h.p) * FLOOR) > .01; }); });
+      if (grow) build(); else villages.forEach(function (v) { v.houses.forEach(function (h) { h.label.el.innerHTML = '<div><span class="p">' + h.p.path + '</span> <b>' + h.p.pv + '</b><div class="s">' + Math.round(h.p.used * 100) + '% used · ' + h.p.events + ' events</div></div>'; }); }), relabel();
+    }
+  };
+
+  var overview = { target: [3, 2, -2], yaw: .15, pitch: .5, dist: 66 };
+  W.cam.target = overview.target.slice(); W.cam.yaw = overview.yaw; W.cam.pitch = overview.pitch; W.cam.dist = overview.dist;
+  var back = document.getElementById('back');
+  back.onclick = function () { W.flyTo(overview, 1500); back.hidden = true; };
+  W.onPick = function (x, y) {
+    var best = null, bd = 70;
+    villages.forEach(function (v) {
+      [v.label].concat(v.houses.map(function (h) { return h.label; }), v.gates.map(function (g) { return g.label; })).forEach(function (L) {
+        if (L.el.hidden) return; var d = Math.hypot(L.sx - x, L.sy - y); if (d < bd) { bd = d; best = { v: v, L: L }; }
+      });
+    });
+    if (!best) return;
+    if (best.L === best.v.label) W.flyTo({ target: [best.v.o[0], 1.5, best.v.o[2]], pitch: .55, dist: 30 });
+    else W.flyTo({ target: [best.L.p[0], 1.5, best.L.p[2]], pitch: .35, dist: 14 });
+    back.hidden = false;
+  };
+  build();
+  if (location.hash === '#near') { W.cam.target = [-15, 1.5, 0]; W.cam.yaw = .2; W.cam.pitch = .55; W.cam.dist = 30; back.hidden = false; }
+})();
+</script>
+</body>
+</html>

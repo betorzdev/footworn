@@ -2,7 +2,7 @@
 
 <p align="center">
   A visit counter for static sites that sets no cookies, keeps no IP and needs no consent banner.<br>
-  One Cloudflare Worker on the free plan: the collector, a 1&nbsp;KB tracker, a D1 database, a JSON API and a live dashboard: a bay at night where every site is a district and every visit a light on the shore.
+  One Cloudflare Worker on the free plan: the collector, a 1&nbsp;KB tracker, a D1 database, a JSON API and a live dashboard: snowed-in villages on a winter night, where every site is a village, every page a house and every visit a villager walking home.
 </p>
 
 <p align="center">
@@ -12,9 +12,9 @@
   <img alt="Cloudflare Workers, free plan" src="https://img.shields.io/badge/Cloudflare_Workers-free_plan-4a5a4e">
 </p>
 
-<img alt="The Footworn bay at night: three sites as districts on the shore, their towers reflected in the water. Each district has a sign with its name, visitors today, how many came in the last five minutes, the share of loads used and the change against yesterday; a light runs along the shore road into one of them, and a card shows today's pageviews by hour against yesterday." src="docs/screenshots/bay.png">
+<img alt="The Footworn valley on a winter night: three sites as snowed-in villages, each a ring of houses round a clock square inside a palisade, lamps and windows lit warm on the snow. Each village has a sign with its name, visitors today, how many came in the last five minutes, the share of loads used and the change against yesterday." src="docs/screenshots/village.png">
 
-<p align="center"><sub>The bay: one district per site, every page a tower, all on one scale, live. Click one to look closer.</sub></p>
+<p align="center"><sub>The valley: one village per site, every page a house, all on one scale, live. Click one to look closer.</sub></p>
 
 ## Why
 
@@ -22,39 +22,44 @@
   keep without consent (Spain’s LSSI 22.2 as the AEPD reads it, the CNIL’s line). No cookies, no
   storage in the browser, no IP, no User-Agent, no fingerprint. [`docs/privacy.md`](docs/privacy.md)
   maps every stored column to that list.
-- **A glance, and a show.** The busiest site is the tallest district; the busiest page, the
-  tallest tower; warm windows are the loads that were used. Every visit arrives as a light the
-  moment it is counted. The ledger beside it has the plain numbers: totals with their change, a
+- **A glance, and a show.** The busiest page anywhere is the tallest house; warm windows are
+  the loads that were used; the street lamps round each square are the day hour by hour. Every
+  visit arrives as a villager walking in the moment it is counted. The ledger beside it has the plain numbers: totals with their change, a
   day chart, when people come and on what screens, the top of each dimension.
 - **Events with properties.** `footworn.event('screen', { view: 'combat', lang: 'es' })` and the
   dashboard breaks it down by day, by page and by each property.
 - **Free and tiny.** The Workers Free plan has room for about 50 000 pageviews a day. The
   tracker is 1 KB, the Worker has zero runtime dependencies, the dashboard is a few plain files
-  (a 2D canvas, no WebGL) behind a strict CSP: no framework, no build.
+  (hand-written WebGL2, no 3D library) behind a strict CSP: no framework, no build.
+- **Cheap to leave open.** The scene is drawn once and kept; while only the snow moves the
+  dashboard shows 30 light frames a second, and with reduced motion on, none until a visit comes.
 - **It never breaks the host page.** Everything the tracker does is inside `try/catch`;
   `sendBeacon` first, `fetch keepalive` after; a hit that isn’t valid is dropped with a silent `204`.
 
 ## What you see
 
-**A site, up close.** Click a district and the camera closes in on its skyline: a tower per
-page (the 30-day top 8, and *other pages*), from today's busiest to its quietest, its height
-today's pageviews and the sign on its roof the count. The windows are lit warm from the ground
-up for the share of loads where the page was *used* (a tap, a key or 10 s in view), cool for the
-rest, and a tick on the side gives that share. On the street, a lane per referrer (the top five,
-then *elsewhere* and *direct*) with today's arrivals. Every pageview is a car that drives its
-lane to its tower, with a trail in the lane's colour; every event, a searchlight over the roof.
-Hover, or tap, a tower or a lane for its numbers. At UTC midnight (the day's cut) the windows go
-dark from the top down and the day starts again.
+**A village, up close.** Click a village (or its sign) and the camera flies in. Round the clock
+square, a house per page (the 30-day top 8, and *other pages*, the busiest at twelve o'clock):
+its storeys are today's pageviews, on one scale for every site, and its windows are lit warm
+from the ground up for the share of loads where the page was *used* (a tap, a key or 10 s in
+view); the label over the roof gives both. Round the square, 24 street lamps, one per UTC hour
+clockwise from midnight at the top: each as tall as that hour's pageviews, with a brass ring at
+yesterday's, the current one glowing. In the palisade, a gate per referrer (the top five, then
+*elsewhere* and *direct*), as wide as today's arrivals, its lanterns in the referrer's colour.
+Every pageview is a villager with a scarf in that colour who walks in through the gate, across
+the square and into the house; every event, fireworks over the roof. Drag to turn, wheel or
+pinch to come closer; hover, or tap, a house or a gate for its numbers. At UTC midnight (the
+day's cut) the windows go dark from the top down and the day starts again.
 
-![Hallownest up close: towers for each page from busiest to quietest, warm windows below and cool ones above with the used share on a tick, signs with today's pageviews on the roofs, lanes for google.com, reddit.com, steamcommunity.com, bing.com, youtube.com, elsewhere and direct with their counts, a searchlight over /charms/ for an event, the towers reflected in the wet street.](docs/screenshots/site.png)
+![Hallownest up close: houses round a clock square, the tallest for the busiest pages, warm windows from the ground up, labels with today's pageviews and the used share; street lamps round the square for the hours; gates in the palisade with lanterns in each referrer's colour and their counts; villagers with lanterns walking in.](docs/screenshots/site.png)
 
 **Today, one by one.** A panel beside the scene, in two tabs. *Visits* lists every visit to the
-site (a page load) as it comes in, newest first: its referrer's lane colour, the page, where it
+site (a page load) as it comes in, newest first: its referrer's gate colour, the page, where it
 came from, the country and the device. Between them, stepped back, every view opened inside a
 page (a `screen` event with a `view`: "charms", "game"), in the order they came; they sit together
 because they arrived together, never because anything ties them, and *Hide views* leaves the
 visits alone. Point at a row and the scene rings its
-tower and its lane; click it and it unfolds with everything it holds (country, device, browser
+house and its gate; click it and it unfolds with everything it holds (country, device, browser
 and system, language, whether it was the first page of that visitor's day; a view's page and
 properties) and today's counts around it: its page's pageviews and used share, its referrer or
 how often that view was opened, its country and its device. *Events* is the same list, one row
@@ -63,7 +68,7 @@ that filters it; an open event links to its detail in the ledger. Every row name
 Rounded on purpose, so a row is never a fingerprint (no width, no second, nothing joining two
 rows, so a view is never hung under a visit), and gone at UTC midnight.
 
-![The panel beside a skyline, on its Visits tab: visits in bold with a dot in their referrer's lane colour, the page, the referrer, a flag and a device mark; other pages in a lighter, lower row with a hollow dot. One row is pointed at and its tower is lit.](docs/screenshots/visits.png)
+![The panel beside a village, on its Visits tab: visits in bold with a dot in their referrer's gate colour, the page, the referrer, a flag and a device mark; views in a lighter, lower row with a hollow dot.](docs/screenshots/visits.png)
 
 **The ledger.** A drawer with the numbers behind the scene, for any range: totals with their
 change, pageviews and visitors by day, by hour or weekday, screen widths, the top 30 of each
@@ -73,13 +78,13 @@ event opened with its pages and properties. Every chart has its numbers in a tab
 which makes the ledger the scene's text alternative too. The view lives in the URL:
 `/?site=your-site&ledger=1&days=30&event=screen` is a link straight to it.
 
-![The ledger open beside the skyline: a week's totals, pageviews as bars and visitors as a red line by day, pageviews by weekday and by screen width.](docs/screenshots/ledger.png)
+![The ledger open beside the village: a week's totals, pageviews as bars and visitors as a red line by day, pageviews by weekday and by screen width.](docs/screenshots/ledger.png)
 
-**On a phone.** The shore scrolls sideways when the districts don't fit; tap for the numbers. The panels and the ledger follow the system's light or dark scheme, and the Dark/Light
+**On a phone.** Drag to turn the valley, pinch to come closer, tap for the numbers. The panels and the ledger follow the system's light or dark scheme, and the Dark/Light
 button overrides it.
 
 <p align="center">
-  <img alt="The bay on a 390 px phone: three districts with their signs, the totals and the site buttons at the bottom." src="docs/screenshots/phone.png" width="300">
+  <img alt="The valley on a 390 px phone: three villages with their signs, the totals and the site buttons at the bottom." src="docs/screenshots/phone.png" width="300">
 </p>
 
 ## Wire a site
@@ -208,7 +213,7 @@ the width, no id), live and as the day's history; earlier days are only counts. 
 | | |
 |---|---|
 | `GET /api/sites` | `[{ id, name }]` |
-| `GET /api/scene?site=` | what the bay draws, all counts: `pages` and `refs` (30-day top 8 and top 5, `[{ value, hits }]`), `today: { hits, visitors, events, loads, engaged, pages: [{ path, hits, loads, engaged, events }], refs: [{ ref, hits }] }` (the used rate is `engaged / loads`, as in `/api/stats`), `live` (pageviews in the last 5 minutes), `yesterday: { visitors }` up to this time of day, and `hours: [{ hour, today, yesterday }]`, pageviews by UTC hour |
+| `GET /api/scene?site=` | what the village draws, all counts: `pages` and `refs` (30-day top 8 and top 5, `[{ value, hits }]`), `today: { hits, visitors, events, loads, engaged, pages: [{ path, hits, loads, engaged, events }], refs: [{ ref, hits }] }` (the used rate is `engaged / loads`, as in `/api/stats`), `live` (pageviews in the last 5 minutes), `yesterday: { visitors }` up to this time of day, and `hours: [{ hour, today, yesterday }]`, pageviews by UTC hour |
 | `GET /api/visits?site=` | today's visits (UTC), newest first, at most 2000, rounded: `{ day, now, visits: [{ minute, path, ref, device, browser, os, lang, country, first, event, props }] }`. Never the width, the second or an id |
 | `GET /api/live-ticket` | `{ ticket }`, good for 60 s, to open the live socket |
 | `GET /live?ticket=` | WebSocket: one JSON message per counted hit, `{ site, t, path, ref, device, browser, os, lang, first, country, event, props }`; send `ping`, get `pong` |
@@ -227,7 +232,7 @@ src/stats.js      the API's queries
 src/live.js       the live view: what a live message carries, and the Live Durable Object that relays it
 src/ticket.js     the live socket's 60-second ticket
 src/auth.js       the bearer check
-public/           footworn.js, the dashboard (index.html, app.js, city.js, live.js, ledger.js, theme.js, style.css, tokens.css), privacy, demo,
+public/           footworn.js, the dashboard (index.html, app.js, gl.js, village.js, live.js, ledger.js, theme.js, style.css, tokens.css), privacy, demo,
                   _headers (nosniff and no-referrer everywhere; the dashboard's CSP: no inline code, no framing)
 migrations/       the D1 schema
 test/             node --test
