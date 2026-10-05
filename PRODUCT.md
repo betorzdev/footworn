@@ -72,6 +72,19 @@ URL is a bookmark to a site, the open ledger, its range and an open event.
   names its site. Rounded so a row is not a fingerprint (the minute, the device class, browser and
   system families; no width, no second, no id), never joining a view to a visit, empty at UTC midnight.
   Pointing at a row rings its house and gate in the scene, or a view's house and stall.
+- Sound (since 2026-10-05; the owner heard three directions and picked steps and bells, one
+  stroke at midnight, no wind bed), off until the dock's Sound button asks for it and remembered
+  on that browser: what the scene shows, for the ear. Two steps in the snow at the gate (their
+  colour is the gate), a hand bell at the door (its pitch is the page, a pentatonic scale, the
+  top page the lowest; an octave answers for a new visitor), a wind chime at the stall, the
+  fireworks far off, one stroke of the tower at UTC midnight; each village from its side of the
+  valley. Synthesised with Web Audio (`public/sound.js`), no files. A busy moment sounds four
+  cues of a kind and shows the rest. Remembered on, it waits for the first click, as browsers
+  demand. With sound on, the volume is a slider that comes up over the button while the pointer
+  or the keyboard's focus is on either, and for a moment after sound is switched on (all a
+  touch screen gets); it never stays
+  (the owner asked, 2026-10-05). The usual at 80, silence at 0, about 4 dB more at 100,
+  remembered too. Wide windows only: a phone has no button and no sound.
 - The ledger, a drawer over it, per site and range (1, 7, 30, 90 days or custom): totals
   (visitors, pageviews, events), a day chart (pageviews as bars, visitors as a line), hour or
   weekday and screen-width profiles, and top-30 tables for pages, referrers, events, countries,
@@ -82,7 +95,9 @@ URL is a bookmark to a site, the open ledger, its range and an open event.
 - The dashboard lives on a second screen, so it has to cost next to nothing at rest: the lit
   scene is drawn once and kept, a frame is that picture plus what moves (30 a second while it
   snows, none with reduced motion until a visit comes), no `backdrop-filter` over the canvas,
-  and no CSS animation that runs at the screen's rate (they go in `steps()`).
+  and no CSS animation that runs at the screen's rate (they go in `steps()`). The sound follows
+  the same rule: no bed under the cues, no audio context until sound is on, and that context
+  asleep a few seconds after the last cue.
 - Every colour, typeface and spacing of the dashboard comes from `public/tokens.css`, the only
   design source; there is no DESIGN.md by decision (`docs/backlog.md`).
 - Web fonts are possible only if self-hosted or allowed by `public/_headers`; the current CSP

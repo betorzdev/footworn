@@ -1,6 +1,7 @@
 /* Footworn's dashboard: the village. One classic script ties the parts together. It asks the token
    once (kept in localStorage), reads /api/sites and /api/scene for each site, feeds the scene
-   (village.js), keeps the live socket (live.js) and opens the ledger (ledger.js). The view lives in
+   (village.js), keeps the live socket (live.js), opens the ledger (ledger.js) and hands the
+   scene's cues to the sound (sound.js). The view lives in
    the query string (`?site=&ledger=1&days=30&event=`), so a link reopens it; the token only ever
    travels in the hash (`#token=`). */
 (function () {
@@ -74,6 +75,7 @@
     pageStats: function (id, path) { return scene.pageStats(id, path); }, openEvent: function (id, name) { openEvent(id, name); },
     totals: function (site) { return scene.stats(site); }, onHover: function (h) { scene.highlight(h); } });
   state.showVisits = visits.remembered();
+  var sound = window.FootwornSound();
   var live = window.FootwornLive({
     ticket: function () { return api('/api/live-ticket').then(function (r) { return r.ticket; }); },
     onMessage: function (msg) { if (state.buffer) state.buffer.push(msg); else { scene.live(msg); visits.live(msg); } },
@@ -107,7 +109,7 @@
       $('gate').hidden = true; $('ui').hidden = false; paintPanel();
       if (!state.started) {
         state.started = true;
-        scene.init($('scene'), { tip: $('tip'), insets: insets, onEnter: go, onLeave: leave });
+        scene.init($('scene'), { tip: $('tip'), insets: insets, onEnter: go, onLeave: leave, onCue: sound.cue });
         /* The scene measures the panels' room when it is told it changed, not in every frame. */
         if (window.ResizeObserver) {
           var ro = new ResizeObserver(function () { scene.resized(); });
@@ -244,6 +246,38 @@
     if (!state.showVisits) scene.highlight(null);
     paintPanel(); scene.refit(true);
   });
+  /* Sound is off until asked for. Remembered on from another day, it waits for the first click
+     (no browser lets a page sound before one): the button is outlined, not filled, until then.
+     Its volume is a slider that style.css brings up over the button while the pointer is on
+     either, the thumb is held or the keyboard's focus is in them; `fresh` holds it up a moment
+     after sound is switched on (and, where nothing hovers, after the slider is let go). */
+  var freshTimer = null;
+  function freshVolume(ms) {
+    var box = $('sound-box');
+    clearTimeout(freshTimer); box.classList.add('fresh');
+    freshTimer = setTimeout(function () { box.classList.remove('fresh'); }, ms);
+  }
+  function paintSound(st) {
+    var b = $('sound');
+    b.setAttribute('aria-pressed', st === 'on' ? 'true' : st === 'waiting' ? 'mixed' : 'false');
+    b.classList.toggle('armed', st === 'waiting');
+    $('volume-box').hidden = st === 'off';
+    b.title = st === 'off' ? 'Hear the visits: steps at the gate, a bell at the door' : st === 'waiting' ? 'Sound is on: it starts with your first click' : 'Silence the village';
+  }
+  if (sound.supported) {
+    /* A mouse or a finger leaves no focus behind, on the button (never given it) or on the slider
+       (taken back when it lets go): focus in them is the keyboard's, and holds the slip up. */
+    $('sound').addEventListener('mousedown', function (e) { e.preventDefault(); });
+    $('sound').addEventListener('click', function () { sound.toggle(); freshVolume(3000); });
+    sound.onchange(paintSound); paintSound(sound.state());
+    $('volume').value = sound.volume();
+    $('volume').addEventListener('input', function () { sound.setVolume(this.value); if (touch) freshVolume(2500); });
+    $('volume').addEventListener('change', function () { sound.setVolume(this.value, true); if (touch) freshVolume(2500); });
+    ['pointerup', 'pointercancel'].forEach(function (name) {
+      $('volume').addEventListener(name, function () { var el = this; setTimeout(function () { el.blur(); }, 0); });   // after the browser's own `change`
+    });
+  }
+  else $('sound-box').hidden = true;
   $('open-ledger').addEventListener('click', function () { openLedger(); });
   $('close-ledger').addEventListener('click', closeLedger);
   document.addEventListener('keydown', function (e) {
