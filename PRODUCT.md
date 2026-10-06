@@ -69,7 +69,9 @@ URL is a bookmark to a site, the open ledger, its range and an open event.
   citadel (red roofs, a belfry, battlements) and umbra (asked for a dark mood: near-black slate,
   an iron fence, pale light, motes, and a village that casts its own shade, so it sits in
   half-light even at noon); the walls about three times the old low wall, as the owner found it
-  too small; the counts read the same in every kit. The site's own icon flies on a banner over
+  too small; the counts read the same in every kit. The site's own icon flies on a long banner (since the same evening: the first, a square
+  of the site's colour, put Pharloom's black icon on orange; now the cloth is the icon's own
+  ground, or a dark one, the icon trimmed to its mark, the site's colour a thin band) over
   its tower and sits on its sign (`site:icon` fetches it once; the Worker serves it, since the
   CSP only loads the dashboard's own images and blobs). The objects (since 2026-10-06, a round on each thing; the owner took every proposal):
   timber-framed houses with windows on all four sides, because the plain boxes hid the used

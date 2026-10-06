@@ -66,7 +66,7 @@
   function kitOf(style) { return KIT[style] || KIT.alpine; }
   var SPIRE = { pyramid: 10.7, needle: 14.1, belfry: 10.6, iron: 14.3 };   // the top of each kit's tower
   /* Where a village's sign hangs: over its tower, and over its banner when it flies one. */
-  function signAt(s) { return [s.o[0], Math.max(14, SPIRE[s.kit.spire] + (icons[s.id] ? 4.7 : 2.3)), s.o[2]]; }
+  function signAt(s) { return [s.o[0], Math.max(14, SPIRE[s.kit.spire] + (icons[s.id] ? 5.8 : 2.3)), s.o[2]]; }
   /* The sites' icons, as loaded images (app.js fetches them with the token: `setIcon`). */
   var icons = {};
   function iconOf(s) { var im = icons[s.id]; return im && im.complete && im.naturalWidth ? im : null; }
@@ -634,19 +634,56 @@
       s.occ.push([tp[0], tp[2], 2.4, 2.4, 0, .5]);
     }
   }
-  /* The tower's pennant, in the village's own colour. */
+  /* The colour an icon is drawn on, when it brings its own (an opaque square): its corners; null
+     for an icon on a transparent ground. */
+  var GROUND = {};
+  function groundOf(img) {
+    if (img.src in GROUND) return GROUND[img.src];
+    var c = document.createElement('canvas'); c.width = c.height = 16; var x = c.getContext('2d'); x.drawImage(img, 0, 0, 16, 16);
+    var d = x.getImageData(0, 0, 16, 16).data, r = 0, g = 0, b = 0, a = 0;
+    [[0, 0], [15, 0], [0, 15], [15, 15], [1, 1], [14, 14]].forEach(function (p) { var k = (p[1] * 16 + p[0]) * 4; r += d[k]; g += d[k + 1]; b += d[k + 2]; a += d[k + 3]; });
+    return (GROUND[img.src] = a / 6 > 200 ? [r / 6 / 255, g / 6 / 255, b / 6 / 255] : null);
+  }
+  /* The icon cut to what is drawn on it (its ground, or its transparent margin, trimmed away; a
+     little room kept), as a square image of its own, so a small mark on a big ground fills the
+     banner. Made once per icon; until it is ready the village keeps its pennant. */
+  var FIT = {};
+  function fitted(img, s) {
+    var have = FIT[img.src];
+    if (have) return have.complete && have.naturalWidth ? have : null;
+    var n = 128, c = document.createElement('canvas'); c.width = c.height = n; var x = c.getContext('2d'); x.drawImage(img, 0, 0, n, n);
+    var d = x.getImageData(0, 0, n, n).data, g = groundOf(img), x0 = n, y0 = n, x1 = -1, y1 = -1;
+    for (var y = 0; y < n; y++) for (var i = 0; i < n; i++) {
+      var k = (y * n + i) * 4, on = g ? Math.abs(d[k] / 255 - g[0]) + Math.abs(d[k + 1] / 255 - g[1]) + Math.abs(d[k + 2] / 255 - g[2]) > .12 : d[k + 3] > 40;
+      if (on) { x0 = Math.min(x0, i); y0 = Math.min(y0, y); x1 = Math.max(x1, i); y1 = Math.max(y1, y); }
+    }
+    var out = new Image();
+    out.onload = function () { s.sig = null; refresh(true); };
+    if (x1 < 0) out.src = img.src;
+    else {
+      var side = Math.max(x1 - x0, y1 - y0) * 1.12, cx = (x0 + x1) / 2, cy = (y0 + y1) / 2, c2 = document.createElement('canvas'); c2.width = c2.height = 256;
+      c2.getContext('2d').drawImage(c, cx - side / 2, cy - side / 2, side, side, 0, 0, 256, 256);
+      c2.toBlob(function (b) { if (b) out.src = URL.createObjectURL(b); });   // a blob: the CSP takes blob: images, not data:
+    }
+    FIT[img.src] = out; return null;
+  }
+  /* Over the tower: with the site's icon, a long banner hung from a gold crossbar, its tail cut in
+     two, on the icon's own ground (or a dark cloth in the kit's colours), the icon trimmed and high
+     on it and a thin band in the site's colour under it; without one, a pennant in that colour. */
   function clock(M, s) {
-    var o = s.o;
-    var y0 = s.spireTop + .6, img = iconOf(s);
+    var o = s.o, y0 = s.spireTop + .6, raw = iconOf(s), img = raw && fitted(raw, s), z = o[2], dim = state.dark || 0;
     if (!img) { M.cyl(o[0], y0, o[2], .03, .9, 4, T.brass); M.quad([o[0], y0 + .85, o[2]], [o[0] + 1.3, y0 + .65, o[2] + .2], [o[0] + 1.3, y0 + .2, o[2] + .2], [o[0], y0 + .25, o[2]], s.tint, .45); return; }
-    /* a square banner on its pole, the site's icon on both faces, framed in its colour */
-    var B = 2.1, x0 = o[0] + .05, x1 = x0 + B, top = y0 + 3.2, bot = top - B, z = o[2];
-    M.cyl(o[0], y0, o[2], .05, 3.5, 5, T.brass); M.box(x0 + B / 2, top, z, B + .25, .08, .08, T.brass);
-    M.box(x0 + B / 2, bot, z, B, B, .06, s.tint, .25);
-    var m = .2, a = [x0 + m, bot + m], b = [x1 - m, top - m];
-    var dim = state.dark || 0;
-    s.decals.push({ img: img, dim: dim, n: [0, 0, 1], at: [[a[0], a[1], z + .04], [b[0], a[1], z + .04], [b[0], b[1], z + .04], [a[0], b[1], z + .04]] });
-    s.decals.push({ img: img, dim: dim, n: [0, 0, -1], at: [[b[0], a[1], z - .04], [a[0], a[1], z - .04], [a[0], b[1], z - .04], [b[0], b[1], z - .04]] });
+    var cloth = groundOf(raw) || G.mix(T.roof, T.iron, .5), gold = T.brass;
+    var BW = 1.7, BH = 3.3, top = y0 + 4, cx = o[0] + .1 + BW / 2, xl = cx - BW / 2, xr = cx + BW / 2, bot = top - BH, notch = bot + .6;
+    M.cyl(o[0], y0, o[2], .05, 4.6, 5, gold); M.cone(o[0], y0 + 4.6, o[2], .1, .25, 6, gold);
+    M.box(cx, top, z, BW + .5, .09, .09, gold); M.cyl(xl - .25, top - .05, z, .07, .2, 6, gold); M.cyl(xr + .25, top - .05, z, .07, .2, 6, gold);
+    M.box(cx, notch, z, BW, top - notch, .05, cloth, .12);
+    M.tri([xl, notch, z], [xl, bot, z], [cx, notch, z], cloth, .12); M.tri([cx, notch, z], [xr, bot, z], [xr, notch, z], cloth, .12);
+    M.box(cx, top - .2, z, BW, .08, .08, gold, .2); M.box(xl + .04, notch, z, .06, top - notch, .08, gold, .2); M.box(xr - .04, notch, z, .06, top - notch, .08, gold, .2);
+    M.box(cx, notch + .25, z, BW * .7, .07, .08, s.tint, .35);
+    var I = 1.5, a = [cx - I / 2, top - .35 - I], b = [cx + I / 2, top - .35];
+    s.decals.push({ img: img, dim: dim, n: [0, 0, 1], at: [[a[0], a[1], z + .045], [b[0], a[1], z + .045], [b[0], b[1], z + .045], [a[0], b[1], z + .045]] });
+    s.decals.push({ img: img, dim: dim, n: [0, 0, -1], at: [[b[0], a[1], z - .045], [a[0], a[1], z - .045], [a[0], b[1], z - .045], [b[0], b[1], z - .045]] });
   }
   /* The hands on the tower's four faces, drawn with what moves, so the kept scene is not drawn
      again for them: the hour hand goes round once a day, like the lamps (midnight at the top);
