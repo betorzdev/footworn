@@ -109,6 +109,31 @@ input {
 .banner { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(max(var(--s-4), env(safe-area-inset-bottom)) + var(--tap) + var(--s-6)); padding: var(--s-2) var(--s-4);
   display: flex; flex-wrap: wrap; gap: var(--s-2) var(--s-3); align-items: center; max-width: calc(100vw - 2 * var(--s-4)); }
 .banner .btn { min-height: 32px; padding: 0 var(--s-3); }
+/* History: the days as bars over the dock, each one a button; beside the visits panel while it
+   is up. The title panel wears the accent while a past day is on screen. */
+.strip { position: fixed; left: max(var(--s-4), env(safe-area-inset-left)); right: max(var(--s-4), env(safe-area-inset-right));
+  bottom: calc(max(var(--s-4), env(safe-area-inset-bottom)) + var(--tap) + var(--s-2) * 2 + var(--s-3)); height: var(--strip-h);
+  padding: var(--s-2) var(--s-3); display: flex; align-items: stretch; gap: var(--s-3); }
+.with-visits .strip { right: calc(max(var(--s-4), env(safe-area-inset-right)) + var(--visits-w) + var(--s-3)); }
+.with-ledger .strip { display: none; }   /* the ledger would cover its right half, where the day and Today are */
+.strip .btn, .strip input { min-height: var(--ctl); padding: 0 var(--s-3); }
+.strip .btn:disabled { opacity: .35; cursor: default; }
+.strip .step { align-self: center; flex: none; padding: 0; width: var(--ctl); font-size: var(--fs-m); }
+.strip .now { border-color: var(--accent); color: var(--accent); }
+.bars { flex: 1; min-width: 0; display: flex; align-items: stretch; gap: var(--bar-gap); padding-bottom: calc(var(--fs-xs) + var(--s-2)); }
+.day { flex: 1; min-width: 0; padding: 0; border: 0; background: none; cursor: pointer; display: flex; align-items: flex-end; position: relative; border-radius: var(--bar-gap) var(--bar-gap) 0 0; }
+.day i { display: block; width: 100%; min-height: var(--bar-gap); background: var(--bar); border-radius: var(--bar-gap) var(--bar-gap) 0 0; }
+.day.today i { background: transparent; box-shadow: inset 0 0 0 1.5px var(--bar); }   /* a day still being counted */
+.day[aria-pressed="true"] { background: var(--surface-2); }
+.day[aria-pressed="true"] i { background: var(--accent); }
+.day.today[aria-pressed="true"] i { background: transparent; box-shadow: inset 0 0 0 1.5px var(--accent); }
+.day[data-tick]::after { content: attr(data-tick); position: absolute; top: 100%; left: 0; margin-top: var(--s-1); font: 600 var(--fs-xs)/1 var(--font-num); color: var(--muted); white-space: nowrap; pointer-events: none; }
+@media (hover: hover) and (pointer: fine) { .day:hover { background: var(--hover); } }
+.strip-side { flex: none; width: var(--strip-side); display: flex; flex-direction: column; justify-content: center; gap: var(--s-1); min-width: 0; }
+.strip-row { display: flex; gap: var(--s-1); }
+.strip-row input { flex: 1; min-width: 0; }
+.strip-side .sub { margin: 0; font-size: var(--fs-xs); line-height: 1.3; color: var(--muted); }
+.past .hud { border-color: var(--accent); }
 .tip { position: fixed; pointer-events: none; padding: var(--s-2) var(--s-3); font-size: var(--fs-s); max-width: 280px; z-index: 5; }
 .tip strong { display: block; font-size: var(--fs-m); }
 .tip small { display: block; color: var(--muted); font-size: var(--fs-xs); }
@@ -186,6 +211,10 @@ input {
 .visit.fresh { animation: walkin 1.6s steps(6); }   /* six steps a half: a row walking in is not worth a repaint of the panel at the screen's rate */
 @keyframes walkin { from { opacity: 0; transform: translateY(-6px); background: var(--row-new); } 55% { opacity: 1; transform: none; background: var(--row-new); } }
 .visits > .more { margin: 0 var(--s-3) var(--s-3); }
+/* A past day has no list: a note, and the way to its numbers. */
+.visits-past { padding: var(--s-4); font-size: var(--fs-s); color: var(--muted); }
+.visits-past p { margin: 0 0 var(--s-3); }
+.visits-past b { color: var(--text); }
 /* Events: a pill per event name with today's count, filtering the list below. */
 .events-head { margin-top: var(--s-2); }
 .pills { display: flex; gap: var(--s-1); flex-wrap: wrap; margin-top: var(--s-2); }
@@ -290,7 +319,7 @@ td.n { text-align: right; padding-left: var(--s-3); font-family: var(--font-num)
   .visits.open .fold::after { content: "\25BE"; }
   .visits-head { border-bottom: 0; padding-bottom: var(--s-2); }
   .visits .sub { margin: 0; }
-  .visits:not(.open) .tabs, .visits:not(.open) .tools, .visits:not(.open) .events-head, .visits:not(.open) .key, .visits:not(.open) .visits-body, .visits:not(.open) > .more { display: none; }
+  .visits:not(.open) .tabs, .visits:not(.open) .tools, .visits:not(.open) .events-head, .visits:not(.open) .key, .visits:not(.open) .visits-body, .visits:not(.open) .visits-past, .visits:not(.open) > .more { display: none; }
 }
 @media (max-width: 760px) {
   .stats { top: auto; bottom: calc(max(var(--s-4), env(safe-area-inset-bottom)) + var(--tap) + var(--s-2) * 2 + var(--s-3)); left: max(var(--s-4), env(safe-area-inset-left)); justify-content: space-between; gap: var(--s-3); padding: var(--s-2) var(--s-4); }
@@ -300,6 +329,12 @@ td.n { text-align: right; padding-left: var(--s-3); font-family: var(--font-num)
   .hud { right: max(var(--s-4), env(safe-area-inset-right)); }
   .sound { display: none; }   /* the sound is for a second screen: a phone's dock has no room for it (sound.js keeps quiet there too) */
   .banner { bottom: auto; top: calc(max(var(--s-4), env(safe-area-inset-top)) + 88px); }
+  /* The strip goes under the title: the bars on a line of their own, the date and the readout under them. */
+  .strip, .with-visits .strip { bottom: auto; top: calc(var(--hud-bottom, calc(var(--tap) * 2 + var(--s-6))) + var(--s-2)); right: max(var(--s-4), env(safe-area-inset-right)); height: auto; flex-wrap: wrap; gap: var(--s-2); }   /* app.js measures the title panel: its line wraps */
+  .bars { height: calc(var(--strip-h) - var(--s-5)); }
+  .strip-side { flex: 1 1 100%; width: auto; }
+  .dock { gap: var(--s-1); }
+  .dock .btn { padding: 0 var(--s-2); }   /* five buttons in a phone's width */
   .ledger { padding-left: var(--s-4); }
   .tiles { grid-template-columns: 1fr 1fr; }
   .tile:first-child { grid-column: 1 / -1; }

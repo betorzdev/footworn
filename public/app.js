@@ -1,14 +1,15 @@
 /* Footworn's dashboard: the village. One classic script ties the parts together. It asks the token
    once (kept in localStorage), reads /api/sites and /api/scene for each site, feeds the scene
-   (village.js), keeps the live socket (live.js), opens the ledger (ledger.js) and hands the
-   scene's cues to the sound (sound.js). The view lives in
-   the query string (`?site=&ledger=1&days=30&event=`), so a link reopens it; the token only ever
+   (village.js), keeps the live socket (live.js), opens the ledger (ledger.js), hands the
+   scene's cues to the sound (sound.js) and turns the village back to a past day when the history
+   strip (history.js) asks: that day's /api/scene, nothing live. The view lives in
+   the query string (`?site=&day=&ledger=1&days=30&event=`), so a link reopens it; the token only ever
    travels in the hash (`#token=`). */
 (function () {
   'use strict';
   var TOKEN_KEY = 'footworn.token';
   var $ = function (id) { return document.getElementById(id); };
-  var state = { token: null, sites: [], site: null, day: null, buffer: null, started: false };
+  var state = { token: null, sites: [], site: null, day: null, viewDay: null, buffer: null, started: false };   // `day`: today as last seen; `viewDay`: the past day on screen, null for today
   var scene = window.FootwornCity;
   var touch = !!(window.matchMedia && matchMedia('(hover: none)').matches);
 
@@ -17,6 +18,7 @@
   function esc(s) { return String(s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
   function fmt(n) { return (n || 0).toLocaleString('en'); }
   function utcDay() { return new Date().toISOString().slice(0, 10); }
+  function isDay(s) { if (!/^\d{4}-\d{2}-\d{2}$/.test(s || '')) return false; var t = Date.parse(s); return !isNaN(t) && new Date(t).toISOString().slice(0, 10) === s; }   // a real day: no 31st of February
 
   function api(path) {
     return fetch(path, { headers: { Authorization: 'Bearer ' + state.token } }).then(function (r) {
@@ -73,20 +75,28 @@
   });
   var visits = window.FootwornVisits({ siteName: siteName, laneColor: function (id, ref) { return scene.laneColor(id, ref); },
     pageStats: function (id, path) { return scene.pageStats(id, path); }, openEvent: function (id, name) { openEvent(id, name); },
+    openDay: function () { if (state.site && state.viewDay) openLedger(null, { from: state.viewDay, to: state.viewDay }); },
     totals: function (site) { return scene.stats(site); }, onHover: function (h) { scene.highlight(h); } });
   state.showVisits = visits.remembered();
   var sound = window.FootwornSound();
   var live = window.FootwornLive({
     ticket: function () { return api('/api/live-ticket').then(function (r) { return r.ticket; }); },
-    onMessage: function (msg) { if (state.buffer) state.buffer.push(msg); else { scene.live(msg); visits.live(msg); } },
+    onMessage: function (msg) { if (state.viewDay) return; if (state.buffer) state.buffer.push(msg); else { scene.live(msg); visits.live(msg); } },   // a past day is over; today is read again on the way back
     onState: paintLive,
     onResume: reloadAll,
+  });
+  var strip = window.FootwornHistory({
+    api: api,
+    failed: function (e, again) { failed(e, function () { showError(null); again(); }); },   // its Retry takes the line away itself: no reload follows it
+    sites: function () { return state.sites; },
+    onDay: setDay,
+    onToggle: function () { if (state.started) scene.refit(true); },
   });
 
   /* The panels' room at the top, bottom and right of the window, so the scene frames what they leave free. */
   function insets() {
     var top = 16, bottom = 16, right = 0, W = window.innerWidth, H = window.innerHeight;
-    ['.hud', '.stats', '.dock'].forEach(function (sel) {
+    ['.hud', '.stats', '.strip', '.dock'].forEach(function (sel) {
       var r = document.querySelector(sel).getBoundingClientRect(); if (!r.height) return;
       if (r.top + r.height / 2 < H / 2) top = Math.max(top, r.bottom); else bottom = Math.max(bottom, H - r.top);
     });
@@ -112,8 +122,12 @@
         scene.init($('scene'), { tip: $('tip'), insets: insets, onEnter: go, onLeave: leave, onCue: sound.cue });
         /* The scene measures the panels' room when it is told it changed, not in every frame. */
         if (window.ResizeObserver) {
-          var ro = new ResizeObserver(function () { scene.resized(); });
-          ['.hud', '.stats', '.dock', '#visits', '#ledger'].forEach(function (sel) { ro.observe(document.querySelector(sel)); });
+          var ro = new ResizeObserver(function () {
+            scene.resized();
+            /* On a phone the history strip hangs under the title panel, whatever its height (style.css). */
+            document.documentElement.style.setProperty('--hud-bottom', Math.round(document.querySelector('.hud').getBoundingClientRect().bottom) + 'px');
+          });
+          ['.hud', '.stats', '.strip', '.dock', '#visits', '#ledger'].forEach(function (sel) { ro.observe(document.querySelector(sel)); });
         }
       }
       scene.setSites(sites);
@@ -125,6 +139,7 @@
       restoring = true;
       try {
         if (want && sites.some(function (s) { return s.id === want; })) go(want, true); else paintView();
+        applyDay();
         if (want && state.site && state.ledgerOnBoot) openLedger();
       } finally { restoring = false; }
       syncUrl(true);
@@ -144,6 +159,8 @@
   function reloadAll() {
     if (!state.sites.length) return Promise.resolve();
     var mine = ++generation;
+    if (state.viewDay) return reloadDay(mine, state.viewDay);
+    strip.refresh();
     state.buffer = [];
     return Promise.all(state.sites.map(function (s) {
       var q = '?site=' + encodeURIComponent(s.id);
@@ -151,6 +168,7 @@
     })).then(function (answers) {
       if (mine !== generation) return;
       var sceneAt = {}, listAt = {}, held = state.buffer || [];
+      scene.setDay(null);
       answers.forEach(function (a) { scene.load(a.id, a.scene); sceneAt[a.id] = a.scene.now; listAt[a.id] = a.visits.now; });
       visits.set(answers.map(function (a) { return a.visits; }));
       state.buffer = null; state.day = utcDay();
@@ -165,13 +183,51 @@
     });
   }
 
-  /* The day's cut, as the API makes it: at UTC midnight the windows go dark and the day starts again. */
+  /* A past day: every village as that day ended, from /api/scene with its `day`. Counts only (no
+     list of visits), and nothing live. */
+  function reloadDay(mine, day) {
+    state.buffer = null;
+    return Promise.all(state.sites.map(function (s) {
+      return api('/api/scene?site=' + encodeURIComponent(s.id) + '&day=' + day).then(function (d) { return { id: s.id, scene: d }; });
+    })).then(function (answers) {
+      if (mine !== generation) return;
+      scene.setDay(day);
+      answers.forEach(function (a) { scene.load(a.id, a.scene); });
+      state.day = state.day || utcDay();
+      showError(null); paintView();
+    }).catch(function (e) {
+      if (mine !== generation) return;
+      failed(e, reloadAll);
+    });
+  }
+  /* The history strip (or the URL) asks for a day: a past one, or today for anything else. The
+     panels say so at once; the counts follow, a moment later so that a key held on the strip
+     does not ask for every day it passes. An answer on its way for the day left is dropped. */
+  var dayTimer = null;
+  function setDay(day) {
+    day = pastDay(day);
+    if (day === state.viewDay) return;
+    state.viewDay = day; generation++; state.buffer = null;
+    applyDay(); syncUrl(true);
+    clearTimeout(dayTimer); dayTimer = setTimeout(reloadAll, day ? 150 : 0);
+  }
+  function applyDay() {
+    strip.select(state.viewDay);
+    visits.past(state.viewDay ? strip.name(state.viewDay) : null);
+    paintView();
+  }
+
+  /* The day's cut, as the API makes it: at UTC midnight the windows go dark and the day starts
+     again. On a past day nothing goes dark: only today moved on, in the strip. */
   setInterval(function () {
-    if (state.day && utcDay() !== state.day) { state.day = utcDay(); visits.clear(); scene.dayCut(reloadAll); }
+    if (!state.day || utcDay() === state.day) return;
+    state.day = utcDay();
+    if (state.viewDay) { strip.refresh(); return; }
+    visits.clear(); scene.dayCut(reloadAll);
   }, 15000);
   /* The used share and the hours come only with /api/scene (`$engaged` never reaches the live
      socket), so the dashboard left open refreshes them every five minutes. */
-  setInterval(function () { if (state.started && state.token && $('gate').hidden && !document.hidden) reloadAll(); }, 5 * 60 * 1000);
+  setInterval(function () { if (state.started && state.token && $('gate').hidden && !document.hidden && !state.viewDay) reloadAll(); }, 5 * 60 * 1000);   // a past day does not change
 
   /* --- the view --- */
   function go(id, instant) {
@@ -198,7 +254,13 @@
     $('open-ledger').hidden = !inSite;
     paintPanel();
     $('title').textContent = inSite ? siteName(state.site) : 'Your sites';
-    $('sub').textContent = 'Today · ' + (state.day || utcDay()) + ' UTC · ' + (inSite ? (touch ? 'tap' : 'hover') + ' the houses, gates and stalls · drag to turn' : 'pick a village');
+    var past = state.viewDay;
+    $('sub').textContent = past ? strip.name(past) + ' · ' + past + ' UTC · a past day, as it ended'
+      : 'Today · ' + (state.day || utcDay()) + ' UTC · ' + (inSite ? (touch ? 'tap' : 'hover') + ' the houses, gates and stalls · drag to turn' : 'pick a village');
+    $('ui').classList.toggle('past', !!past);
+    $('s-when').textContent = past ? ' that day' : ' today';
+    $('stats').setAttribute('aria-label', past ? strip.name(past) : 'Today');
+    strip.view(state.site);
     paintStats();
   }
   function paintStats() {
@@ -208,7 +270,7 @@
     put('s-hits', fmt(t.pageviews));
     put('s-views', fmt(t.views));
     put('s-events', fmt(t.other));   // `events` counts the views too: the Events tab's number
-    var label = (state.site ? siteName(state.site) : 'All sites') + ' today: ' + fmt(t.visitors) + ' visitors, ' +
+    var label = (state.site ? siteName(state.site) : 'All sites') + (state.viewDay ? ' on ' + strip.name(state.viewDay) : ' today') + ': ' + fmt(t.visitors) + ' visitors, ' +
       fmt(t.pageviews) + ' pageviews, ' + fmt(t.views) + ' views, ' + fmt(t.other) + ' other events. The ledger has every count as a table.';
     if (label !== shown.scene) { shown.scene = label; $('scene').setAttribute('aria-label', label); }
   }
@@ -231,13 +293,15 @@
 
   $('places').addEventListener('click', function (e) { var b = e.target.closest('button.place'); if (b) go(b.dataset.id); });
   $('back').addEventListener('click', leave);
-  function openLedger(event) { ledger.open(state.site, event); paintPanel(); syncUrl(); scene.refit(true); $('close-ledger').focus({ preventScroll: true }); }
+  function openLedger(event, range) { ledger.open(state.site, event, range); paintPanel(); syncUrl(); scene.refit(true); $('close-ledger').focus({ preventScroll: true }); }
   /* From an event's card in the visits panel: its site's ledger, open at that event. */
   function openEvent(id, name) { if (state.site !== id) go(id, true); openLedger(name); }
   function closeLedger() { ledger.close(); paintPanel(); scene.refit(true); $('open-ledger').focus({ preventScroll: true }); }
   /* The visits panel: shown unless the reader put it away (remembered), and never under the ledger. */
   function paintPanel() {
     $('visits').hidden = !state.showVisits || ledger.isOpen();
+    $('ui').classList.toggle('with-visits', !$('visits').hidden);   // the history strip ends where the panel begins
+    $('ui').classList.toggle('with-ledger', ledger.isOpen());       // and is put away under the ledger, which would cover half of it
     visits.shown();
     $('toggle-visits').setAttribute('aria-pressed', String(!!state.showVisits));
   }
@@ -296,9 +360,11 @@
     }, 300);
   });
 
-  /* `?site=`, and `&ledger=1&days=…&event=…` when the ledger is open. Each level (all sites, a
-     site, its ledger) is an entry in the browser's history, so Back walks up them; a range or an
-     event picked inside the ledger only rewrites the current entry. Going up with the dashboard's
+  /* `?site=`, `&day=` on a past day, and `&ledger=1&days=…&event=…` when the ledger is open. Each
+     level (all sites, a site, its ledger) is an entry in the browser's history, so Back walks up
+     them; a day, or a range or an event picked inside the ledger, only rewrites the current entry.
+     The day is no level: Back and Forward keep the one on screen, and the entry they land on is
+     rewritten with it. Going up with the dashboard's
      own buttons to the entry just behind is a step back, not a new entry. */
   var restoring = false;
   function level(site, ledgerOpen) { return site ? (ledgerOpen ? 2 : 1) : 0; }
@@ -306,18 +372,20 @@
     if (restoring) return;
     var q = [];
     if (state.site) q.push('site=' + encodeURIComponent(state.site));
+    if (state.viewDay) q.push('day=' + state.viewDay);
     if (state.site && ledger.isOpen()) q.push('ledger=1', ledger.query());
     var url = location.pathname + (q.length ? '?' + q.join('&') : ''), here = location.pathname + location.search;
     if (url === here) return;
     var was = params(location.search.slice(1)), now = level(state.site, ledger.isOpen());
     if (replace === true || (was.site || null) === state.site && level(was.site, was.ledger === '1') === now) history.replaceState(history.state, '', url);
-    else if (now < level(was.site, was.ledger === '1') && history.state && history.state.from === url) history.back();
+    else if (now < level(was.site, was.ledger === '1') && history.state && noDay(history.state.from) === noDay(url)) history.back();
     else history.pushState({ from: here }, '', url);
   }
-  /* Back and Forward: the view follows the URL, without writing it again. */
+  function noDay(url) { return String(url).replace(/([?&])day=[^&]*&?/, '$1').replace(/[?&]$/, ''); }
+  /* Back and Forward: the view follows the URL, without writing it again (but for the day, above). */
   window.addEventListener('popstate', function () {
     var q = params(location.search.slice(1));
-    if (!state.started) { state.site = q.site || null; state.ledgerOnBoot = q.ledger === '1'; ledger.restore(q); return; }
+    if (!state.started) { state.site = q.site || null; state.viewDay = pastDay(q.day); state.ledgerOnBoot = q.ledger === '1'; ledger.restore(q); return; }
     var site = q.site && state.sites.some(function (s) { return s.id === q.site; }) ? q.site : null;
     restoring = true;
     try {
@@ -325,10 +393,11 @@
       if (ledger.isOpen() && (q.ledger !== '1' || site !== state.site)) closeLedger();
       if (site !== state.site) go(site);
       if (q.ledger === '1' && !ledger.isOpen()) { ledger.restore(q); openLedger(); }
-    } finally { restoring = false; }
+    } finally { restoring = false; syncUrl(true); }
   });
 
   /* --- boot --- */
+  function pastDay(s) { return isDay(s) && s < utcDay() ? s : null; }
   function params(s) {
     var out = {};
     s.split('&').forEach(function (kv) {
@@ -341,6 +410,7 @@
   else state.token = load(TOKEN_KEY);
   if (location.hash) history.replaceState(null, '', location.pathname + location.search);
   state.site = q.site || null;
+  state.viewDay = pastDay(q.day);
   state.ledgerOnBoot = q.ledger === '1';
   ledger.restore(q);
 

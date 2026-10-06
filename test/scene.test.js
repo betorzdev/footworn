@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { scene } from '../src/stats.js';
+import { scene, days } from '../src/stats.js';
 
 /* A D1 stand-in that records every statement and answers the batch with the rows given, in order. */
 function fakeDb(answers) {
@@ -14,7 +14,7 @@ function fakeDb(answers) {
 
 const NOW = Date.UTC(2026, 9, 5, 12, 0, 30);
 
-test('the views of a site: the 30-day top 8, and today per page', async () => {
+test('the views of a site: every one of the 30 days, and today per page', async () => {
   const answers = [];
   answers[2] = [{ hits: 9, visitors: 2, events: 6, views: 4 }];
   answers[7] = [{ value: 'charms', hits: 40 }, { value: 'map', hits: 12 }];
@@ -32,7 +32,7 @@ test('the views of a site: the 30-day top 8, and today per page', async () => {
 
   const [top, today, pages] = db.seen.slice(-3);
   assert.deepEqual(top.args, ['one', '2026-09-06', '2026-10-05']);
-  assert.match(top.sql, /LIMIT 8/);
+  assert.match(top.sql, /LIMIT 200/);   // every view, no grouping: the cut is a safety net
   assert.match(top.sql, /ORDER BY hits DESC, value/);   // a tie never makes two stalls trade places
   /* A stall's count is its view's own row: the pairs with a page are cut at 200, the counts are not theirs. */
   assert.deepEqual(today.args, ['one', '2026-10-05']);
@@ -55,4 +55,48 @@ test('a site with no views answers empty lists', async () => {
   assert.equal(out.today.viewsTotal, 0);
   assert.equal(out.hours.length, 24);
   assert.ok(!('live' in out));   // the count of the last 5 minutes is gone: the dashboard shows views and events
+});
+
+test('a past day: the village as that day ended', async () => {
+  const answers = [];
+  answers[2] = [{ hits: 5, visitors: 3 }];
+  answers[5] = [{ visitors: 7 }];
+  answers[6] = [{ day: '2026-09-20', hour: 23, hits: 2 }, { day: '2026-09-19', hour: 0, hits: 4 }];
+  const db = fakeDb(answers);
+  const out = await scene(db, { site: 'one', day: '2026-09-20', now: NOW });
+  assert.equal(out.day, '2026-09-20');
+  assert.equal(out.past, true);
+  assert.equal(out.today.hits, 5);
+  assert.equal(out.yesterday.visitors, 7);
+  assert.deepEqual(out.hours[23], { hour: 23, today: 2, yesterday: 0 });
+  assert.deepEqual(out.hours[0], { hour: 0, today: 0, yesterday: 4 });
+  const batch = db.seen.slice(1);   // after loadsSince
+  /* The houses, gates and stalls of the 30 days that end on it; the counts of that day alone. */
+  assert.deepEqual(batch[0].args, ['one', '2026-08-22', '2026-09-20']);
+  assert.deepEqual(batch[2].args, ['one', '2026-09-20']);
+  /* The day before, whole: up to its last second, not up to this time of day. */
+  assert.deepEqual(batch[5].args, ['one', '2026-09-19', Date.UTC(2026, 8, 20) / 1000 - 1]);
+  assert.deepEqual(batch[6].args, ['one', '2026-09-20', '2026-09-19']);
+});
+
+test('today, a day to come, a day that is no date or no day at all: today', async () => {
+  for (const day of [undefined, '2026-10-05', '2026-10-06', '2026-13-45', '2026-02-31']) {
+    const db = fakeDb([]);
+    const out = await scene(db, { site: 'one', day, now: NOW });
+    assert.equal(out.day, '2026-10-05');
+    assert.equal(out.past, false);
+    assert.deepEqual(db.seen[6].args, ['one', '2026-10-04', Math.floor(NOW / 1000) - 86400]);
+  }
+});
+
+test('the days of the history strip: counts per day, nothing else', async () => {
+  const rows = [{ day: '2026-10-04', visitors: 3, hits: 5 }, { day: '2026-10-05', visitors: 1, hits: 1 }];
+  const seen = {};
+  const db = { prepare(sql) { seen.sql = sql; return { bind(...args) { seen.args = args; return { all: async () => ({ results: rows }) }; } }; } };
+  const out = await days(db, { site: 'one', from: '2026-09-06', to: '2026-10-05' });
+  assert.deepEqual(out, { site: 'one', from: '2026-09-06', to: '2026-10-05', days: rows });
+  assert.deepEqual(seen.args, ['one', '2026-09-06', '2026-10-05']);
+  assert.match(seen.sql, /SUM\(first\) AS visitors, COUNT\(\*\) AS hits/);
+  assert.match(seen.sql, /event IS NULL GROUP BY day ORDER BY day/);
+  for (const bad of [' ts', 'country', 'browser', 'width', 'path']) assert.ok(!seen.sql.includes(bad), bad);
 });

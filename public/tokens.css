@@ -36,6 +36,10 @@
   --page-ink: #5d6779;    /* another page's row: a step back from the ink, still 5.5:1 on the glass */
   --tab-shadow: 0 1px 3px rgba(20, 30, 60, .16);
   --visits-w: 380px;
+  --strip-h: 96px;      /* the history strip: its bars, and the day marks under them */
+  --strip-side: 232px;  /* its date field and readout */
+  --ctl: 32px;          /* a control inside a panel, smaller than --tap where a mouse points */
+  --bar-gap: 2px;       /* between two bars of the strip; a bar's least height and its corner too */
 
   --font: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   --font-num: ui-monospace, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
@@ -92,11 +96,13 @@
   /* One colour per site, in the order the API lists them: its sign's edge, its events' tone. */
   --village-site-1: #8fb8ff; --village-site-2: #ff8d6b; --village-site-3: #b9a8ff; --village-site-4: #7fe0b0;
   --village-site-5: #ffd36b; --village-site-6: #ff9ed0; --village-site-7: #a6e36f; --village-site-8: #9ad6ff;
-  /* One colour per gate of a village: its top 5 referrers, then elsewhere and direct. The lanterns,
-     the banner, a villager's scarf, and the dot of a visit row in the panel. */
+  /* One colour per gate of a village: its referrers in the 30-day order (the five repeat from
+     the sixth on; the label tells them apart), and direct. The lanterns, the banner, a villager's
+     scarf, and the dot of a visit row in the panel. */
   --village-lane-1: #6fa3ff; --village-lane-2: #ff7a45; --village-lane-3: #4fd0ff; --village-lane-4: #ff4f6d;
-  --village-lane-5: #a08cff; --village-lane-elsewhere: #9aa3b8; --village-lane-direct: #e6ebf7;
+  --village-lane-5: #a08cff; --village-lane-direct: #e6ebf7;
 }
+@media (pointer: coarse) { :root { --ctl: 44px; } }   /* a finger gets the whole --tap */
 /* The dark stock: the panels and the ledger only. The scene keeps its own light. */
 :root[data-theme="dark"] {
   color-scheme: dark;

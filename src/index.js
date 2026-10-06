@@ -5,7 +5,7 @@
 import { makeHit, originAllowed, ENGAGED } from './collect.js';
 import { firstToday, rotateSalt } from './visitor.js';
 import { authorized } from './auth.js';
-import { sites, stats, eventStats, scene, visits } from './stats.js';
+import { sites, stats, eventStats, scene, days, visits } from './stats.js';
 import { publish } from './live.js';
 import { makeTicket, checkTicket } from './ticket.js';
 
@@ -103,7 +103,11 @@ async function api(request, env, url) {
   const site = url.searchParams.get('site');
   if (!site) return json({ error: 'site' }, 400);
   if (url.pathname === '/api/stats') return json(await stats(env.DB, { site, ...range(url) }));
-  if (url.pathname === '/api/scene') return json(await scene(env.DB, { site }));
+  if (url.pathname === '/api/scene') {
+    const day = url.searchParams.get('day');   // a day before today: the village as it was; anything else is today
+    return json(await scene(env.DB, { site, day: DAY.test(day || '') ? day : undefined }));
+  }
+  if (url.pathname === '/api/days') return json(await days(env.DB, { site, ...range(url) }));
   if (url.pathname === '/api/visits') return json(await visits(env.DB, { site }));
   if (url.pathname === '/api/event') {
     const name = url.searchParams.get('name');

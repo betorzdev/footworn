@@ -59,13 +59,23 @@ errors, loading state, URL state, reduced motion, focus rings and press feedback
 ## The village, next (agreed 2026-10-05, carried over from the bay)
 
 - **Replay**: a day, or a week, played back in about 20 seconds with a scrubber (villagers and
-  lamps from the hour counts, or from 10-minute blocks added back to `/api/scene`).
+  lamps from the hour counts, or from 10-minute blocks added back to `/api/scene`). Since
+  2026-10-06 the village can be turned back to any day as it ended (`public/history.js`, the
+  strip of days); the replay would play that day, with the strip as its scrubber. Still open
+  there: the date field has no earliest day (a day past the retention is an empty village), and
+  today's bar moves with the five-minute reload, not with each live visit.
 - **Sound**: done on 2026-10-05 (`public/sound.js`; `PRODUCT.md` has what each cue is). Heard
   and left out that day: a music box (one note per hit, nothing at the gate), footsteps alone
   (no notes), twelve strokes at midnight, and a wind bed, which would keep the audio thread
   awake at rest. Still open: the live socket closes while the tab is hidden, so nothing sounds
   from a tab put away; the levels were set by measure, not on many speakers; on a wide touch
   screen the volume slider only comes up for a moment after sound is switched on.
+- **Rings of houses**: since 2026-10-06 nothing is grouped and a village's ring of houses
+  widens with its pages (option A of `design/growth`, that day's round). Past about 40 pages
+  that leaves a snowy hole between the lamps and the houses: then option B, a second ring of
+  houses behind the first, the palisade behind the last, each ring keeping the gates' lanes free.
+  Also, the five gate colours repeat from the sixth referrer on; more `--village-lane-*` tokens
+  if a site with many referrers finds that confusing.
 - **Sky by the clock**: the village is always at night; if wanted, the blue-hour or day light of
   the 2026-10-05 design round (Blue hour, Storybook) by the viewer's hour.
 - **Country off the live view**: a switch (a var in `wrangler.toml`) for publishers who prefer

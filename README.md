@@ -39,17 +39,20 @@
 ## What you see
 
 **A village, up close.** Click a village (or its sign) and the camera flies in. Round the clock
-square, a house per page (the 30-day top 8, and *other pages*, the busiest at twelve o'clock):
+square, a house per page (every page of the last 30 days, the busiest at twelve o'clock):
 its storeys are today's pageviews, on one scale for every site, and its windows are lit warm
 from the ground up for the share of loads where the page was *used* (a tap, a key or 10 s in
 view); the label over the roof gives both. Round the square, 24 street lamps, one per UTC hour
 clockwise from midnight at the top: each as tall as that hour's pageviews, with a brass ring at
-yesterday's, the current one glowing. In the palisade, a gate per referrer (the top five, then
-*elsewhere* and *direct*), as wide as today's arrivals, its lanterns in the referrer's colour.
+yesterday's, the current one glowing. In the palisade, a gate per referrer (every one of the
+last 30 days, then *direct*), as wide as today's arrivals, its lanterns in the referrer's colour.
 Between the lamps and the tower, a market: a stall per view opened inside a page (a `screen`
-event with a `view`; the 30-day top 8, and *other views*), with a garland up to the tower whose
+event with a `view`; every one of the last 30 days), with a garland up to the tower whose
 green lanterns light up with today's opens, on one scale for every site; a stall nobody opened
-today is shut and dark.
+today is shut and dark. Nothing is grouped: a village is as big as its site's use. Ten stalls
+stand round the tower, the next sixteen in a row behind them, and so on; the lamps, the ring
+of houses and the palisade move out as the market, the pages and the referrers need, and a
+page, referrer or view first seen today builds its house, gate or stall there and then.
 Every pageview is a villager with a scarf in that colour who walks in through the gate, across
 the square and into the house; every view opened, one in a green scarf who leaves that page's
 house for the stall; every other event, fireworks over the roof. Drag to turn, wheel or
@@ -84,6 +87,15 @@ Rounded on purpose, so a row is never a fingerprint (no width, no second, nothin
 rows, so a view is never hung under a visit), and gone at UTC midnight.
 
 ![The panel beside a village, on its Visits tab: visits in bold with a dot in their referrer's gate colour, the page, the referrer, a flag and a device mark; views in a lighter, lower row with a hollow dot.](docs/screenshots/visits.png)
+
+**Another day.** *History* in the dock brings up a strip of the last 60 days over it, a bar per
+day as tall as its visitors (today's hollow: still being counted). Press a bar, step with `‹ ›`
+or the arrow keys, or type any day in the date field, and the village is turned back to that
+day as it ended: its houses, gates and stalls are those of the 30 days up to it, its storeys,
+windows, lanterns and totals that day's, every lamp lit with the day before as the brass ring,
+and nobody walks in. Over the valley the bars add every site up. A past day is counts only: the
+panel of visits says so and opens that day in the ledger. `Today` (or putting the strip away)
+comes back to the live village; `&day=2026-09-24` in the URL is a link to a day.
 
 **The ledger.** A drawer with the numbers behind the scene, for any range: totals with their
 change, pageviews and visitors by day, by hour or weekday, screen widths, the top 30 of each
@@ -228,7 +240,8 @@ the width, no id), live and as the day's history; earlier days are only counts. 
 | | |
 |---|---|
 | `GET /api/sites` | `[{ id, name }]` |
-| `GET /api/scene?site=` | what the village draws, all counts: `pages`, `refs` and `views` (30-day top 8, top 5 and top 8, `[{ value, hits }]`), `today: { hits, visitors, events, viewsTotal, loads, engaged, pages: [{ path, hits, loads, engaged, events }], refs: [{ ref, hits }], views: [{ view, hits }], viewPages: [{ path, view, hits }] }` (the used rate is `engaged / loads`, as in `/api/stats`; a view is a `screen` event with a `view`, so `viewsTotal` is inside `events`), `yesterday: { visitors }` up to this time of day, and `hours: [{ hour, today, yesterday }]`, pageviews by UTC hour |
+| `GET /api/scene?site=` | what the village draws, all counts: `pages`, `refs` and `views` (every one of the last 30 days, busiest first, each list cut at 200, `[{ value, hits }]`), `today: { hits, visitors, events, viewsTotal, loads, engaged, pages: [{ path, hits, loads, engaged, events }], refs: [{ ref, hits }], views: [{ view, hits }], viewPages: [{ path, view, hits }] }` (the used rate is `engaged / loads`, as in `/api/stats`; a view is a `screen` event with a `view`, so `viewsTotal` is inside `events`), `yesterday: { visitors }` up to this time of day, and `hours: [{ hour, today, yesterday }]`, pageviews by UTC hour. With `&day=` before today (`past: true` in the answer) it is the village as that day ended: `today` is that day, the 30 days end on it, `yesterday` is the whole day before |
+| `GET /api/days?site=&from=&to=` | `{ days: [{ day, visitors, hits }] }`, visitors and pageviews per day (a day with none has no row): the bars of the history strip |
 | `GET /api/visits?site=` | today's visits (UTC), newest first, at most 2000, rounded: `{ day, now, visits: [{ minute, path, ref, device, browser, os, lang, country, first, event, props }] }`. Never the width, the second or an id |
 | `GET /api/live-ticket` | `{ ticket }`, good for 60 s, to open the live socket |
 | `GET /live?ticket=` | WebSocket: one JSON message per counted hit, `{ site, t, path, ref, device, browser, os, lang, first, country, event, props }`; send `ping`, get `pong` |
@@ -247,7 +260,7 @@ src/stats.js      the API's queries
 src/live.js       the live view: what a live message carries, and the Live Durable Object that relays it
 src/ticket.js     the live socket's 60-second ticket
 src/auth.js       the bearer check
-public/           footworn.js, the dashboard (index.html, app.js, gl.js, village.js, sound.js, live.js, ledger.js, visits.js, theme.js, style.css, tokens.css), privacy, demo,
+public/           footworn.js, the dashboard (index.html, app.js, gl.js, village.js, sound.js, live.js, ledger.js, history.js, visits.js, theme.js, style.css, tokens.css), privacy, demo,
                   _headers (nosniff and no-referrer everywhere; the dashboard's CSP: no inline code, no framing)
 migrations/       the D1 schema
 test/             node --test

@@ -35,17 +35,31 @@
     </div>
   </header>
 
-  <section class="stats glass" aria-label="Today">
+  <section class="stats glass" id="stats" aria-label="Today">
     <div class="conn" id="s-conn" hidden><i aria-hidden="true"></i><span id="s-conn-label"></span></div>
-    <div><b class="num" id="s-visitors">–</b><span>visitors<span class="wide"> today</span></span></div>
+    <div><b class="num" id="s-visitors">–</b><span>visitors<span class="wide" id="s-when"> today</span></span></div>
     <div><b class="num" id="s-hits">–</b><span>pageviews</span></div>
     <div><b class="num" id="s-views">–</b><span>views</span></div>
     <div><b class="num" id="s-events">–</b><span>other events</span></div>
   </section>
 
+  <section id="strip" class="strip glass" aria-label="History: visitors by day" hidden>
+    <button class="btn step" type="button" id="strip-earlier" aria-label="The day before">‹</button>
+    <div class="bars" id="strip-bars" role="group" aria-label="Days: press one to see the village on it"></div>
+    <button class="btn step" type="button" id="strip-later" aria-label="The day after">›</button>
+    <div class="strip-side">
+      <div class="strip-row">
+        <input id="strip-input" name="day" type="date" aria-label="Go to a day" autocomplete="off">
+        <button class="btn now" type="button" id="strip-today" hidden>Today</button>
+      </div>
+      <p class="sub num" id="strip-n"></p>
+    </div>
+  </section>
+
   <nav class="dock glass" aria-label="Sites and tools">
     <ul id="places" class="places"></ul>
     <span class="grow"></span>
+    <button class="btn" id="toggle-history" type="button" aria-controls="strip" aria-pressed="false">History</button>
     <button class="btn" id="toggle-visits" type="button" aria-controls="visits" aria-pressed="true">Visits</button>
     <button class="btn" id="open-ledger" type="button" hidden aria-controls="ledger">Ledger</button>
     <span class="sound" id="sound-box">
@@ -58,7 +72,7 @@
 
   <aside id="visits" class="visits glass" aria-labelledby="visits-title" hidden>
     <header class="visits-head">
-      <h2 id="visits-title"><button type="button" id="visits-fold" class="fold" aria-expanded="false" aria-controls="visits-body"><i aria-hidden="true"></i>Today</button></h2>
+      <h2 id="visits-title"><button type="button" id="visits-fold" class="fold" aria-expanded="false" aria-controls="visits-body"><i aria-hidden="true"></i><span id="visits-when">Today</span></button></h2>
       <div class="tabs" id="visits-tabs" role="tablist" aria-label="Show">
         <button type="button" role="tab" id="tab-visits" data-tab="visits" aria-controls="visits-list" aria-selected="true">Visits <b class="num" id="n-visits">–</b></button>
         <button type="button" role="tab" id="tab-events" data-tab="events" aria-controls="events-list" aria-selected="false" tabindex="-1">Events <b class="num" id="n-events">–</b></button>
@@ -76,6 +90,10 @@
     <div class="visits-body" id="visits-body">
       <ol id="visits-list" class="visits-list" role="tabpanel" aria-labelledby="tab-visits"></ol>
       <ol id="events-list" class="visits-list" role="tabpanel" aria-labelledby="tab-events" hidden></ol>
+    </div>
+    <div class="visits-past" id="visits-past" hidden>
+      <p><b>Visits are listed one by one for today only.</b> A past day is counts: its village, and the ledger.</p>
+      <button type="button" class="btn" id="visits-ledger">Open this day in the ledger</button>
     </div>
     <button type="button" class="btn more" id="visits-more" hidden>Show more</button>
   </aside>
@@ -129,6 +147,7 @@
 <script src="sound.js"></script>
 <script src="live.js"></script>
 <script src="ledger.js"></script>
+<script src="history.js"></script>
 <script src="visits.js"></script>
 <script src="app.js"></script>
 </body>

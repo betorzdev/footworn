@@ -10,7 +10,7 @@
     /* o: { api(path) -> Promise<json>, unauthorized(), onUrl() } */
     var RANGES = [1, 7, 30, 90];
     var $ = function (id) { return document.getElementById(id); };
-    var state = { site: null, days: 30, from: null, to: null, event: null, openEvent: null, open: false };
+    var state = { site: null, days: 30, from: null, to: null, event: null, openEvent: null, open: false, lent: null };
 
     function esc(s) { return String(s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
     function fmt(n) { return (n || 0).toLocaleString('en'); }
@@ -371,13 +371,20 @@
     });
 
     /* --- the drawer --- */
-    /* `event`, when given, opens that event's detail once the numbers are in. */
-    function open(site, event) {
+    /* `event`, when given, opens that event's detail once the numbers are in; `range`
+       ({ from, to }), when given, is the range it opens at, for this once: closed still on it,
+       the ledger goes back to the range it had. */
+    function open(site, event, range) {
       state.site = site; state.open = true; if (event) state.openEvent = event;
       $('ledger').hidden = false;
-      if (state.days) setRange(state.days); else setCustom(state.from, state.to);
+      if (range) { state.lent = { days: state.days, from: state.from, to: state.to, at: range }; setCustom(range.from, range.to); }
+      else if (state.days) setRange(state.days); else setCustom(state.from, state.to);
     }
-    function close() { state.open = false; state.event = null; $('ledger').hidden = true; seq++; o.onUrl(); }
+    function close() {
+      var l = state.lent; state.lent = null;
+      if (l && !state.days && state.from === l.at.from && state.to === l.at.to) { state.days = l.days; state.from = l.from; state.to = l.to; }
+      state.open = false; state.event = null; $('ledger').hidden = true; seq++; o.onUrl();
+    }
 
     return {
       open: open,

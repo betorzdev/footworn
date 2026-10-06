@@ -11,7 +11,9 @@
    `visits`): the minute, the device class, browser and system families; nothing joins two rows,
    so a view is never hung under a visit. Over the valley it lists every site, in a village that site
    alone. Hovering or focusing a row asks the scene to ring the house and the gate of that visit.
-   Empties at UTC midnight, when the windows go dark. */
+   Empties at UTC midnight, when the windows go dark. While the village is turned back to a past
+   day (`past`) there is no list: earlier days are only counts (docs/privacy.md), so the panel
+   says so and offers that day in the ledger. */
 (function () {
   'use strict';
 
@@ -23,11 +25,11 @@
 
   window.FootwornVisits = function (o) {
     /* o: { siteName(id), laneColor(id, ref), pageStats(id, path) -> { pv, loads, engaged } | null,
-           openEvent(id, name), totals(site | null) -> { visitors, pageviews, events }, onHover({ site, path, ref } | { site, path, view } | null) } */
+           openEvent(id, name), openDay(), totals(site | null) -> { visitors, pageviews, events }, onHover({ site, path, ref } | { site, path, view } | null) } */
     var $ = function (id) { return document.getElementById(id); };
     function load(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
     function save(k, v) { try { localStorage.setItem(k, v); } catch (e) { /* no storage */ } }
-    var state = { rows: [], view: null, tab: load(TAB) === 'events' ? 'events' : 'visits', hide: load(HIDE) === '1', shown: PAGE, open: false, pulse: {}, row: null, evf: ALL };
+    var state = { rows: [], view: null, tab: load(TAB) === 'events' ? 'events' : 'visits', hide: load(HIDE) === '1', shown: PAGE, open: false, pulse: {}, row: null, evf: ALL, past: null };
     var regionName = (function () { try { var d = new Intl.DisplayNames(['en'], { type: 'region' }); return function (c) { return d.of(c); }; } catch (e) { return function (c) { return c; }; } })();
     var reduced = !!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches);
 
@@ -105,7 +107,7 @@
         fact('Browser', esc([v.browser, v.os].filter(Boolean).join(' · '))) + fact('Language', esc(v.lang || ''));
       var bar = function (label, n, total, note) { return '<div class="r"><span>' + label + '</span><span><b class="num">' + fmt(n) + '</b> ' + note + '</span><span class="meter"><i class="bar" data-w="' + (total ? Math.round(100 * n / total) : 0) + '"></i></span></div>'; };
       var pg = o.pageStats(v.site, v.path), t = o.totals(v.site), ctx = '';
-      if (pg) ctx += bar(pg.other ? 'other pages <span class="soft">(outside the top 8)</span>' : esc(v.path), pg.pv, t.pageviews, 'pageviews' + (pg.loads ? ' · ' + Math.min(100, Math.round(100 * pg.engaged / pg.loads)) + '% used' : ''));
+      if (pg) ctx += bar(esc(v.path), pg.pv, t.pageviews, 'pageviews' + (pg.loads ? ' · ' + Math.min(100, Math.round(100 * pg.engaged / pg.loads)) + '% used' : ''));
       if (asEvent) {
         var evs = state.rows.filter(function (x) { return x.site === v.site && x.event; }), sameEv = evs.filter(function (x) { return x.event === v.event; });
         ctx += bar('“' + esc(v.event) + '”', sameEv.length, evs.length, 'of ' + fmt(evs.length) + ' events');
@@ -168,6 +170,14 @@
     function paint() {
       if ($('visits').hidden) { stale = true; state.rows.forEach(function (v) { v.fresh = false; }); return; }   // nothing walks in when it comes back
       stale = false;
+      var past = state.past != null;
+      $('visits-when').textContent = past ? state.past : 'Today';
+      $('visits-past').hidden = !past; $('visits-tabs').hidden = past; $('visits-body').hidden = past;
+      if (past) {
+        ['visits-tools', 'visits-key', 'events-head', 'visits-more'].forEach(function (id) { $(id).hidden = true; });
+        $('visits-ledger').hidden = !state.view;   // the ledger is one site's
+        return;
+      }
       var t = o.totals(state.view), ev = state.tab === 'events';
       $('n-visits').textContent = fmt(t.pageviews); $('n-events').textContent = fmt(t.events);   // a visit here is a load of the site
       ['visits', 'events'].forEach(function (k) { var b = $('tab-' + k), on = state.tab === k; b.setAttribute('aria-selected', String(on)); b.tabIndex = on ? 0 : -1; });
@@ -194,6 +204,7 @@
     });
     $('hide-views').addEventListener('change', function () { state.hide = this.checked; save(HIDE, state.hide ? '1' : '0'); state.shown = PAGE; if (state.row && isView(state.row) && state.hide) { state.row = null; o.onHover(null); } paint(); });
     $('visits-more').addEventListener('click', function () { state.shown += PAGE; paint(); });
+    $('visits-ledger').addEventListener('click', function () { o.openDay(); });
     /* Hover or focus rings the row in the scene; an open row keeps its ring when the pointer leaves.
        A view or an event has no referrer of its own: it rings its house, no gate; a view its stall too. */
     function ringOf(v) { return !v ? null : isView(v) ? { site: v.site, path: v.path, view: v.props.view } : v.event ? { site: v.site, path: v.path } : { site: v.site, path: v.path, ref: v.ref }; }
@@ -256,6 +267,8 @@
       },
       view: function (site) { state.view = site || null; state.shown = PAGE; state.row = null; state.evf = ALL; o.onHover(null); paint(); },
       clear: function () { state.rows = []; state.row = null; o.onHover(null); paint(); },
+      /* The village is on a past day (its name, for the title), or back on today (null). */
+      past: function (label) { state.past = label || null; state.row = null; o.onHover(null); paint(); },
       /* The panel is on screen again. */
       shown: function () { if (stale) paint(); },
       remembered: function () { try { return localStorage.getItem(STORE) !== '0'; } catch (e) { return true; } },

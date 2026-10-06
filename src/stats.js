@@ -3,6 +3,7 @@
    visits one by one, rounded so that a row is not a fingerprint (docs/privacy.md). */
 
 const TOP = 30;
+const SCENE = 200;   // the village draws every page, referrer and view, of the month and of today: each list is cut here for safety
 
 export async function sites(db) {
   const r = await db.prepare('SELECT id, name FROM sites ORDER BY name').all();
@@ -27,6 +28,7 @@ async function loadsSince(db, site) {
 
 const DAY_MS = 86400000;
 const addDays = (iso, n) => new Date(Date.parse(iso) + n * DAY_MS).toISOString().slice(0, 10);
+const realDay = iso => { const t = Date.parse(iso); return !isNaN(t) && new Date(t).toISOString().slice(0, 10) === iso; };   // no 31st of February
 
 /* Totals, by day, each dimension's top values (pages with how many of their loads were used),
    the events, and three profiles the dashboard
@@ -96,53 +98,65 @@ export async function eventStats(db, { site, name, from, to }) {
   return { site, name, from, to, totals: res[0][0], days: res[1], paths: res[2], props };
 }
 
-/* What the bay draws for one site, all of it counts:
-   - `pages`, `refs`: the 30-day top 8 pages (its towers, in a fixed order) and top 5 referrers
-     (the lanes of its skyline, with elsewhere and direct);
-   - `views`: the 30-day top 8 views opened inside a page (a `screen` event with a `view`), the
-     stalls of its market, in a fixed order;
+/* What the village draws for one site, all of it counts:
+   - `pages`, `refs`: every page of the last 30 days (its houses, in a fixed order: the busiest
+     first) and every referrer (its gates, plus direct), each list cut at 200;
+   - `views`: every view opened inside a page in the last 30 days (a `screen` event with a
+     `view`), the stalls of its market, in a fixed order, cut at 200;
    - `today`: totals (`viewsTotal` is every view opened: they are events too, and inside `events`), and per page its pageviews, `loads` and used loads (`engaged`, the used
      rate is engaged / loads, as in `stats`) and events, pageviews per referrer, `views`: how
      many times each view was opened, and `viewPages`: from which pages (the top 200 pairs, for
      the stall's tooltip; the counts are the ones in `views`);
    - `yesterday`: visitors yesterday up to this time of day, for the change on the sign;
-   - `hours`: pageviews by UTC hour, today and yesterday, for the day's rhythm. */
-export async function scene(db, { site, now = Date.now() }) {
-  const today = new Date(now).toISOString().slice(0, 10), from = addDays(today, -29), yesterday = addDays(today, -1);
+   - `hours`: pageviews by UTC hour, today and yesterday, for the day's rhythm.
+   With a `day` before today (`past` in the answer) it is the village as that day ended: "today"
+   is that day, the 30 days are the ones that end on it, and "yesterday" the whole day before. */
+export async function scene(db, { site, day, now = Date.now() }) {
+  const utc = new Date(now).toISOString().slice(0, 10), past = !!day && realDay(day) && day < utc;   // a day that is no date is today
+  const today = past ? day : utc, from = addDays(today, -29), yesterday = addDays(today, -1);
   const secs = Math.floor(now / 1000), LOADS = await loadsSince(db, site);
+  const until = past ? Date.parse(today) / 1000 - 1 : secs - 86400;   // yesterday's last second, or this time yesterday
   const month = 'site = ?1 AND day BETWEEN ?2 AND ?3 AND event IS NULL';
   const VIEW = "event = 'screen' AND json_type(props, '$.view') = 'text'";  // a `view` that is not text is no view
   const m = sql => db.prepare(sql).bind(site, from, today);
   const d = sql => db.prepare(sql).bind(site, today);
   const rows = await db.batch([
-    m(`SELECT path AS value, COUNT(*) AS hits FROM hits WHERE ${month} GROUP BY path ORDER BY hits DESC LIMIT 8`),
-    m(`SELECT ref AS value, COUNT(*) AS hits FROM hits WHERE ${month} AND ref IS NOT NULL GROUP BY ref ORDER BY hits DESC LIMIT 5`),
+    m(`SELECT path AS value, COUNT(*) AS hits FROM hits WHERE ${month} GROUP BY path ORDER BY hits DESC LIMIT ${SCENE}`),
+    m(`SELECT ref AS value, COUNT(*) AS hits FROM hits WHERE ${month} AND ref IS NOT NULL GROUP BY ref ORDER BY hits DESC LIMIT ${SCENE}`),
     d(`SELECT SUM(event IS NULL) AS hits, SUM(first) AS visitors, SUM(${USER}) AS events, SUM(${VIEW}) AS views, SUM(${LOADS}) AS loads, SUM(${ENGAGED}) AS engaged FROM hits
        WHERE site = ?1 AND day = ?2`),
     d(`SELECT path, SUM(event IS NULL) AS hits, SUM(${LOADS}) AS loads, SUM(${ENGAGED}) AS engaged, SUM(${USER}) AS events FROM hits
-       WHERE site = ?1 AND day = ?2 GROUP BY path HAVING hits > 0 OR events > 0 ORDER BY hits DESC LIMIT 200`),
-    d(`SELECT ref, COUNT(*) AS hits FROM hits WHERE site = ?1 AND day = ?2 AND event IS NULL GROUP BY ref ORDER BY hits DESC LIMIT 200`),
-    db.prepare(`SELECT SUM(first) AS visitors FROM hits WHERE site = ?1 AND day = ?2 AND ts <= ?3 AND event IS NULL`).bind(site, yesterday, secs - 86400),
+       WHERE site = ?1 AND day = ?2 GROUP BY path HAVING hits > 0 OR events > 0 ORDER BY hits DESC LIMIT ${SCENE}`),
+    d(`SELECT ref, COUNT(*) AS hits FROM hits WHERE site = ?1 AND day = ?2 AND event IS NULL GROUP BY ref ORDER BY hits DESC LIMIT ${SCENE}`),
+    db.prepare(`SELECT SUM(first) AS visitors FROM hits WHERE site = ?1 AND day = ?2 AND ts <= ?3 AND event IS NULL`).bind(site, yesterday, until),
     db.prepare(`SELECT day, CAST(strftime('%H', ts, 'unixepoch') AS INTEGER) AS hour, COUNT(*) AS hits FROM hits
                 WHERE site = ?1 AND day IN (?2, ?3) AND event IS NULL GROUP BY day, hour`).bind(site, today, yesterday),
     m(`SELECT json_extract(props, '$.view') AS value, COUNT(*) AS hits FROM hits
-       WHERE site = ?1 AND day BETWEEN ?2 AND ?3 AND ${VIEW} GROUP BY value ORDER BY hits DESC, value LIMIT 8`),
+       WHERE site = ?1 AND day BETWEEN ?2 AND ?3 AND ${VIEW} GROUP BY value ORDER BY hits DESC, value LIMIT ${SCENE}`),
     d(`SELECT json_extract(props, '$.view') AS view, COUNT(*) AS hits FROM hits
-       WHERE site = ?1 AND day = ?2 AND ${VIEW} GROUP BY view ORDER BY hits DESC, view LIMIT 200`),
+       WHERE site = ?1 AND day = ?2 AND ${VIEW} GROUP BY view ORDER BY hits DESC, view LIMIT ${SCENE}`),
     d(`SELECT path, json_extract(props, '$.view') AS view, COUNT(*) AS hits FROM hits
-       WHERE site = ?1 AND day = ?2 AND ${VIEW} GROUP BY path, view ORDER BY hits DESC, path, view LIMIT 200`),
+       WHERE site = ?1 AND day = ?2 AND ${VIEW} GROUP BY path, view ORDER BY hits DESC, path, view LIMIT ${SCENE}`),
   ]);
   const res = rows.map(r => r.results || []);
   const t = res[2][0] || {};
   const hours = Array.from({ length: 24 }, (_, hour) => ({ hour, today: 0, yesterday: 0 }));
   for (const r of res[6]) if (r.hour >= 0 && r.hour < 24) hours[r.hour][r.day === today ? 'today' : 'yesterday'] = r.hits;
   return {
-    site, day: today, now: secs,
+    site, day: today, now: secs, past,
     pages: res[0], refs: res[1], views: res[7],
     today: { hits: t.hits || 0, visitors: t.visitors || 0, events: t.events || 0, viewsTotal: t.views || 0, loads: t.loads || 0, engaged: t.engaged || 0, pages: res[3], refs: res[4], views: res[8], viewPages: res[9] },
     yesterday: { visitors: (res[5][0] && res[5][0].visitors) || 0 },
     hours,
   };
+}
+
+/* Visitors and pageviews day by day: the bars of the dashboard's history strip. A day with no
+   pageview has no row. */
+export async function days(db, { site, from, to }) {
+  const r = await db.prepare(`SELECT day, SUM(first) AS visitors, COUNT(*) AS hits FROM hits
+                              WHERE site = ?1 AND day BETWEEN ?2 AND ?3 AND event IS NULL GROUP BY day ORDER BY day`).bind(site, from, to).all();
+  return { site, from, to, days: r.results || [] };
 }
 
 /* Today's visits, newest first: the one list the API gives. Rounded on the way out, so a row does

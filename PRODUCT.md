@@ -44,13 +44,15 @@ URL is a bookmark to a site, the open ledger, its range and an open event.
 - The village (since 2026-10-05, replacing the bay; the owner asked for 3D and picked the clock
   square of three village options, then three art directions after web research): snowed-in
   villages on a winter night, one per site, side by side in a valley. In each, a house per page
-  (30-day top 8, plus other pages) in a ring round a clock square, storeys today's pageviews on
+  (every page of the last 30 days) in a ring round a clock square, storeys today's pageviews on
   one scale for every site, warm windows from the ground up for the share of loads used
   (`$engaged`); 24 street lamps round the square for today's pageviews by UTC hour, a brass ring
-  at yesterday's, the current hour glowing; a gate per referrer (top 5, elsewhere, direct) in the
+  at yesterday's, the current hour glowing; a gate per referrer (every one, then direct) in the
   palisade, as wide as today's arrivals; a market stall per view opened inside a page (`screen`
   events with a `view`, since 2026-10-05; the owner asked for the views in the scene and picked
-  the market of three options: 30-day top 8, plus other views) round the clock tower, the green
+  the market of three options; since 2026-10-06 every view, in rows of 10, 16, 22 round the
+  tower: the owner wants nothing grouped, the village as big as the site's use, so the lamps,
+  the houses and the palisade move out as the counts need) round the clock tower, the green
   lanterns lit on its garland today's opens on one scale for every site, shut and dark when
   nobody opened it; every live pageview a villager walking from its gate to its house, every
   view opened one walking from that house to the stall, every other event fireworks over the
@@ -85,6 +87,15 @@ URL is a bookmark to a site, the open ledger, its range and an open event.
   touch screen gets); it never stays
   (the owner asked, 2026-10-05). The usual at 80, silence at 0, about 4 dB more at 100,
   remembered too. Wide windows only: a phone has no button and no sound.
+- Another day (since 2026-10-06; the owner asked to go back a day, or to any day, and picked the
+  day strip of three options: a stepper, the strip, a calendar): *History* in the dock brings up
+  a strip over it with the last 60 days as bars of visitors (30 on a phone, under the title),
+  every bar a button, `‹ ›`, a date field for any day and *Today*. The village is then that day
+  as it ended (`/api/scene?day=`): houses, gates and stalls of the 30 days up to it, that day's
+  counts, every lamp lit, nothing live and no sound; the title panel wears the accent. The owner
+  chose counts only for a past day: the visits panel lists nothing and offers that day in the
+  ledger, so the privacy record stands as it was. The day is in the URL (`&day=`); the strip is
+  remembered open or shut, and putting it away comes back to today.
 - The ledger, a drawer over it, per site and range (1, 7, 30, 90 days or custom): totals
   (visitors, pageviews, events), a day chart (pageviews as bars, visitors as a line), hour or
   weekday and screen-width profiles, and top-30 tables for pages, referrers, events, countries,

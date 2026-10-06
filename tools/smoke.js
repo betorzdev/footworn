@@ -128,6 +128,13 @@ try {
   assert.ok(!('recent' in sc) && !('wear' in sc), 'no footprints any more');
   assert.ok(JSON.stringify(sc).indexOf('country') < 0, 'no country in the aggregate');
 
+  // The village on a past day (nothing was counted yesterday), and the days of the history strip.
+  const past = await api(`/api/scene?site=one&day=${yesterday}`);
+  assert.deepEqual([past.day, past.past, past.today.hits, past.today.visitors, past.pages.length], [yesterday, true, 0, 0, 0], 'scene of a past day');
+  assert.equal(sc.past, false, 'scene of today is not past');
+  assert.equal((await api('/api/scene?site=one&day=2999-01-01')).day, today, 'a day to come is today');
+  assert.deepEqual((await api(`/api/days?site=one&from=${yesterday}&to=${today}`)).days, [{ day: today, visitors: 3, hits: 4 }], 'days of the strip');
+
   // Today's visits, one by one, rounded: the minute, never the second or the width.
   const vs = await api('/api/visits?site=one');
   assert.equal(vs.visits.length, 7, 'visits: 4 pageviews and 3 events, no $engaged');
