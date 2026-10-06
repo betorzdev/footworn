@@ -131,6 +131,14 @@
         }
       }
       scene.setSites(sites);
+      /* Each site's icon, fetched with the token, for its banner and its sign. */
+      sites.forEach(function (s) {
+        if (!s.icon || !scene.setIcon) return;
+        fetch('/api/icon?site=' + encodeURIComponent(s.id), { headers: { Authorization: 'Bearer ' + state.token } })
+          .then(function (r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.blob(); })
+          .then(function (b) { scene.setIcon(s.id, URL.createObjectURL(b)); })
+          .catch(function () { /* no icon: the pennant in its colour */ });
+      });
       $('places').innerHTML = sites.map(function (s) {
         return '<li><button class="btn place" type="button" data-id="' + esc(s.id) + '">' + esc(s.name) + '</button></li>';
       }).join('');

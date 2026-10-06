@@ -11,6 +11,7 @@
     "migrate:local": "wrangler d1 migrations apply DB --local",
     "migrate": "wrangler d1 migrations apply DB --remote",
     "site:add": "node tools/site-add.js",
+    "site:icon": "node tools/site-icon.js",
     "smoke": "node tools/smoke.js"
   },
   "devDependencies": {

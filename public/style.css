@@ -67,7 +67,8 @@ input {
 .vsign { pointer-events: auto; cursor: pointer; font: inherit; font-size: var(--fs-s); padding: var(--s-2) var(--s-3); border-left: var(--s-1) solid var(--site); text-align: left; touch-action: manipulation; user-select: none; }
 .vsign:focus-visible { outline: 2px solid var(--village-hover); outline-offset: 2px; }
 @media (hover: hover) and (pointer: fine) { .vsign:hover { border-color: var(--village-hover); border-left-color: var(--site); } }
-.vsign .name { display: block; font-weight: 650; font-size: var(--fs-m); }
+.vsign .name { display: flex; align-items: center; gap: var(--s-2); font-weight: 650; font-size: var(--fs-m); }
+.vsign .ico { width: var(--s-5); height: var(--s-5); border-radius: var(--s-1); object-fit: cover; flex: none; }
 .vsign .row { display: block; color: var(--village-ink-soft); }
 .vsign .row .num { font-size: var(--fs-m); }
 .vsign .small { font-size: var(--fs-xs); font-family: var(--font-num); }

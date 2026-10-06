@@ -103,6 +103,25 @@
   --village-view: #8ce8b4;         /* a view opened inside a page: the lanterns of its stall, the scarf of who walks to it, its label */
   --village-awning: #a8473f; --village-awning-2: #e4d9c4; --village-awning-3: #3f6a8a; --village-awning-4: #c9a24a;   /* the canvas of the market stalls, in turn */
   --village-shutter-1: #3d5a45; --village-shutter-2: #7a3a32; --village-shutter-3: #34466e;   /* doors and shutters, a house's own */
+  --village-mote: #cfeaff;         /* the motes of light that drift over a village of the umbra kit */
+  /* The kits a site can be built in (village.js, KIT): each colour here, with the kit's name after
+     it, takes the place of alpine's (the names above) in that kit's villages. Stone: pale stone and
+     slate, cold lamps. */
+  --village-roof-stone: #3b4356; --village-timber-stone: #3a3a44; --village-stone-stone: #b9b8b6; --village-stone-dark-stone: #8a8a90;
+  --village-lamp-stone: #bcd6ff; --village-window-stone: #ffe6bd;
+  --village-wall-1-stone: #d2d0cb; --village-wall-2-stone: #c4c2bd; --village-wall-3-stone: #dbd9d3; --village-wall-4-stone: #bebcb7;
+  --village-shutter-1-stone: #3d4558; --village-shutter-2-stone: #2f3646; --village-shutter-3-stone: #4a5266;
+  /* Citadel: light walls, red roofs, warm stone. */
+  --village-roof-citadel: #a33a2a; --village-timber-citadel: #6a4a2e; --village-stone-citadel: #cdb894; --village-stone-dark-citadel: #9c8566;
+  --village-lamp-citadel: #ffc062;
+  --village-wall-1-citadel: #ecdcbc; --village-wall-2-citadel: #e3cfa8; --village-wall-3-citadel: #f1e3c6; --village-wall-4-citadel: #dcc59c;
+  --village-shutter-1-citadel: #7a2c22; --village-shutter-2-citadel: #2f5a4a; --village-shutter-3-citadel: #8a6a2a;
+  /* Umbra: near-black slate, pale cold light. */
+  --village-roof-umbra: #1c2030; --village-timber-umbra: #20232c; --village-stone-umbra: #4a4e5c; --village-stone-dark-umbra: #2c2f3a;
+  --village-lamp-umbra: #d6ecff; --village-window-umbra: #e8f6ff; --village-clock-umbra: #dff1ff;
+  --village-wall-1-umbra: #3a3e4c; --village-wall-2-umbra: #33374a; --village-wall-3-umbra: #424656; --village-wall-4-umbra: #2f3342;
+  --village-shutter-1-umbra: #1a1d26; --village-shutter-2-umbra: #232736; --village-shutter-3-umbra: #2a2e3c;
+  --village-awning-1-umbra: #3a3e52; --village-awning-2-umbra: #5a6278; --village-awning-3-umbra: #2c3040; --village-awning-4-umbra: #6d7590;
   /* One plaster per house, in turn: */
   --village-wall-1: #c9b49a; --village-wall-2: #b9a58e; --village-wall-3: #d2c2a8; --village-wall-4: #a99484;
   --village-wall-5: #c4ae9c; --village-wall-6: #bfae94; --village-wall-7: #cbb8a2; --village-wall-8: #b3a08c;

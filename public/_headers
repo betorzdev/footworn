@@ -3,7 +3,8 @@
   X-Content-Type-Options: nosniff
   Referrer-Policy: no-referrer
 
-# The dashboard holds the admin token in the browser: no inline code, no framing, same origin only.
+# The dashboard holds the admin token in the browser: no inline code, no framing, same origin only
+# (and blob: images: the sites' icons, fetched with the token from /api/icon).
 /
-  Content-Security-Policy: default-src 'self'; connect-src 'self'; img-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'
+  Content-Security-Policy: default-src 'self'; connect-src 'self'; img-src 'self' blob:; frame-ancestors 'none'; base-uri 'none'; form-action 'self'
   X-Frame-Options: DENY

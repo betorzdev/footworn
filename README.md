@@ -12,7 +12,7 @@
   <img alt="Cloudflare Workers, free plan" src="https://img.shields.io/badge/Cloudflare_Workers-free_plan-4a5a4e">
 </p>
 
-<img alt="The Footworn valley at dusk: three sites as snowed-in villages by a frozen lake under the mountains, each a ring of houses round a clock square inside a low stone wall, lamps and windows lit warm on the snow. Each village has a sign with its name, visitors today and the change against yesterday, the views opened, the other events and the share of loads used." src="docs/screenshots/village.png">
+<img alt="The Footworn valley at dusk: three sites as snowed-in villages by a frozen lake under the mountains, each a ring of houses round a clock square inside its wall, lamps and windows lit warm on the snow. Each village has a sign with its name, visitors today and the change against yesterday, the views opened, the other events and the share of loads used." src="docs/screenshots/village.png">
 
 <p align="center"><sub>The valley: one village per site, every page a house, all on one scale, live. Click one to look closer.</sub></p>
 
@@ -52,7 +52,7 @@ yesterday's storeys up to this time (a rod over the roof when yesterday was tall
 to its door is as wide and worn as today's visits, with their footprints. A page nobody opened
 today is shuttered, its lamp out. Round the square, 24 street lamps, one per UTC hour
 clockwise from midnight at the top: each as tall as that hour's pageviews, with a brass ring at
-yesterday's, the current one glowing. In the low stone wall, a gate per referrer (every one of the
+yesterday's, the current one glowing. In the wall, a gate per referrer (every one of the
 last 30 days, then *direct*), as wide as today's arrivals, its lanterns in the referrer's colour. The clock on the tower tells the UTC time on a
 24-hour dial, like the ring of lamps: midnight at the top.
 Between the lamps and the tower, a market: a stall per view opened inside a page (a `screen`
@@ -160,6 +160,19 @@ The site has to be registered with its allowed origins, or its hits are dropped:
 npm run site:add -- your-site "Your Site" https://your-site.example --remote
 ```
 
+Its village can be built in a kit of its own, `--style alpine` (the default: timber, a palisade),
+`stone` (pale stone, slate spires, a rampart with round towers, cold lamps), `citadel` (red roofs,
+a belfry, battlements) or `umbra` (near-black slate, an iron fence, pale light, motes drifting over
+it, and a village that casts its own shade). The counts read the same in each. And it can fly the
+site's own icon on its tower and show it on its sign: Footworn fetches it once from the site's
+page (its `<link rel="icon">`, the largest up to 256 px, else `/favicon.ico`; a PNG, ICO or JPEG of
+40 KB or less, never an SVG) and serves it to the dashboard itself:
+
+```sh
+npm run site:add -- your-site "Your Site" https://your-site.example --style stone --remote
+npm run site:icon -- your-site --remote            # or: … your-site https://your-site.example/page/ --remote
+```
+
 ## How a visit flows
 
 ```mermaid
@@ -248,7 +261,8 @@ the width, no id), live and as the day's history; earlier days are only counts. 
 
 | | |
 |---|---|
-| `GET /api/sites` | `[{ id, name }]` |
+| `GET /api/sites` | `[{ id, name, style, icon }]`: the kit its village is built in (null is alpine), and whether it has an icon |
+| `GET /api/icon?site=` | the site's icon as kept by `site:icon` (PNG, ICO or JPEG), or 404 |
 | `GET /api/scene?site=` | what the village draws, all counts: `pages`, `refs` and `views` (every one of the last 30 days, busiest first, each list cut at 200, `[{ value, hits }]`), `today: { hits, visitors, events, viewsTotal, loads, engaged, pages: [{ path, hits, loads, engaged, events }], refs: [{ ref, hits }], views: [{ view, hits }], viewPages: [{ path, view, hits }] }` (the used rate is `engaged / loads`, as in `/api/stats`; a view is a `screen` event with a `view`, so `viewsTotal` is inside `events`), `yesterday: { visitors, pages: [{ path, hits }] }` up to this time of day, and `hours: [{ hour, today, yesterday }]`, pageviews by UTC hour. With `&day=` before today (`past: true` in the answer) it is the village as that day ended: `today` is that day, the 30 days end on it, `yesterday` is the whole day before |
 | `GET /api/days?site=&from=&to=` | `{ days: [{ day, visitors, hits }] }`, visitors and pageviews per day (a day with none has no row): the bars of the history strip |
 | `GET /api/visits?site=` | today's visits (UTC), newest first, at most 2000, rounded: `{ day, now, visits: [{ minute, path, ref, device, browser, os, lang, country, first, event, props }] }`. Never the width, the second or an id |

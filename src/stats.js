@@ -5,9 +5,17 @@
 const TOP = 30;
 const SCENE = 200;   // the village draws every page, referrer and view, of the month and of today: each list is cut here for safety
 
+/* The sites, with the kit each village is built in (null: alpine) and whether it has an icon. */
 export async function sites(db) {
-  const r = await db.prepare('SELECT id, name FROM sites ORDER BY name').all();
-  return r.results || [];
+  const r = await db.prepare('SELECT id, name, style, icon IS NOT NULL AS icon FROM sites ORDER BY name').all();
+  return (r.results || []).map(s => ({ id: s.id, name: s.name, style: s.style || null, icon: !!s.icon }));
+}
+
+/* A site's icon as kept (`npm run site:icon`): { bytes, type }, or null. */
+export async function icon(db, site) {
+  const r = await db.prepare('SELECT icon, icon_type FROM sites WHERE id = ?').bind(site).first();
+  if (!r || !r.icon || !r.icon_type) return null;
+  return { bytes: new Uint8Array(r.icon), type: r.icon_type };
 }
 
 const DIMS = ['path', 'ref', 'browser', 'os', 'device', 'country', 'lang'];

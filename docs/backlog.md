@@ -83,15 +83,10 @@ errors, loading state, URL state, reduced motion, focus rings and press feedback
   shift that brings the horizon into the picture is off on a narrow screen, which keeps the old
   high view; the cost on the GPU of one drawing of the scene, or of the sky's tick, was not measured
   (headless Chrome gave no usable timing), only Chrome's CPU and the count of drawings.
-- **A kit per village** (agreed 2026-10-06, its option round next): each site gets a style the
-  owner sets (`npm run site:add -- … --style <kit>`, a `style` column in `sites`): a few generic
-  architecture kits (alpine, the one today; pale stone with slate spires and cold lamps; a
-  citadel of red roofs, a belfry and battlements) that change shapes and palette, never what a
-  count looks like. The builders already take `s.kit` (`KIT` in `public/village.js`). With it, the
-  site's **icon on its pennant**: the Worker fetches `<origin>/favicon.ico` (or the page's
-  `<link rel=icon>`) once, keeps it, and serves it from its own origin, since the dashboard's CSP
-  only loads images from itself; the pennant draws it as a texture. Site configuration, not
-  visitor data; through `/store-field` all the same.
+- **A kit per village**: done on 2026-10-06 (`KIT` in `public/village.js`, `--style`, `site:icon`).
+  Seen in that round and left out: a wall chosen apart from the kit (each kit keeps its own), and
+  the old low wall. Still open: the icon is fetched once, by hand; a site that changes its icon
+  needs `site:icon` again. A fifth kit is a block in `KIT` plus its tokens.
 - **Country off the live view**: a switch (a var in `wrangler.toml`) for publishers who prefer
   not to see it per visit; `docs/privacy.md` already says how.
 - **Big numbers in the ledger's column charts**: the left axis clips labels past four digits

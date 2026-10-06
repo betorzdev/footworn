@@ -25,8 +25,9 @@ function sh(args) {
 try { await fetch(BASE + '/'); console.error(`smoke: something already listens on ${BASE} (a leftover wrangler dev?)`); process.exit(1); } catch (e) { /* free, as it should be */ }
 rmSync(PERSIST, { recursive: true, force: true });
 sh(['d1', 'migrations', 'apply', 'DB', '--local']);
-for (const [id, name] of [['one', 'Site One'], ['two', 'Site Two']]) {
-  const r = spawnSync('node', ['tools/site-add.js', id, name, `https://${id}.example`, '--persist-to', PERSIST], { stdio: 'pipe', encoding: 'utf8' });
+const PNG = '89504e470d0a1a0a';   // the first bytes of a PNG: what /api/icon serves back
+for (const [id, name, style] of [['one', 'Site One', 'umbra'], ['two', 'Site Two']]) {
+  const r = spawnSync('node', ['tools/site-add.js', id, name, `https://${id}.example`, ...(style ? ['--style', style] : []), '--persist-to', PERSIST], { stdio: 'pipe', encoding: 'utf8' });
   if (r.status) { console.error(r.stdout, r.stderr); process.exit(1); }
 }
 
@@ -121,6 +122,15 @@ try {
   assert.deepEqual(sc.views, [{ value: 'combat', hits: 1 }, { value: 'map', hits: 1 }], 'scene stalls: the views, ties by name');
   assert.deepEqual(sc.today.views, [{ view: 'combat', hits: 1 }, { view: 'map', hits: 1 }], 'scene views today');
   assert.deepEqual(sc.yesterday.pages, [], 'scene: nothing yesterday');
+  /* a site's look: its kit, and its icon behind the token */
+  assert.deepEqual((await api('/api/sites')).map(s => [s.id, s.style, s.icon]), [['one', 'umbra', false], ['two', null, false]], 'sites: style and icon');
+  sh(['d1', 'execute', 'DB', '--local', '--command', `UPDATE sites SET icon = X'${PNG}', icon_type = 'image/png' WHERE id = 'one'`]);
+  assert.equal((await fetch(BASE + '/api/icon?site=one')).status, 401, 'icon: token needed');
+  assert.equal((await fetch(BASE + '/api/icon?site=two', { headers: { Authorization: 'Bearer ' + TOKEN } })).status, 404, 'icon: none kept');
+  const ic = await fetch(BASE + '/api/icon?site=one', { headers: { Authorization: 'Bearer ' + TOKEN } });
+  assert.equal(ic.headers.get('content-type'), 'image/png', 'icon: its type');
+  assert.equal(Buffer.from(await ic.arrayBuffer()).toString('hex'), PNG, 'icon: its bytes');
+  assert.equal((await api('/api/sites'))[0].icon, true, 'sites: one has an icon');
   assert.deepEqual(sc.today.viewPages, [{ path: '/', view: 'combat', hits: 1 }, { path: '/map/', view: 'map', hits: 1 }], 'scene views today by page');
   assert.equal(sc.today.viewsTotal, 2, 'scene views today, all of them');
   assert.ok(!('live' in sc), 'no count of the last 5 minutes any more');

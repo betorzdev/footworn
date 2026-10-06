@@ -51,7 +51,7 @@ URL is a bookmark to a site, the open ledger, its range and an open event.
   yesterday was taller), the way to its door as wide and worn as today's visits, with their
   footprints; 24 street lamps round the square for today's pageviews by UTC hour, a brass ring
   at yesterday's, the current hour glowing; a gate per referrer (every one, then direct) in the
-  low stone wall, as wide as today's arrivals, with the footprints of who came through it; a market stall per view opened inside a page (`screen`
+  wall, as wide as today's arrivals, with the footprints of who came through it; a market stall per view opened inside a page (`screen`
   events with a `view`, since 2026-10-05; the owner asked for the views in the scene and picked
   the market of three options; since 2026-10-06 every view, in rows of 10, 16, 22 round the
   tower: the owner wants nothing grouped, the village as big as the site's use, so the lamps,
@@ -63,10 +63,18 @@ URL is a bookmark to a site, the open ledger, its range and an open event.
   view opened one walking from that house to the stall, every other event fireworks over the
   roof; a sign per village (visitors, change against
   yesterday, views, other events, used). Clicking a village flies the camera in; drag turns, wheel or pinch
-  zooms. The objects (since 2026-10-06, a round on each thing; the owner took every proposal):
+  zooms. Each village is built in its site's kit (since 2026-10-06; the owner wanted the villages
+  to differ and to carry each site's look, set by them, never guessed): alpine (timber, a
+  palisade with towers), stone (pale stone, slate spires, a rampart with round towers, cold lamps),
+  citadel (red roofs, a belfry, battlements) and umbra (asked for a dark mood: near-black slate,
+  an iron fence, pale light, motes, and a village that casts its own shade, so it sits in
+  half-light even at noon); the walls about three times the old low wall, as the owner found it
+  too small; the counts read the same in every kit. The site's own icon flies on a banner over
+  its tower and sits on its sign (`site:icon` fetches it once; the Worker serves it, since the
+  CSP only loads the dashboard's own images and blobs). The objects (since 2026-10-06, a round on each thing; the owner took every proposal):
   timber-framed houses with windows on all four sides, because the plain boxes hid the used
-  share on their backs; no garlands, which turned a busy market into a web; a low wall instead
-  of the palisade, the heaviest and emptiest shape in the picture; and what is not a count
+  share on their backs; no garlands, which turned a busy market into a web; the old palisade of
+  stakes gave way to a low wall that same day, then to each kit's own taller wall with towers; and what is not a count
   varies by the page's seed (width, gable or hip roof, the colour of door and shutters, a
   balcony, a woodpile or a bench), so no two houses are alike. Warm pools of light on the snow, ink outlines, smoke and snowfall; at UTC
   midnight the windows go dark. The look (since 2026-10-06; the owner asked for something more

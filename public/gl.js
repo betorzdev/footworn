@@ -8,7 +8,8 @@
    brighter than the screen (after Jimenez, SIGGRAPH 2014); a lens that blurs what is off the
    plane in focus, as a close-up of a model does; ink outlines from depth and normal edges (the
    Townscaper look), a grade and a vignette. Soft sprites (smoke, snow) and additive ones
-   (lanterns), an orbit camera that flies, whose centre follows the gap the panels leave
+   (lanterns), pictures laid on the scene (a site's icon on its banner: `setDecals`), an orbit
+   camera that flies, whose centre follows the gap the panels leave
    (`shift`), and HTML labels pinned to 3D points.
    It is made to be left open: the picture is drawn once and kept, and drawn again only when the
    camera, a layer, a map or the size changes; while the weather moves, the picture's own passes
@@ -176,9 +177,9 @@
       'else if(snow>0.&&snowK>0.&&N.y>.35){vec2 q=vP.xz;float e=.08,n0=fbm(q*.8),gx=fbm(q*.8+vec2(e,0.))-n0,gz=fbm(q*.8+vec2(0.,e))-n0;\n' +
       'float f=exp(-dist*.03),m0=vn(q*11.),hx=vn(q*11.+vec2(.4,0.))-m0,hz=vn(q*11.+vec2(0.,.4))-m0;\n' +
       'N=normalize(N-(vec3(gx,0.,gz)/e*exp(-dist*.006)+vec3(hx,0.,hz)*.12*f)*snowK);}\n' +
-      'vec2 uv=(vP.xz-box.xy)/box.z;vec3 pool=texture(lm,uv).rgb;float occ=mix(1.,texture(ao,uv).r,1.-smoothstep(0.,2.2,vP.y));\n' +
+      'vec2 uv=(vP.xz-box.xy)/box.z;vec3 pool=texture(lm,uv).rgb;vec2 oc=texture(ao,uv).rg;float occ=mix(1.,oc.r,1.-smoothstep(0.,2.2,vP.y)),shade=clamp(oc.r/max(oc.g,.01),0.,1.);\n' +   // red: contact and shade; green: contact alone; their ratio, a village's own shade, dims its direct light at every height
       'float sh=shadow(),nd=dot(N,moonDir),d=max(mix(nd,(nd+.3)/1.3,snow),0.)*sh;if(bands>0.)d=smoothstep(.0,.08,d)*.8+d*.2;\n' +
-      'vec3 L=mix(gndAmb,skyAmb,N.y*.5+.5)*occ+moonCol*d;\n' +
+      'vec3 L=mix(gndAmb,skyAmb,N.y*.5+.5)*occ+moonCol*d*shade;\n' +
       'vec3 pl=pool*poolK*exp(-max(vP.y,0.)*.5)*(.3+.7*clamp(N.y*.7+.4,0.,1.));L+=pl;\n' +
       'for(int i=0;i<nl;i++){vec3 q=lp[i].xyz-vP;float r=length(q);float a=max(0.,1.-r/max(lp[i].w,.001));a*=a;L+=lc[i]*a*(max(dot(N,q/max(r,.001)),0.)*.8+.2);}\n' +
       'vec3 col=base*L+rimCol*pow(1.-max(dot(N,V),0.),4.)*(.3+.7*d);\n' +
@@ -210,6 +211,11 @@
     'uniform mat4 vp;out vec3 vQ;out vec3 vC;out float vR;void main(){vQ=n;vC=c;vR=e;gl_Position=vp*vec4(p,1.);}';
   var SPOT_FS = '#version 300 es\nprecision highp float;in vec3 vQ;in vec3 vC;in float vR;' + OVER_U + 'out vec4 o;' +
     'void main(){float r=length(vQ);if(r>=vR||hid())discard;float a=1.-r/vR;o=vec4(grade(vC*a*a*(vQ.z/r*.8+.2)),0.);}';
+  /* A picture laid on the scene (a site's icon on its banner): its texture where it is opaque, in
+     a light worked out once per picture, with the normal for the ink lines. */
+  var DECAL_VS = '#version 300 es\nlayout(location=0) in vec3 p;layout(location=1) in vec2 t;uniform mat4 vp;out vec2 vT;void main(){vT=t;gl_Position=vp*vec4(p,1.);}';
+  var DECAL_FS = '#version 300 es\nprecision highp float;in vec2 vT;uniform sampler2D tx;uniform vec3 nrm,light,fogCol;uniform float fog;layout(location=0) out vec4 oC;layout(location=1) out vec4 oN;' +
+    'void main(){vec4 c=texture(tx,vT);if(c.a<.5)discard;oC=vec4(mix(c.rgb*light,fogCol,fog),1.);oN=vec4(nrm*.5+.5,1.);}';
   var POST_VS = '#version 300 es\nout vec2 uv;void main(){vec2 p=vec2(gl_VertexID==1?3.:-1.,gl_VertexID==2?3.:-1.);uv=p*.5+.5;gl_Position=vec4(p,0.,1.);}';
   var HEAD = '#version 300 es\nprecision highp float;in vec2 uv;out vec4 o;\n';
   /* From a pixel back to the world: its depth, and the ray through it (not normalised: the eye
@@ -311,7 +317,7 @@
     var MAIN = compile(gl, MAIN_VS, mainFS(false)), OVER = compile(gl, MAIN_VS, mainFS(true)), DEPTH = compile(gl, DEPTH_VS, DEPTH_FS),
       SPR = compile(gl, SPR_VS, SPR_FS), SNOW = compile(gl, SNOW_VS, SPR_FS), SPOT = compile(gl, SPOT_VS, SPOT_FS),
       AO = compile(gl, POST_VS, AO_FS), COMP = compile(gl, POST_VS, COMP_FS), DOWN = compile(gl, POST_VS, DOWN_FS), UP = compile(gl, POST_VS, UP_FS),
-      FINAL = compile(gl, POST_VS, FINAL_FS), BLIT = compile(gl, POST_VS, BLIT_FS);
+      FINAL = compile(gl, POST_VS, FINAL_FS), BLIT = compile(gl, POST_VS, BLIT_FS), DECAL = compile(gl, DECAL_VS, DECAL_FS);
     /* Light brighter than the screen needs a float target; without one the scene stays in eight bits and only glows less. */
     var hdr = !!gl.getExtension('EXT_color_buffer_float'), HF = hdr ? gl.RGBA16F : gl.RGBA8, HT = hdr ? gl.HALF_FLOAT : gl.UNSIGNED_BYTE;
     /* `layers`, `lights` and the glows of setGlow are the scene that is kept; `dyn`, `glow`,
@@ -335,6 +341,43 @@
     W.upload = function (L) { gl.bindBuffer(gl.ARRAY_BUFFER, L.buf); gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(L.mesh.v), gl.STATIC_DRAW); L.count = L.mesh.count; L.mesh.clear(); shadowDirty = true; W.invalidate(); };
     W.addGlow = function (arr, p, c, a, s) { arr.push(p[0], p[1], p[2], c[0], c[1], c[2], a, s); };
     /* The glows that stay with the scene (windows, lamps): a list addGlow filled. */
+    /* The pictures that stay with the scene: [{ img, at: [4 corners], n }], an image loaded or
+       not yet (it is laid once it is). */
+    var decals = [], decalKey = '', texOf = new Map();
+    W.setDecals = function (list) {
+      var key = list.map(function (d) { return d.img.src + ':' + d.at.join() + ':' + (d.dim || 0); }).join('|');
+      if (key === decalKey) return; decalKey = key;
+      decals.forEach(function (d) { gl.deleteBuffer(d.buf); });
+      decals = list.map(function (d) {
+        var c = d.at, v = [], uv = [[0, 1], [1, 1], [1, 0], [0, 1], [1, 0], [0, 0]];
+        [0, 1, 2, 0, 2, 3].forEach(function (i, k) { v.push(c[i][0], c[i][1], c[i][2], uv[k][0], uv[k][1]); });
+        var buf = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, buf); gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(v), gl.STATIC_DRAW);
+        return { img: d.img, n: d.n, buf: buf, mid: [(c[0][0] + c[2][0]) / 2, (c[0][1] + c[2][1]) / 2, (c[0][2] + c[2][2]) / 2], dim: d.dim || 0 };
+      });
+      texOf.forEach(function (t, img) { if (!decals.some(function (d) { return d.img === img; })) { gl.deleteTexture(t); texOf.delete(img); } });   // a picture no longer laid
+      W.invalidate();
+    };
+    function imageTex(img) {
+      var t = texOf.get(img); if (t) return t;
+      t = gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D, t); gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, img);
+      gl.generateMipmap(gl.TEXTURE_2D); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+      texOf.set(img, t); return t;
+    }
+    /* in the moon's or the sun's light and the sky's, dimmed with the village (`dim`) and faded
+       into the fog as the lit surface is */
+    function drawDecals() {
+      var E = env, ready = decals.filter(function (d) { return d.img.complete && d.img.naturalWidth; }); if (!ready.length) return;
+      gl.useProgram(DECAL.p); gl.uniformMatrix4fv(DECAL.u.vp, false, W.vp); gl.activeTexture(gl.TEXTURE0); gl.uniform1i(DECAL.u.tx, 0); gl.uniform3fv(DECAL.u.fogCol, E.fog);
+      ready.forEach(function (d) {
+        var k = Math.max(0, dot(d.n, md)) * .9, L = [0, 1, 2].map(function (i) { return (E.skyAmb[i] + E.moon[i] * k + .15) * (1 - d.dim); });
+        var dist = Math.hypot(W.eye[0] - d.mid[0], W.eye[1] - d.mid[1], W.eye[2] - d.mid[2]), fg = 1 - Math.exp(-Math.pow(Math.max(dist - W.cam.dist * (E.fogFrom || 0), 0) * E.fogD, 1.5));
+        gl.uniform3fv(DECAL.u.nrm, d.n); gl.uniform3fv(DECAL.u.light, L); gl.uniform1f(DECAL.u.fog, clamp(fg * .55, 0, 1)); gl.bindTexture(gl.TEXTURE_2D, imageTex(d.img));
+        gl.bindBuffer(gl.ARRAY_BUFFER, d.buf);
+        gl.enableVertexAttribArray(0); gl.vertexAttribPointer(0, 3, gl.FLOAT, false, 20, 0);
+        gl.enableVertexAttribArray(1); gl.vertexAttribPointer(1, 2, gl.FLOAT, false, 20, 12);
+        gl.drawArrays(gl.TRIANGLES, 0, 6); off();
+      });
+    }
     W.setGlow = function (arr) { gl.bindBuffer(gl.ARRAY_BUFFER, gbuf); gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(arr), gl.STATIC_DRAW); gcount = arr.length / 8; W.invalidate(); };
     /* The snow: flakes as (x, y, z, speed) in a Float32Array, o = { area, height, size, col }; null stops it. */
     W.setSnow = function (flakes, o) {
@@ -370,14 +413,16 @@
       });
       gl.bindTexture(gl.TEXTURE_2D, lmT); gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, lmC); W.invalidate();
     };
-    /* [[x, z, w, d, rot, darkness], …]: every footprint drawn sharp, then the lot blurred at once
+    /* [[x, z, w, d, rot, darkness, shade], …]: every footprint drawn sharp, then the lot blurred at once.
+       A footprint marked `shade` (a village's own shade) darkens the red channel only: the lit
+       surface reads it as shade on the direct light too, not only on what the sky gives.
        (a blur a shape is hundreds of passes, and stalls the GPU for most of a second). */
     W.paintOcclusion = function (list) {
       var key = W.box.join() + '|' + list.join(';'); if (key === occKey) return; occKey = key;
       var S = 1024 / W.box[2];
       ink.clearRect(0, 0, 1024, 1024);
       list.forEach(function (s) {
-        var p = toMap(s[0], s[1]); ink.save(); ink.translate(p[0], p[1]); ink.rotate(-s[4]); ink.fillStyle = 'rgba(0,0,0,' + s[5] + ')';
+        var p = toMap(s[0], s[1]); ink.save(); ink.translate(p[0], p[1]); ink.rotate(-s[4]); ink.fillStyle = (s[6] ? 'rgba(0,255,255,' : 'rgba(0,0,0,') + s[5] + ')';
         ink.fillRect(-s[2] / 2 * S, -s[3] / 2 * S, s[2] * S, s[3] * S); ink.restore();
       });
       ao.filter = 'none'; ao.fillStyle = '#fff'; ao.fillRect(0, 0, 1024, 1024);
@@ -576,7 +621,7 @@
       gl.bindFramebuffer(gl.FRAMEBUFFER, fb); gl.viewport(0, 0, tw, th);
       gl.drawBuffers([gl.COLOR_ATTACHMENT0, gl.COLOR_ATTACHMENT1]);
       gl.clearColor(0, 0, 0, 0); gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-      lit(MAIN, W.lights); drawLayers();
+      lit(MAIN, W.lights); drawLayers(); drawDecals();
       // the glows, into the colour only, depth-tested, not written
       if (gcount) {
         gl.drawBuffers([gl.COLOR_ATTACHMENT0, gl.NONE]);
