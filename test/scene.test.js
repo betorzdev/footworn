@@ -30,7 +30,9 @@ test('the views of a site: every one of the 30 days, and today per page', async 
   assert.equal(out.today.events, 6);
   assert.match(db.seen.find(st => st.sql.includes('AS loads') && !st.sql.includes('GROUP BY')).sql, /SUM\(event = 'screen' AND json_type\(props, '\$\.view'\) = 'text'\) AS views/);
 
-  const [top, today, pages] = db.seen.slice(-3);
+  const byView = st => st.sql.includes("json_extract(props, '$.view')");
+  const top = db.seen.find(st => byView(st) && st.sql.includes('BETWEEN')), today = db.seen.find(st => byView(st) && st.sql.includes('GROUP BY view ')),
+    pages = db.seen.find(st => byView(st) && st.sql.includes('GROUP BY path, view'));
   assert.deepEqual(top.args, ['one', '2026-09-06', '2026-10-05']);
   assert.match(top.sql, /LIMIT 200/);   // every view, no grouping: the cut is a safety net
   assert.match(top.sql, /ORDER BY hits DESC, value/);   // a tie never makes two stalls trade places
@@ -99,4 +101,22 @@ test('the days of the history strip: counts per day, nothing else', async () => 
   assert.match(seen.sql, /SUM\(first\) AS visitors, COUNT\(\*\) AS hits/);
   assert.match(seen.sql, /event IS NULL GROUP BY day ORDER BY day/);
   for (const bad of [' ts', 'country', 'browser', 'width', 'path']) assert.ok(!seen.sql.includes(bad), bad);
+});
+
+test('yesterday by page: the pageviews of each page up to this time yesterday', async () => {
+  const answers = [];
+  answers[10] = [{ path: '/', hits: 7 }, { path: '/map/', hits: 2 }];
+  const db = fakeDb(answers);
+  const out = await scene(db, { site: 'one', now: NOW });
+  assert.deepEqual(out.yesterday.pages, answers[10]);
+  const yesterdayPages = d => d.seen.find(st => st.sql.includes('GROUP BY path ORDER BY hits DESC, path') && st.args.length === 3);
+  const st = yesterdayPages(db);
+  assert.deepEqual(st.args, ['one', '2026-10-04', Math.floor(NOW / 1000) - 86400]);
+  assert.match(st.sql, /event IS NULL/);   // pageviews, not events
+  assert.match(st.sql, /GROUP BY path ORDER BY hits DESC, path LIMIT 200/);
+  for (const bad of ['first', 'country', 'browser', 'width']) assert.ok(!st.sql.includes(bad), bad);
+  /* a past day: the whole day before it */
+  const past = fakeDb([]);
+  await scene(past, { site: 'one', day: '2026-09-20', now: NOW });
+  assert.deepEqual(yesterdayPages(past).args, ['one', '2026-09-19', Date.parse('2026-09-20') / 1000 - 1]);
 });

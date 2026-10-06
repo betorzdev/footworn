@@ -1,21 +1,28 @@
-/* The village: every site is a snowed-in village round a clock square on a winter night, all on
+/* The village: every site is a snowed-in village round a clock square, in a valley with a frozen
+   lake under the mountains, on a polar winter day that follows the viewer's clock (a low golden
+   sun, the blue hour, the night and its aurora: `LIGHTS` and `DAY`), all on
    one scale, so the tallest houses belong to the busiest pages anywhere. In each village:
-   - every page is a house in the ring round the square (in the 30-day order, busiest first, so
-     they never trade places during the day; a page first seen today builds at the end); its
-     storeys are today's pageviews, its warm windows, from the ground up, the share of loads
-     that were used;
-   - every referrer is a gate in the palisade (in the 30-day order, then direct), as wide as
-     today's arrivals, with lanterns in its colour;
+   - every page is a timber-framed house in the ring round the square (in the 30-day order,
+     busiest first, so they never trade places during the day; a page first seen today builds at
+     the end); its storeys are today's pageviews, its warm windows (on every side), from the
+     ground up, the share of loads that were used, the brass band on its front yesterday's
+     storeys up to this time; the way to its door is as wide and worn as its visits today, with
+     their footprints; a page nobody opened today is shuttered, its lamp out;
+   - every referrer is a gate in the low stone wall (in the 30-day order, then direct), as wide
+     as today's arrivals, with lanterns in its colour and the footprints of who came through it;
    - every hour of the day (UTC) is a street lamp round the square, clockwise from midnight at the
      top: its height is that hour's pageviews, the brass ring yesterday's, the bright one now;
    - every view opened inside a page (a `screen` event with a `view`) is a stall in the market
      round the clock tower (in the 30-day order, in rows: ten round the tower, the next behind
-     them): the lanterns lit on its garland up to the tower are today's opens, and a stall nobody
-     opened today is shut and dark;
+     them): the lanterns lit on the pole beside it, from the ground up, are today's opens, and a
+     stall nobody opened today is boarded up;
+   - the clock tells the time on a dial of 24 hours, like the ring of lamps (UTC, midnight at the
+     top; a past day stops at its end), and flies a pennant in the village's colour;
    Nothing is grouped: a village is as big as its site's use. Its market has as many rows as
    its views need, its ring of houses is as wide as its pages (and its market) need, its
-   palisade as wide as its gates; with up to ten views and eight pages it is the first village.
-   - every live visit is a villager with a lantern, in through its gate, across the square, home;
+   wall as wide as its gates; with up to ten views and eight pages it is the first village.
+   - every live visit is a villager with a lantern and a scarf in its gate's colour, in through
+     the gate, across the square, home, leaving steps in the snow that fade in a minute;
      every view opened live one who leaves that page's house for the stall, in a scarf of the
      lanterns' colour; every other event fireworks over its house. Each of those moments is also
      given to `onCue`, for the ear (sound.js).
@@ -26,8 +33,10 @@
    bay had.
    What stands still (the land, each village in a layer of its own) is given to gl.js once and
    kept there; a visit draws its own village again, two seconds apart at most, and only if it
-   changed what is seen. Each frame gives only what moves: villagers, fireworks, smoke, the ring
-   round a highlighted house. */
+   changed what is seen. Each frame gives only what moves: villagers and their steps, fireworks,
+   smoke, the ring round a highlighted house.
+   Every builder takes the village's kit (`KIT`): its shapes and the colours it reads, the same
+   counts in each. There is one kit for now. */
 (function () {
   'use strict';
 
@@ -37,7 +46,11 @@
   var NOW_LOW = .5;        // the lamp of the hour breathes between this and 1
   var FLOOR = .95, GAP = 5;   // a storey; the snow between two palisades
   var R_STALL = 4.3, ROW = 2.7, PITCH = { stall: 2.7, house: 5.5, gate: 5.5 };   // the first row of stalls, the next ones, how close things stand
-  var GARLAND = 6;            // the lanterns of a garland
+  var GARLAND = 6;            // the lanterns of a stall's pole
+  var STEPS_S = 60;           // seconds a live villager's steps stay in the snow
+  var KIT = { alpine: { hip: .35 } };   // the kits a village can be built in: here, the share of hip roofs
+  var TILT = { bay: .3, site: .42 }, LENS = -.4;   // how far down the camera looks; how far under the middle of the gap the valley sits, so the horizon is in the picture
+  var SKY_MS = 20000;         // the clock is read this often for the light
   var clamp = function (v, a, b) { return Math.max(a, Math.min(b, v)); };
   function rand(a, b) { var x = Math.sin(a * 127.1 + (b || 0) * 311.7) * 43758.5453; return x - Math.floor(x); }
   var reduced = !!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches);
@@ -54,15 +67,82 @@
 
   /* ---------- the tokens ---------- */
   var T = {};
+  /* ---------- the sky by the clock ---------- */
+  /* A polar winter day by the viewer's own clock: the sun never clears the mountains by much, so
+     the windows stay lit and can be read at any hour. A light is a set of colours from tokens.css
+     (`SKY`: the night's under the plain names, the others' with the light's name after) and what
+     is not a colour, here: where the light comes from (`sun`) and where its disc hangs (`disc`,
+     its `size` as a cosine, its strength), the stars, the clouds, the aurora, how hard lamps and
+     windows burn (`em`), the exposure, and how bright a thing is before it glows (`glow`). Each
+     is the evening's, to the right; the morning's is its mirror, and the low sun, like the moon,
+     crosses from one side to the other. */
+  var SKY = ['sky-top', 'sky-mid', 'sky-low', 'moon', 'moonlight', 'sky-light', 'ground-light', 'rim', 'haze', 'cloud', 'ice', 'tint-shadow', 'tint-light'];
+  var LIGHTS = {
+    night: { sun: [.62, .4, .25], disc: [.2, .14, -.97], size: .99975, discK: 2.2, stars: 1, clouds: 0, aurora: 1, em: 2.4, expo: 1.12, glow: .8 },
+    blue: { sun: [.66, .28, -.3], disc: [.62, -.06, -.78], size: .9990, discK: 0, stars: .5, clouds: .6, aurora: 0, em: 2.4, expo: 1.12, glow: .8 },
+    dusk: { sun: [.66, .2, -.5], disc: [.66, .1, -.74], size: .9982, discK: 6, stars: .15, clouds: .9, aurora: 0, em: 2, expo: 1.05, glow: .9 },
+    gold: { sun: [.45, .34, -.7], disc: [.3, .1, -.95], size: .9984, discK: 6, stars: 0, clouds: .45, aurora: 0, em: 1.8, expo: .94, glow: 1.15 },
+  };
+  /* [hour, light, side], from one dawn to the next (the night runs through midnight): between
+     one and the next the light is mixed. */
+  var DAY = [[5.5, 'night', -1], [7, 'blue', -1], [8.5, 'dusk', -1], [10.5, 'gold', -1], [14.5, 'gold', 1], [16.25, 'dusk', 1], [18.5, 'blue', 1], [20, 'night', 1], [29.5, 'night', -1]];
+  /* `?hour=13.5` holds the clock there: any light, without waiting for it. */
+  var hourFixed = (function () { var m = /[?&]hour=([0-9.]+)/.exec(location.search); return m ? clamp(parseFloat(m[1]) || 0, 0, 24) : null; })();
+  function clockHour() { var d = new Date(); return hourFixed != null ? hourFixed : d.getHours() + d.getMinutes() / 60; }
+  function lightOf(k) {
+    var L = LIGHTS[k[1]], C = T.sky[k[1]], o = { sun: [L.sun[0] * k[2], L.sun[1], L.sun[2]], disc: [L.disc[0] * k[2], L.disc[1], L.disc[2]] }, n;
+    for (n in L) if (!(n in o)) o[n] = L[n];
+    for (n in C) o[n] = C[n];
+    return o;
+  }
+  /* From one direction to another round the horizon, the short way: a plain mix of two on
+     opposite sides would pass overhead. */
+  function turn(a, b, t) {
+    a = G.norm(a); b = G.norm(b);
+    var az = Math.atan2(a[0], a[2]), d = Math.atan2(b[0], b[2]) - az, el = G.lerp(Math.asin(a[1]), Math.asin(b[1]), t);
+    az += Math.atan2(Math.sin(d), Math.cos(d)) * t;
+    return [Math.sin(az) * Math.cos(el), Math.sin(el), Math.cos(az) * Math.cos(el)];
+  }
+  function skyAt(h) {
+    if (h < DAY[0][0]) h += 24;
+    var i = 0; while (i < DAY.length - 2 && h >= DAY[i + 1][0]) i++;
+    var a = lightOf(DAY[i]), b = lightOf(DAY[i + 1]), t = clamp((h - DAY[i][0]) / (DAY[i + 1][0] - DAY[i][0]), 0, 1), o = {}, n;
+    t = t * t * (3 - 2 * t);
+    for (n in a) o[n] = typeof a[n] === 'number' ? G.lerp(a[n], b[n], t) : n === 'sun' || n === 'disc' ? turn(a[n], b[n], t) : G.mix(a[n], b[n], t);
+    return o;
+  }
+  /* A tint token is a hue to lean to: as a multiplier it keeps the brightness. */
+  function tint(c) { return G.scale(c, 3 / (c[0] + c[1] + c[2])); }
+  /* The light of this hour, into the world, when it is not the light already there (to a
+     hundredth: at night that is the moon a little further on, every few minutes). The picture
+     takes it with its next drawing (the sky's own tick, every few seconds while the weather
+     moves); the shadows are cast again only once the light has moved about a degree. */
+  var sunAt = null, skyKey = null;
+  function applySky() {
+    if (!W) return;
+    var s = skyAt(clockHour()), E = W.env, sun = G.norm(s.sun), key = JSON.stringify(s, function (k, v) { return typeof v === 'number' ? Math.round(v * 100) / 100 : v; });
+    if (key === skyKey) return; skyKey = key;
+    E.skyTop = s.skyTop; E.skyMid = s.skyMid; E.skyLow = s.skyLow; E.fog = s.skyLow; E.moon = s.moonlight; E.skyAmb = s.skyLight; E.gndAmb = s.groundLight; E.rim = s.rim;
+    E.moonTint = s.moon; E.haze = s.haze; E.cloud = s.cloud; E.ice = s.ice; E.tintS = tint(s.tintShadow); E.tintH = tint(s.tintLight);
+    E.moonSky = s.disc; E.disc = s.size; E.discK = s.discK; E.stars = s.stars; E.cloudK = s.clouds; E.aurora = s.aurora; E.emK = s.em; E.expo = s.expo; E.bloomThr = s.glow;
+    if (!sunAt || sun[0] * sunAt[0] + sun[1] * sunAt[1] + sun[2] * sunAt[2] < .9998) { sunAt = sun; W.setSun(sun); }
+    if (reduced) W.invalidate();   // no tick will come for it
+  }
+
+  function camel(k) { return k.replace(/-([a-z0-9])/g, function (m, c) { return c.toUpperCase(); }); }
   function readTokens() {
     var cs = getComputedStyle(document.documentElement);
     function col(n) {
       var m = /^#?([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(cs.getPropertyValue('--village-' + n).trim());
       return m ? [parseInt(m[1], 16) / 255, parseInt(m[2], 16) / 255, parseInt(m[3], 16) / 255] : [1, 1, 1];
     }
-    ['sky-top', 'sky-mid', 'sky-low', 'moon', 'moonlight', 'sky-light', 'ground-light', 'rim', 'edge', 'snow', 'snow-2', 'path', 'stone',
+    ['edge', 'snow', 'snow-2', 'path', 'stone',
       'stone-dark', 'rock', 'timber', 'trunk', 'pine', 'roof', 'iron', 'brass', 'clock', 'window', 'window-dark', 'lamp', 'coat', 'skin',
-      'smoke', 'flake', 'star', 'view', 'awning', 'awning-2'].forEach(function (k) { T[k.replace(/-([a-z0-9])/g, function (m, c) { return c.toUpperCase(); })] = col(k); });
+      'smoke', 'flake', 'star', 'view', 'aurora', 'aurora-2'].forEach(function (k) { T[camel(k)] = col(k); });
+    T.sky = {};
+    Object.keys(LIGHTS).forEach(function (k) { var o = T.sky[k] = {}; SKY.forEach(function (n) { o[camel(n)] = col(n + (k === 'night' ? '' : '-' + k)); }); });
+    T.awnings = [1, 2, 3, 4].map(function (i) { return col('awning' + (i > 1 ? '-' + i : '')); });
+    T.shutters = [1, 2, 3].map(function (i) { return col('shutter-' + i); });
     T.walls = []; T.sites = [];
     for (var i = 1; i <= 8; i++) { T.walls.push(col('wall-' + i)); T.sites.push(col('site-' + i)); }
     T.lanes = [1, 2, 3, 4, 5].map(function (i) { return col('lane-' + i); });
@@ -80,7 +160,7 @@
   /* ---------- the sites (the counts are the bay's, unchanged) ---------- */
   function makeSite(s, i) {
     var o = { id: s.id, name: s.name, idx: i, tint: T.sites[i % T.sites.length], towers: [], towerBy: {}, lanes: [], laneBy: {},
-      views: [], viewBy: {}, stalls: [], R: null,
+      views: [], viewBy: {}, stalls: [], R: null, kit: KIT.alpine, steps: [],
       visitors: 0, pageviews: 0, viewsToday: 0, events: 0, loads: 0, engaged: 0, yesterday: 0, hours: [], loaded: false,
       o: [0, 0, 0], houses: [], gates: [], walkers: [], sparks: [], sign: null,
       layer: null, sig: null, pending: false, builtAt: 0, labels: {}, pools: [], occ: [], glow: [] };
@@ -106,7 +186,7 @@
     if (!moved || !W || !sites.length) return;
     place(); buildLand();
     sites.forEach(function (x) {   // the ground moved under whoever was on the way: their bell rings now, as on a load
-      x.sig = null; x.walkers.forEach(function (w) { cue(w.stall ? 'stall' : 'door', x, w.cue); }); x.walkers = []; x.sparks = [];
+      x.sig = null; x.walkers.forEach(function (w) { cue(w.stall ? 'stall' : 'door', x, w.cue); }); x.walkers = []; x.sparks = []; x.steps = [];
     });
     if (!view.free) frameView();
   }
@@ -117,6 +197,7 @@
     s.loaded = false;   // while the lists are filled, nothing grows the village piece by piece: it is sized once at the end
     s.towers = []; s.towerBy = {};
     data.pages.forEach(function (p) { addTower(s, p.value, p.hits); });
+    ((data.yesterday && data.yesterday.pages) || []).forEach(function (p) { var t = towerOf(s, p.path); if (t) t.ypv = p.hits; });
     data.today.pages.forEach(function (p) { var t = towerFor(s, p.path); t.pv += p.hits; t.loads += p.loads || 0; t.engaged += p.engaged || 0; t.events += p.events; });
     s.lanes = []; s.laneBy = {};
     data.refs.forEach(function (r) { addLane(s, r.value); });
@@ -130,14 +211,14 @@
     s.yesterday = data.yesterday.visitors;
     s.hours = data.hours || [];
     s.walkers.forEach(function (w) { cue(w.stall ? 'stall' : 'door', s, w.cue); });   // whoever was on the way is not drawn again: their bell rings now
-    s.walkers = []; s.sparks = [];
+    s.walkers = []; s.sparks = []; s.steps = [];
     s.loaded = true; resize(s);
     rebuild(s, true);   // new towers and lanes: its houses and gates are made again
   }
   /* A house, a gate, a stall more. The keys are prefixed: a path or a view's name is anything a
      site sends. The `Of` forms look one up (null when there is none); the `For` forms build it
      when the village already stands, which may make the village bigger. */
-  function addTower(s, path, total) { var t = { path: path, label: path, total: total, pv: 0, loads: 0, engaged: 0, events: 0, seed: s.idx * 97 + s.towers.length * 13 }; s.towers.push(t); s.towerBy['p:' + path] = t; return t; }
+  function addTower(s, path, total) { var t = { path: path, label: path, total: total, pv: 0, ypv: 0, loads: 0, engaged: 0, events: 0, seed: s.idx * 97 + s.towers.length * 13 }; s.towers.push(t); s.towerBy['p:' + path] = t; return t; }
   function addLane(s, ref) { var l = { key: 'ref:' + ref, ref: ref, label: ref, color: T.lanes[(s.lanes.length - (s.laneBy.direct ? 1 : 0)) % T.lanes.length], count: 0 }; s.lanes.push(l); s.laneBy[l.key] = l; return l; }
   function addView(s, name, total) { var v = { name: name, label: name, total: total, n: 0, by: {} }; s.views.push(v); s.viewBy['v:' + name] = v; return v; }
   function grown(s, x) { if (s.loaded) { resize(s); rebuild(s, true); } return x; }
@@ -228,21 +309,33 @@
     sites.forEach(function (s, i) { s.o = [xs[i] - mid, 0, i % 2 ? -7 : 3]; if (s.sign) s.sign.p = [s.o[0], 14, s.o[2]]; });
     var x0 = Math.min.apply(null, sites.map(function (s) { return s.o[0] - s.R.wall; }).concat([-16])) - 18;
     var x1 = Math.max.apply(null, sites.map(function (s) { return s.o[0] + s.R.wall; }).concat([16])) + 18;
+    lake = null;
+    if (sites.length) { var zb = Math.min.apply(null, sites.map(function (s) { return s.o[2] - s.R.wall; })), rz = 30; lake = [(x0 + x1) / 2, zb - 11 - rz, Math.max(70, (x1 - x0) * .75), rz]; }
     var size = Math.max(x1 - x0, 96);
     if (W) W.bounds([(x0 + x1) / 2 - size / 2, -3 - size / 2, size]);
   }
+  /* The frozen lake behind the villages, under the mountains: [x, z, rx, rz], its shore uneven. */
+  var lake = null;
+  function lakeR(x, z) { return lake ? Math.hypot((x - lake[0]) / lake[2], (z - lake[1]) / lake[3]) + (vnoise(x * .11, z * .11) - .5) * .22 : 9; }
+  function vnoise(x, z) {
+    var xi = Math.floor(x), zi = Math.floor(z), fx = x - xi, fz = z - zi; fx = fx * fx * (3 - 2 * fx); fz = fz * fz * (3 - 2 * fz);
+    var a = rand(xi, zi), b = rand(xi + 1, zi), c = rand(xi, zi + 1), d = rand(xi + 1, zi + 1); return a + (b - a) * fx + (c - a) * fz + (a - b - c + d) * fx * fz;
+  }
+  function ridged(x, z) { var t = 0, a = 1, f = 1, n; for (var o = 0; o < 5; o++) { n = 1 - Math.abs(vnoise(x * f + o * 31, z * f - o * 17) * 2 - 1); t += n * n * a; a *= .5; f *= 2.07; } return t / 1.94; }
   function hf(x, z) {
     var d = Infinity; sites.forEach(function (s) { d = Math.min(d, Math.hypot(x - s.o[0], z - s.o[2]) - s.R.wall); });   // beyond the nearest palisade
     if (!sites.length) d = Math.hypot(x, z) - 16;
     var dune = Math.sin(x * .21 + Math.cos(z * .17) * 2) * .25 + Math.sin(z * .13 - x * .05) * .3;
-    return clamp((d - 1.5) / 6, 0, 1) * (dune + .25) + Math.max(0, d - 14) * .05 * (1 + .6 * Math.sin(x * .07 + z * .05)) + Math.max(0, -z - 50) * .08;
+    var h = clamp((d - 1.5) / 6, 0, 1) * (dune + .25) + Math.max(0, d - 14) * .05 * (1 + .6 * Math.sin(x * .07 + z * .05)) + Math.max(0, -z - 50) * .08;
+    if (lake) { var k = clamp((lakeR(x, z) - .92) / .3, 0, 1); h = G.lerp(-.55, h, k * k * (3 - 2 * k)); }
+    return h;
   }
   function pine(M, x, y, z, s, occ) {
     M.cyl(x, y, z, .12 * s, .7 * s, 5, T.trunk);
     for (var k = 0; k < 3; k++) {
       var ty = y + (.5 + k * .75) * s, r = (1.05 - k * .27) * s, h = 1.25 * s;
       M.cone(x, ty, z, r, h, 7, T.pine, 0, true);
-      M.cone(x, ty + h * .42, z, r * .6, h * .58, 7, T.snow, 0, true);
+      M.cone(x, ty + h * .42, z, r * .6, h * .58, 7, T.snow, G.SNOW, true);
     }
     occ.push([x, z, 1.6 * s]);
   }
@@ -250,31 +343,35 @@
   function buildLand() {
     var M = land.mesh; M.clear(); landOcc = [];
     var b = W.box, cx = b[0] + b[2] / 2, cz = b[1] + b[2] / 2, ext = b[2] / 2 + 110;
-    M.terrain(cx - ext, cz - ext, ext * 2, Math.min(150, Math.round(ext)), hf, function (h, x, z) { return G.mix(T.snow, T.snow2, (Math.sin(x * .3) * Math.cos(z * .27) + 1) / 2); });
-    for (var k = 0; k < 3; k++) {
-      var R = ext + 60 + k * 60, n = 260;
-      var peak = function (a) { return 10 + k * 12 + (Math.sin(a * (2 + k) + k * 1.7) * .5 + .5) * (14 + k * 9) + Math.pow(Math.abs(Math.sin(a * (5 + k * 2) + k)), 3) * (10 + k * 6) + Math.sin(a * 17 + k) * 1.5; };
-      for (var i = 0; i < n; i++) {
-        var a = i / n * TAU, a2 = (i + 1) / n * TAU, ha = peak(a), hb = peak(a2);
-        var pa = [cx + Math.cos(a) * R, -4, cz + Math.sin(a) * R], pb = [cx + Math.cos(a2) * R, -4, cz + Math.sin(a2) * R];
-        var ta = [cx + Math.cos(a) * (R - 25), ha, cz + Math.sin(a) * (R - 25)], tb = [cx + Math.cos(a2) * (R - 25), hb, cz + Math.sin(a2) * (R - 25)];
-        var ma = [(pa[0] + ta[0]) / 2, ha * .6, (pa[2] + ta[2]) / 2], mb = [(pb[0] + tb[0]) / 2, hb * .6, (pb[2] + tb[2]) / 2];
-        M.quad(pb, pa, ma, mb, G.mix(G.mix(T.stoneDark, T.snow, .25 + k * .2), T.skyMid, .25), .55);
-        M.quad(mb, ma, ta, tb, G.mix(T.snow, T.skyMid, .3), .55);
-      }
+    M.terrain(cx - ext, cz - ext, ext * 2, Math.min(200, Math.round(ext * 1.2)), hf, function (h, x, z) { return G.mix(T.snow, T.snow2, (Math.sin(x * .3) * Math.cos(z * .27) + 1) / 2); }, G.SNOW);
+    /* The mountains: a ring of ridged noise that rises behind the valley, lit like the rest. */
+    var R0 = ext * .82, R1 = ext + 330, NA = 240, NR = 30, grid = [], i, j;
+    function mh(x, z) {
+      var r = Math.hypot(x - cx, z - cz), e = clamp((r - R0) / 130, 0, 1); e = e * e * (3 - 2 * e);
+      return e * (3.6 + 54 * Math.pow(ridged(x * .0075, z * .0075), 1.7) * (.6 + .8 * vnoise(x * .004 + 5, z * .004))) * (1 - .5 * clamp((r - R1 + 90) / 90, 0, 1)) - 4;
     }
-    var count = Math.round(ext * ext / 30);
+    function peak(a, r) { var x = cx + Math.cos(a) * r, z = cz + Math.sin(a) * r, y = mh(x, z), e = 2.5; return { p: [x, y, z], n: G.norm([mh(x - e, z) - mh(x + e, z), 2 * e, mh(x, z - e) - mh(x, z + e)]) }; }
+    for (i = 0; i <= NA; i++) { grid.push([]); for (j = 0; j <= NR; j++) grid[i].push(peak(i % NA / NA * TAU, R0 + (R1 - R0) * Math.pow(j / NR, 1.25))); }
+    for (i = 0; i < NA; i++) for (j = 0; j < NR; j++) {
+      var A = grid[i][j], B = grid[i + 1][j], C = grid[i + 1][j + 1], D = grid[i][j + 1];
+      var sn = clamp(((A.n[1] + B.n[1] + C.n[1] + D.n[1]) / 4 - .5) * 5 + ((A.p[1] + C.p[1]) / 2 - 10) * .03 + (rand(i, j) - .5) * .3, 0, 1);   // snow where it lies: the flatter and the higher
+      var col = G.mix(G.mix(T.stoneDark, T.rock, rand(j, i)), T.snow, sn);
+      M.triN(A.p, C.p, D.p, A.n, C.n, D.n, col); M.triN(A.p, B.p, C.p, A.n, B.n, C.n, col);
+    }
+    if (lake) M.flat(lake[0], -.1, lake[1], lake[2] * 2.6, lake[3] * 2.6, T.sky.night.ice, G.ICE);
+    var count = Math.round(ext * ext / 14);
     for (var t = 0; t < count; t++) {
       var x = cx - ext + rand(t, 1) * ext * 2, z = cz - ext + rand(t, 2) * ext * 2;
       if (Math.sin(x * .08) * Math.cos(z * .09) + Math.sin(x * .03 + z * .04) < .2) continue;
+      if (lakeR(x, z) < 1.12) continue;
       if (sites.some(function (s) { return Math.hypot(x - s.o[0], z - s.o[2]) < s.R.wall + 14; })) continue;
       pine(M, x, hf(x, z) - .1, z, .8 + rand(t, 3) * .9, landOcc);
     }
     for (var r = 0; r < count / 8; r++) {
       var rx = cx - ext + rand(r, 11) * ext * 2, rz = cz - ext + rand(r, 12) * ext * 2;
-      if (sites.some(function (s) { return Math.hypot(rx - s.o[0], rz - s.o[2]) < s.R.wall + 2; })) continue;
+      if (sites.some(function (s) { return Math.hypot(rx - s.o[0], rz - s.o[2]) < s.R.wall + 2; }) || lakeR(rx, rz) < 1.05) continue;
       var rs = .4 + rand(r, 13) * .8, ry = hf(rx, rz) - .1;
-      M.lump(rx, ry, rz, rs, rs * .8, 7, T.rock, r); M.lump(rx, ry + rs * .55, rz, rs * .7, rs * .35, 7, T.snow, r + 3);
+      M.lump(rx, ry, rz, rs, rs * .8, 7, T.rock, r); M.lump(rx, ry + rs * .55, rz, rs * .7, rs * .35, 7, T.snow, r + 3, G.SNOW);
     }
     W.upload(land);
   }
@@ -285,7 +382,7 @@
   function measure() {
     var gm = 1, hm = 1, vm = 1;
     sites.forEach(function (s) {
-      s.towers.forEach(function (t) { gm = Math.max(gm, t.pv); });
+      s.towers.forEach(function (t) { gm = Math.max(gm, t.pv, t.ypv); });   // yesterday's mark on the same storeys
       s.hours.forEach(function (h) { hm = Math.max(hm, h.today, h.yesterday); });
       s.views.forEach(function (v) { vm = Math.max(vm, v.n); });
     });
@@ -328,90 +425,180 @@
   }
 
   function warmOf(t) { return Math.round(floors(t) * (t.loads ? clamp(t.engaged / t.loads, 0, 1) : 0)); }
-  function house(M, s, h, dark) {
-    var t = h.t, f = floors(t), rot = -h.a - Math.PI / 2, P = G.frame(h.pos[0], h.pos[2], rot);
-    var warm = warmOf(t), lit = dark == null ? f : Math.floor(f * (1 - dark));
-    var y = 0, w = 2.5, d = 2.1;
-    M.box(h.pos[0], 0, h.pos[2], w + .1, .45, d + .1, T.stoneDark, 0, rot);
-    for (var j = 0; j < f; j++) {
-      var ww = w + Math.min(j, 1) * .14, dd = d + Math.min(j, 1) * .14;   // the storeys above the first jut out
-      M.box(h.pos[0], y + (j ? 0 : .45), h.pos[2], ww, FLOOR - (j ? 0 : .45), dd, j === 0 ? T.stone : h.wall, 0, rot);
-      if (j) M.box(h.pos[0], y, h.pos[2], ww + .06, .1, dd + .06, T.timber, 0, rot);
-      for (var q = 0; q < 2; q++) {
-        if (j === 0 && q === 0) continue;   // the door
-        var on = t.pv > 0 && j < lit && j < warm, wx = -.62 + q * 1.24, wy = y + .32, fz = dd / 2 + .02;
-        var fp = P(wx, 0, fz), pp = P(wx, 0, fz + .02), sill = P(wx, 0, fz + .06);
-        M.box(fp[0], wy - .03, fp[2], .5, .56, .04, T.timber, 0, rot);
-        M.box(pp[0], wy, pp[2], .38, .46, .03, on ? T.window : T.windowDark, on ? 1 : .35, rot);
-        M.box(sill[0], wy - .06, sill[2], .56, .07, .14, T.snow, 0, rot);
-        if (on) { var g = P(wx, 0, fz + .25); W.addGlow(s.glow, [g[0], wy + .23, g[2]], T.window, .16, 1.4); var pl = P(wx, 0, fz + 1.1); s.pools.push([pl[0], pl[2], 1.5 + j * .15, T.window, .5]); }
-      }
-      y += FLOOR;
-    }
-    var door = P(-.62, 0, d / 2 + .03), lamp = P(-.62, 0, d / 2 + .18);
-    M.box(door[0], .45, door[2], .58, .95, .05, T.timber, 0, rot);
-    if (dark == null || dark < 1) {
-      M.box(lamp[0], 1.55, lamp[2], .16, .2, .16, T.lamp, 1, rot);
-      W.addGlow(s.glow, [lamp[0], 1.65, lamp[2]], T.lamp, .5, 2.2);
-      var dp = P(-.62, 0, d / 2 + 1.4); s.pools.push([dp[0], dp[2], 2.4, T.lamp, .55]);
-    }
-    var heap = P(1.1, 0, d / 2 + .5); M.lump(heap[0], 0, heap[2], .38, .3, 6, T.snow, h.seed);
-    var rw = w + .14, rd = d + .14;
-    M.roof(h.pos[0], y, h.pos[2], rw, 1.15, rd, T.roof, rot, .32, h.wall);
-    M.roof(h.pos[0], y + .09, h.pos[2], rw - .1, 1.12, rd, T.snow, rot, .22);
-    var ch = P(.7, 0, -.35); M.box(ch[0], y + .3, ch[2], .36, 1.2, .36, T.stoneDark, 0, rot); M.box(ch[0], y + 1.5, ch[2], .44, .1, .44, T.snow, 0, rot);
-    h.chimney = [ch[0], y + 1.6, ch[2]]; h.top = y; h.door = P(-.62, 0, d / 2 + .9);
-    s.occ.push([h.pos[0], h.pos[2], w + 1.2, d + 1.2, rot, .6]);
-    var a = at(s.o, h.a, s.R.inner), b = at(s.o, h.a, s.R.house - 1.3), mid = [(a[0] + b[0]) / 2, 0, (a[2] + b[2]) / 2];
-    M.flat(mid[0], .025, mid[2], 1.3, Math.hypot(b[0] - a[0], b[2] - a[2]) + .4, T.path, 0, Math.atan2(Math.cos(h.a), Math.sin(h.a)));
-  }
   function lampPost(M, s, x, z, ht, on, now) {
     M.cyl(x, 0, z, .16, .25, 8, T.stoneDark);
     M.cyl(x, .25, z, .055, ht - .25, 6, T.iron);
-    if (!on) { M.cone(x, .25, z, .14, .12, 8, T.snow); return; }
+    if (!on) { M.cone(x, .25, z, .14, .12, 8, T.snow, G.SNOW); return; }
     M.box(x, ht, z, .26, .04, .26, T.iron);
     M.box(x, ht + .04, z, .2, .26, .2, T.lamp, now ? 1 : .85);
-    M.cone(x, ht + .3, z, .2, .16, 4, T.iron); M.cone(x, ht + .33, z, .14, .1, 4, T.snow);
+    M.cone(x, ht + .3, z, .2, .16, 4, T.iron); M.cone(x, ht + .33, z, .14, .1, 4, T.snow, G.SNOW);
     s.pools.push([x, z, 1.4 + ht * .45, T.lamp, now ? .75 : .45]);
   }
-  /* Lanterns lit on a stall's garland: one per `scale.view` opens today, on one scale for every
+  /* Lanterns lit on a stall's pole: one per `scale.view` opens today, on one scale for every
      site; one at least for a view opened at all. */
   function lit(v) { return v.n ? Math.min(GARLAND, Math.max(1, Math.ceil(v.n / scale.view))) : 0; }
-  /* A cord between two points: two thin ribbons crossed, so it shows from any side (gl.js draws
-     both faces of each). */
-  function cord(M, a, b, col, w) {
-    var dx = b[0] - a[0], dz = b[2] - a[2], l = Math.hypot(dx, dz) || 1, nx = -dz / l * w, nz = dx / l * w;
-    M.quad(a, b, [b[0], b[1] + w * 2, b[2]], [a[0], a[1] + w * 2, a[2]], col);
-    M.quad([a[0] - nx, a[1], a[2] - nz], [a[0] + nx, a[1], a[2] + nz], [b[0] + nx, b[1], b[2] + nz], [b[0] - nx, b[1], b[2] - nz], col);
+  /* Steps in the snow from a to b: as many as came (up to a few dozen), spread as wide as the way is worn. */
+  function prints(M, a, b, k, n, seed, y) {
+    var dx = b[0] - a[0], dz = b[2] - a[2], L = Math.hypot(dx, dz) || 1, rot = Math.atan2(dx, dz), ux = dx / L, uz = dz / L, steps = Math.min(40, n);
+    for (var i = 0; i < steps; i++) {
+      var t = (i + rand(seed, i)) / steps, side = (i % 2 ? 1 : -1) * (.1 + rand(i, seed) * (.08 + .5 * clamp(k, 0, 1)));
+      M.flat(a[0] + dx * t - uz * side, y, a[2] + dz * t + ux * side, .13, .25, G.mix(T.path, T.stoneDark, .5), 0, rot);
+    }
   }
-  /* A market stall: a counter with its wares under a canvas roof, a lamp while it is open (opened
-     today), and behind it a mast with the garland that sags up to the clock tower. */
+  /* The way to a door: as wide and as worn as the page is busy today. */
+  function track(M, a, b, k, n, seed) {
+    var dx = b[0] - a[0], dz = b[2] - a[2], L = Math.hypot(dx, dz), rot = Math.atan2(dx, dz); k = clamp(k, 0, 1);
+    M.flat((a[0] + b[0]) / 2, .022, (a[2] + b[2]) / 2, .45 + 1.4 * Math.sqrt(k), L + .4, G.mix(T.snow2, T.path, .3 + .7 * k), 0, rot);
+    prints(M, a, b, k, n, seed, .03);
+  }
+  /* A hip roof (four slopes, a short ridge along local x), or a gable one (`G.Mesh.roof`). */
+  function hip(M, cx, y0, cz, L, D, h, col, rot, over, em) {
+    var P = G.frame(cx, cz, rot), x = L / 2 + over, z = D / 2 + over, r = Math.max(0, x - z), y1 = y0 + h;
+    M.quad(P(-x, y0, z), P(x, y0, z), P(r, y1, 0), P(-r, y1, 0), col, em);
+    M.quad(P(x, y0, -z), P(-x, y0, -z), P(-r, y1, 0), P(r, y1, 0), col, em);
+    M.tri(P(x, y0, z), P(x, y0, -z), P(r, y1, 0), col, em);
+    M.tri(P(-x, y0, -z), P(-x, y0, z), P(-r, y1, 0), col, em);
+  }
+  /* A timber-framed house: a stone ground floor, each storey above on its beam and a little wider,
+     a steep roof, and windows on every side, so the used share reads from wherever the camera
+     is. The storeys are today's pageviews; a brass band round the front is yesterday's, up to
+     this time (on a rod over the roof when yesterday was taller). A page nobody opened today is
+     one storey, shuttered, its lamp out. What is not a count varies by the page's seed, so no
+     two houses are alike: the width, the roof (gable or hip), the colour of door and shutters,
+     and one thing by the door (a balcony, a woodpile, a bench). */
+  function house(M, s, h, dark) {
+    var t = h.t, k = s.kit, awake = t.pv > 0, f = awake ? floors(t) : 1, rot = -h.a - Math.PI / 2, P = G.frame(h.pos[0], h.pos[2], rot), x0 = h.pos[0], z0 = h.pos[2];
+    var warm = warmOf(t), lit = dark == null ? f : Math.floor(f * (1 - dark)), y = 0, sd = h.seed;
+    var w = 2.3 + rand(sd, 21) * .7, d = 2 + rand(sd, 22) * .4, ww = w, dd = d, wx = w * .24, shut = T.shutters[Math.floor(rand(sd, 23) * T.shutters.length)];
+    var hipped = rand(sd, 24) < k.hip, extra = Math.floor(rand(sd, 25) * 4);
+    function win(x, wy, nx, nz, half, on, pool) {   // (nx, nz): the wall's outward normal in the house's frame; x along the wall
+      var ax = nz ? x : nx * half, az = nz ? nz * half : x, a = P(ax, 0, az), b = P(ax + nx * .02, 0, az + nz * .02), c = P(ax + nx * .06, 0, az + nz * .06);
+      M.box(a[0], wy - .03, a[2], nz ? .5 : .04, .56, nz ? .04 : .5, T.timber, 0, rot);
+      M.box(b[0], wy, b[2], nz ? .38 : .03, .46, nz ? .03 : .38, !awake ? shut : on ? T.window : T.windowDark, on ? 1 : awake ? .35 : 0, rot);
+      M.box(c[0], wy - .06, c[2], nz ? .56 : .14, .07, nz ? .14 : .56, T.snow, G.SNOW, rot);
+      if (on) { var g = P(ax + nx * .25, 0, az + nz * .25); W.addGlow(s.glow, [g[0], wy + .23, g[2]], T.window, .16, 1.4); if (pool) { var pl = P(ax + nx * 1.1, 0, az + nz * 1.1); s.pools.push([pl[0], pl[2], 1.5, T.window, .5]); } }
+    }
+    M.box(x0, 0, z0, w + .16, .5, d + .16, T.stoneDark, 0, rot);
+    for (var j = 0; j < f; j++) {
+      var jut = Math.min(j, 2) * .12; ww = w + jut; dd = d + jut;
+      M.box(x0, y + (j ? 0 : .5), z0, ww, FLOOR - (j ? 0 : .5), dd, j === 0 ? T.stone : h.wall, 0, rot);
+      if (j) {
+        M.box(x0, y, z0, ww + .1, .12, dd + .1, T.timber, 0, rot);
+        [[-1, -1], [1, -1], [-1, 1], [1, 1], [0, 1], [0, -1]].forEach(function (c) { var p = P(c[0] * ww / 2, 0, c[1] * dd / 2); M.box(p[0], y + .12, p[2], .09, FLOOR - .12, .09, T.timber, 0, rot); });
+      }
+      var on = awake && j < lit && j < warm, wy = y + .32;
+      if (j) win(-wx, wy, 0, 1, dd / 2 + .02, on, true);
+      win(wx, wy, 0, 1, dd / 2 + .02, on, true); win(-wx, wy, 0, -1, dd / 2 + .02, on, false); win(wx, wy, 0, -1, dd / 2 + .02, on, true);
+      win(0, wy, 1, 0, ww / 2 + .02, on, false); win(0, wy, -1, 0, ww / 2 + .02, on, false);
+      if (extra === 0 && j === 1) {   // a balcony under the first floor's front window
+        var bp = P(wx, 0, dd / 2 + .3); M.box(bp[0], y, bp[2], .9, .07, .5, T.timber, 0, rot); M.box(bp[0], y + .07, bp[2], .9, .06, .5, T.snow, G.SNOW, rot);
+        var rail = P(wx, 0, dd / 2 + .52); M.box(rail[0], y + .07, rail[2], .9, .32, .04, T.timber, 0, rot);
+      }
+      y += FLOOR;
+    }
+    var door = P(-wx, 0, d / 2 + .03), lamp = P(-wx, 0, d / 2 + .18);
+    M.box(door[0], .5, door[2], .6, .98, .05, shut, 0, rot);
+    if (awake && (dark == null || dark < 1)) {
+      M.box(lamp[0], 1.6, lamp[2], .16, .2, .16, T.lamp, 1, rot); W.addGlow(s.glow, [lamp[0], 1.7, lamp[2]], T.lamp, .5, 2.2);
+      var dp = P(-wx, 0, d / 2 + 1.4); s.pools.push([dp[0], dp[2], 2.4, T.lamp, .55]);
+    }
+    var heap = P(w / 2 - .15, 0, d / 2 + .5); M.lump(heap[0], 0, heap[2], awake ? .38 : .7, awake ? .3 : .5, 6, T.snow, sd, G.SNOW);
+    if (extra === 1) {   // a woodpile against the side wall, under its snow
+      var wp = P(w / 2 + .3, 0, -.2); M.box(wp[0], 0, wp[2], .45, .55, 1.2, T.trunk, 0, rot); M.box(wp[0], .55, wp[2], .5, .08, 1.25, T.snow, G.SNOW, rot);
+    } else if (extra === 2) {   // a bench by the door
+      var bn = P(wx * .3 + .4, 0, d / 2 + .35); M.box(bn[0], .28, bn[2], .7, .07, .24, T.timber, 0, rot); M.box(bn[0], .35, bn[2], .7, .05, .24, T.snow, G.SNOW, rot);
+      [-.28, .28].forEach(function (e) { var l = P(wx * .3 + .4 + e, 0, d / 2 + .35); M.box(l[0], 0, l[2], .06, .28, .2, T.timber, 0, rot); });
+    }
+    /* the roof, its ridge from front to back */
+    var rl = dd + .14, rs = ww + .14, rh = hipped ? 1.3 : 1.6, r2 = rot + Math.PI / 2;
+    if (hipped) {
+      hip(M, x0, y, z0, rl, rs, rh, T.roof, r2, .3); hip(M, x0, y + .11, z0, rl - .06, rs, rh + .02, T.snow, r2, .22, G.SNOW);
+    } else {
+      M.roof(x0, y, z0, rl, rh, rs, T.roof, r2, .3, h.wall);
+      M.roof(x0, y + .11, z0, rl - .06, rh + .02, rs, T.snow, r2, .22, null, G.SNOW);
+      [1, -1].forEach(function (e) { var a = P(0, 0, e * (dd / 2 + .02)); M.box(a[0], y + .28, a[2], .34, .4, .04, awake && lit > 0 && warm > 0 ? T.window : T.windowDark, awake && lit > 0 && warm > 0 ? 1 : .3, rot); });
+    }
+    [-1, 1].forEach(function (e) { var p = P(e * (rs / 2 + .26), 0, 0); M.box(p[0], y - .03, p[2], .2, .15, rl + .5, T.snow, G.SNOW, rot); });
+    var ch = P(w * .29, 0, -.3); M.box(ch[0], y + .3, ch[2], .36, 1.5, .36, T.stoneDark, 0, rot); M.box(ch[0], y + 1.8, ch[2], .44, .1, .44, T.snow, G.SNOW, rot);
+    /* yesterday: a brass band at the top of its storeys, or over the roof on a rod */
+    var yf = t.ypv ? Math.max(1, Math.ceil(t.ypv / scale.unit)) : 0;
+    if (yf && yf <= f) M.box(x0, yf * FLOOR - .05, z0, w + Math.min(yf - 1, 2) * .12 + .2, .08, d + Math.min(yf - 1, 2) * .12 + .2, T.brass, .3, rot);
+    else if (yf) {
+      var top = y + rh, my = yf * FLOOR + rh, rp = P(-w * .3, 0, 0);
+      M.cyl(rp[0], top - .3, rp[2], .025, my - top + .3, 5, T.brass, .2); M.cyl(rp[0], my, rp[2], .2, .06, 10, T.brass, .3);
+    }
+    h.chimney = awake ? [ch[0], y + 1.9, ch[2]] : null; h.top = y + .4; h.door = P(-wx, 0, d / 2 + .9);
+    s.occ.push([x0, z0, w + 1.3, d + 1.3, rot, .6]);
+    var a0 = at(s.o, h.a, s.R.inner), b0 = at(s.o, h.a, s.R.house - 1.3);
+    track(M, a0, b0, t.pv / (scale.unit * 6), t.pv, sd);
+  }
+  /* A stall with no garland: its lanterns stand on a pole beside it, one lit per `scale.view`
+     opens today from the ground up, so a stall's count reads as a house's storeys do. Shut and
+     dark when nobody opened it. */
   function stall(M, s, st, dark) {
-    var v = st.v, k = st.k, rot = Math.PI / 2 - st.a, x = st.pos[0], z = st.pos[2], P = G.frame(x, z, rot);
+    var v = st.v, k = st.k, rot = Math.PI / 2 - st.a, x = st.pos[0], z = st.pos[2], P = G.frame(x, z, rot), open = v.n > 0;
     var n = dark == null ? lit(v) : Math.floor(lit(v) * (1 - dark));
-    M.box(x, 0, z, 1.5, .5, .62, T.timber, 0, rot);
-    M.box(x, .5, z, 1.64, .07, .76, G.mix(T.timber, T.snow, .3), 0, rot);
-    [-.47, 0, .47].forEach(function (gx, i) { var g = P(gx, 0, .04); M.box(g[0], .57, g[2], .32, .14 + rand(k, i) * .14, .34, T.walls[(k + i * 3) % T.walls.length], 0, rot); });
-    [[-.74, -.32], [.74, -.32], [-.74, .4], [.74, .4]].forEach(function (c) { var p = P(c[0], 0, c[1]); M.cyl(p[0], 0, p[2], .045, 1.52, 5, T.timber); });
+    M.box(x, 0, z, 1.6, .55, .7, T.timber, 0, rot);
+    M.box(x, .55, z, 1.76, .07, .86, G.mix(T.timber, T.snow, .3), 0, rot);
+    if (open) [-.5, 0, .5].forEach(function (gx, i) { var g = P(gx, 0, .04); M.box(g[0], .62, g[2], .34, .16 + rand(k, i) * .16, .36, T.walls[(k + i * 3) % T.walls.length], 0, rot); });
+    else { var sh = P(0, 0, .38); M.box(sh[0], .62, sh[2], 1.6, .8, .05, T.timber, 0, rot); }
+    [[-.8, -.36], [.8, -.36], [-.8, .44], [.8, .44]].forEach(function (c) { var p = P(c[0], 0, c[1]); M.cyl(p[0], 0, p[2], .05, 1.62, 5, T.timber); });
     var c = P(0, 0, .04);
-    M.roof(c[0], 1.5, c[2], 1.62, .46, .86, k % 2 ? T.awning2 : T.awning, rot, .14, k % 2 ? T.awning : T.awning2);
-    M.roof(c[0], 1.6, c[2], 1.5, .4, .5, T.snow, rot, .04);
-    if (v.n > 0 && dark !== 1) {
-      var lp = P(0, 0, .3); M.box(lp[0], 1.2, lp[2], .15, .2, .15, T.lamp, 1, rot);
-      W.addGlow(s.glow, [lp[0], 1.3, lp[2]], T.lamp, .4, 1.9); s.pools.push([st.front[0], st.front[2], 1.9, T.lamp, .5]);
-    }
-    s.occ.push([x, z, 2.1, 1.4, rot, .55]);
-    var m = P(0, 0, -.34), A = [m[0], 2.15, m[2]], B = at(s.o, st.a, 1.15); B[1] = 4.05;
-    function pt(t) { return [A[0] + (B[0] - A[0]) * t, A[1] + (B[1] - A[1]) * t - 2.2 * t * (1 - t), A[2] + (B[2] - A[2]) * t]; }
-    M.cyl(m[0], 0, m[2], .05, 2.2, 5, T.timber);
-    for (var i = 0; i < 10; i++) cord(M, pt(i / 10), pt((i + 1) / 10), T.iron, .022);
+    M.roof(c[0], 1.6, c[2], 1.76, .5, .96, T.awnings[k % 4], rot, .16, T.awnings[(k + 1) % 4]);
+    M.roof(c[0], 1.7, c[2], 1.62, .44, .56, T.snow, rot, .05, null, G.SNOW);
+    if (open && dark !== 1) { var lp = P(0, 0, .34); M.box(lp[0], 1.28, lp[2], .15, .2, .15, T.lamp, 1, rot); W.addGlow(s.glow, [lp[0], 1.38, lp[2]], T.lamp, .4, 1.9); s.pools.push([st.front[0], st.front[2], 1.9, T.lamp, .5]); }
+    s.occ.push([x, z, 2.2, 1.5, rot, .55]);
+    var pp = P(1.08, 0, .3);
+    M.cyl(pp[0], 0, pp[2], .12, .14, 6, T.stoneDark); M.cyl(pp[0], 0, pp[2], .04, .5 + GARLAND * .36, 5, T.iron);
     for (var j = 0; j < GARLAND; j++) {
-      var p = pt((j + .55) / (GARLAND + .6)), on = j < n;
-      M.box(p[0], p[1] - .33, p[2], .26, .31, .26, on ? T.view : G.mix(T.windowDark, T.view, .12), on ? 1 : .3, rot);
-      M.box(p[0], p[1] - .03, p[2], .12, .04, .12, T.iron, 0, rot);
-      if (on) W.addGlow(s.glow, [p[0], p[1] - .17, p[2]], T.view, .5, 1.9);
+      var y = .5 + j * .36;
+      if (j < n) { M.box(pp[0], y, pp[2], .25, .29, .25, T.view, 1, rot); M.box(pp[0], y + .29, pp[2], .3, .04, .3, T.iron, 0, rot); W.addGlow(s.glow, [pp[0], y + .14, pp[2]], T.view, .5, 1.7); }
+      else M.box(pp[0], y + .13, pp[2], .13, .04, .13, T.iron, 0, rot);
     }
-    if (n) { var mid = pt(n / 2 / (GARLAND + .6)); s.pools.push([mid[0], mid[2], 1.2 + n * .28, T.view, .3 + n * .05]); }
+    if (n) s.pools.push([pp[0], pp[2], 1.2 + n * .25, T.view, .3 + n * .05]);
+  }
+  /* A low drystone wall under its snow, where the palisade stood. */
+  function wall(M, s) {
+    var R = s.R, o = s.o, n = Math.round(R.wall * TAU / 1.1), len = R.wall * TAU / n;
+    for (var k = 0; k < n; k++) {
+      var a = (k + .5) / n * TAU, p = at(o, a, R.wall), hg = .72 + rand(k, 5) * .22;
+      if (s.gates.some(function (g) { return angDiff(a, g.a) * R.wall < g.w / 2 + .8; })) continue;
+      M.box(p[0], 0, p[2], .55, hg, len + .05, G.mix(T.stone, T.stoneDark, rand(k, 6)), 0, -a);
+      M.box(p[0], hg, p[2], .68, .17, len + .07, T.snow, G.SNOW, -a);
+    }
+  }
+  /* The tower's pennant, in the village's own colour. */
+  function clock(M, s) {
+    var o = s.o;
+    M.cyl(o[0], 11.3, o[2], .03, .9, 4, T.brass);
+    M.quad([o[0], 12.15, o[2]], [o[0] + 1.3, 11.95, o[2] + .2], [o[0] + 1.3, 11.5, o[2] + .2], [o[0], 11.55, o[2]], s.tint, .45);
+  }
+  /* The hands on the tower's four faces, drawn with what moves, so the kept scene is not drawn
+     again for them: the hour hand goes round once a day, like the lamps (midnight at the top);
+     the minute hand once an hour, in steps of five. A past day stands at its end. */
+  function hands(M, s) {
+    var o = s.o, d = new Date(), hr = state.past ? 0 : (d.getUTCHours() + d.getUTCMinutes() / 60) / 24 * TAU, mn = state.past ? 0 : Math.floor(d.getUTCMinutes() / 5) * 5 / 60 * TAU;
+    function hand(c, u, th, len, wd) {
+      var dir = [Math.sin(th) * u[0], Math.cos(th), Math.sin(th) * u[2]], pr = [Math.cos(th) * u[0] * wd, -Math.sin(th) * wd, Math.cos(th) * u[2] * wd], tip = [c[0] + dir[0] * len, c[1] + dir[1] * len, c[2] + dir[2] * len];
+      M.quad([c[0] - pr[0], c[1] - pr[1], c[2] - pr[2]], [c[0] + pr[0], c[1] + pr[1], c[2] + pr[2]], [tip[0] + pr[0], tip[1] + pr[1], tip[2] + pr[2]], [tip[0] - pr[0], tip[1] - pr[1], tip[2] - pr[2]], T.iron, 0);
+    }
+    [[0, 1], [0, -1], [1, 0], [-1, 0]].forEach(function (f) {
+      var c = [o[0] + f[0] * 1.06, 5.79, o[2] + f[1] * 1.06], u = [f[1], 0, -f[0]];
+      hand(c, u, hr, .26, .045); hand(c, u, mn, .4, .028);
+    });
+  }
+  /* A villager with legs, a coat, a scarf in the colour of the gate they came through, and a hat. */
+  function villager(M, p, dir, col, bob, seed, d) {
+    var P = G.frame(p[0], p[2], dir), sw = Math.sin((d || 0) * 5) * .07, l = P(-.07, 0, sw), r = P(.07, 0, -sw);
+    M.box(l[0], 0, l[2], .08, .24, .09, T.coat, 0, dir); M.box(r[0], 0, r[2], .08, .24, .09, T.coat, 0, dir);
+    M.cyl(p[0], .2 + bob, p[2], .19, .42, 7, G.mix(T.coat, col, .2), 0, .13, true);
+    M.cyl(p[0], .6 + bob, p[2], .15, .09, 7, col, .35);
+    M.cyl(p[0], .68 + bob, p[2], .11, .19, 7, T.skin, 0, .1, true);
+    M.cyl(p[0], .85 + bob, p[2], .15, .03, 7, seed > .5 ? col : T.coat); M.cone(p[0], .87 + bob, p[2], .12, .17, 7, seed > .5 ? col : T.coat, 0, true);
+    var lh = P(.24, 0, .14);
+    M.cyl(lh[0], .34 + bob, lh[2], .01, .14, 3, T.iron); M.box(lh[0], .24 + bob, lh[2], .1, .12, .1, T.lamp, 1);
+    W.addGlow(W.glow, [lh[0], .3 + bob, lh[2]], T.lamp, .9, 1.5);
+    W.spot([lh[0], Math.max(.07, hf(lh[0], lh[2]) + .06), lh[2]], .5, 2.6, G.scale(T.lamp, .9));
   }
 
   /* One village into its own layer, with its own pools, footprints, glows and labels: a visit
@@ -426,22 +613,23 @@
       if (L) { delete old[key]; L.p = p; L.show = show; } else L = W.label(p, '', cls, show);
       s.labels[key] = L; return L;
     }
-    var R = s.R, paved = Math.round(R.pave / .95);
-    for (var rr = 0; rr < paved; rr++) M.ring(o[0], .03, o[2], rr * .95, (rr + 1) * .95, 48, rr % 2 ? T.stone : G.mix(T.stone, T.stoneDark, .35));
+    var R = s.R;
+    { M.disc(o[0], .03, o[2], R.pave, 48, G.mix(T.stone, T.stoneDark, .22)); for (var cr = 1.9; cr < R.pave - .5; cr += 1.9) M.ring(o[0], .034, o[2], cr, cr + .05, 48, G.mix(T.stone, T.stoneDark, .7)); }
     M.ring(o[0], .05, o[2], R.pave, R.pave + .3, 48, T.stoneDark); M.ring(o[0], .02, o[2], R.pave + .3, R.pave + 2, 48, T.path);
     // the clock tower
     M.box(o[0], 0, o[2], 2.6, .5, 2.6, T.stoneDark); M.box(o[0], .5, o[2], 2.2, 3.4, 2.2, T.stone);
     M.box(o[0], 3.9, o[2], 2.4, .16, 2.4, T.timber); M.box(o[0], 4.06, o[2], 1.9, 3.3, 1.9, G.mix(T.stone, T.snow, .2));
     [[0, 1], [0, -1], [1, 0], [-1, 0]].forEach(function (f) {
       M.box(o[0] + f[0] * .97, 5.25, o[2] + f[1] * .97, f[0] ? .05 : 1.1, 1.1, f[1] ? .05 : 1.1, T.iron);
-      M.box(o[0] + f[0], 5.33, o[2] + f[1], f[0] ? .05 : .92, .92, f[1] ? .05 : .92, T.clock, .95);
+      M.box(o[0] + f[0], 5.33, o[2] + f[1], f[0] ? .05 : .92, .92, f[1] ? .05 : .92, T.clock, .6);
       W.addGlow(s.glow, [o[0] + f[0] * 1.2, 5.8, o[2] + f[1] * 1.2], T.clock, .35, 3.4);
       s.pools.push([o[0] + f[0] * 4, o[2] + f[1] * 4, 4.5, T.clock, .35]);
     });
     M.box(o[0], 7.36, o[2], 2.3, .14, 2.3, T.timber);
-    M.cone(o[0], 7.5, o[2], 1.75, 3.2, 4, T.roof); M.cone(o[0], 8.5, o[2], 1.2, 2.25, 4, T.snow);
+    M.cone(o[0], 7.5, o[2], 1.75, 3.2, 4, T.roof); M.cone(o[0], 8.5, o[2], 1.2, 2.25, 4, T.snow, G.SNOW);
     M.cyl(o[0], 10.7, o[2], .04, .7, 4, T.brass);
     s.occ.push([o[0], o[2], 3.4, 3.4, 0, .7]);
+    clock(M, s);
     // the 24 hours: today's lamp, yesterday's brass ring (and rod, where today has not reached it)
     s.nowLamp = null;
     s.hours.forEach(function (hh) {
@@ -470,21 +658,16 @@
       var a = h.a + Math.PI / R.slots, p = at(o, a, R.house + .6);
       if (!s.gates.some(function (g) { return angDiff(a, g.a) < .25; })) pine(M, p[0], 0, p[2], .55 + rand(k, 9) * .25, pines);
     });
-    // the palisade, a gate per referrer
-    var posts = Math.round(170 * R.wall / 16);
-    M.ring(o[0], .04, o[2], R.wall - .9, R.wall + .9, 96, T.snow2);
-    for (var k = 0; k < posts; k++) {
-      var a2 = k / posts * TAU, p2 = at(o, a2, R.wall + (rand(k, 4) - .5) * .12);
-      if (s.gates.some(function (g) { return angDiff(a2, g.a) * R.wall < g.w / 2 + .45; })) continue;
-      var ph = 1.7 + rand(k, 2) * .4;
-      M.cyl(p2[0], 0, p2[2], .19, ph, 6, T.timber); M.cone(p2[0], ph, p2[2], .19, .35, 6, T.timber);
-    }
+    // the wall, a gate per referrer
+    M.ring(o[0], .04, o[2], R.wall - .9, R.wall + .9, 96, T.snow2, G.SNOW);
+    wall(M, s);
+    var busiest = 1; s.lanes.forEach(function (l) { busiest = Math.max(busiest, l.count); });
     s.gates.forEach(function (g) {
       var tan = [-Math.sin(g.a), 0, Math.cos(g.a)]; g.lights = [];
       [-1, 1].forEach(function (sd) {
         var p = [g.pos[0] + tan[0] * sd * (g.w / 2 + .4), 0, g.pos[2] + tan[2] * sd * (g.w / 2 + .4)];
         M.box(p[0], 0, p[2], .65, 3, .65, T.timber, 0, -g.a);
-        M.cone(p[0], 3, p[2], .62, .8, 4, T.roof); M.cone(p[0], 3.25, p[2], .42, .55, 4, T.snow);
+        M.cone(p[0], 3, p[2], .62, .8, 4, T.roof); M.cone(p[0], 3.25, p[2], .42, .55, 4, T.snow, G.SNOW);
         var lp = [p[0] + Math.cos(g.a) * .4, 2.3, p[2] + Math.sin(g.a) * .4];
         M.box(lp[0], lp[1], lp[2], .22, .28, .22, g.col, 1);
         W.addGlow(s.glow, [lp[0], lp[1] + .14, lp[2]], g.col, .8, 2.6); g.lights.push([lp[0], lp[1] + .14, lp[2]]);
@@ -496,6 +679,7 @@
       M.flat(mid[0], .03, mid[2], g.w, 9.5, T.path, 0, rot);
       var ia = at(o, g.a, R.inner), ib = at(o, g.a, R.wall), im = [(ia[0] + ib[0]) / 2, 0, (ia[2] + ib[2]) / 2];
       M.flat(im[0], .028, im[2], Math.max(1, g.w * .7), R.wall - R.inner, T.path, 0, rot);
+      prints(M, g.end, ia, g.l.count / busiest, g.l.count, 50 + s.gates.indexOf(g), .036);
       g.label = labelAt('g' + g.l.key, [g.end[0], 1.4, g.end[2]], 'v-gate', function () { return view.site === s && !narrow(); });
       g.label.what = { kind: 'lane', lane: g.l, s: s };
       g.label.el.style.setProperty('--lane', css(g.col));   // CSSOM: the CSP refuses style attributes
@@ -517,7 +701,7 @@
      this stays the same, the village on screen is still right. */
   function signature(s) {
     var a = [state.dark, state.hour, state.past, scale.unit, s.o.join(), s.R.wall, s.loaded], maxN = 1;
-    s.towers.forEach(function (t) { a.push(t.path, floors(t), warmOf(t), t.pv > 0); });
+    s.towers.forEach(function (t) { a.push(t.path, floors(t), warmOf(t), t.pv > 0, Math.ceil(t.ypv / scale.unit)); });
     s.lanes.forEach(function (l) { maxN = Math.max(maxN, l.count); });
     s.lanes.forEach(function (l) { a.push(l.key, Math.round(24 * l.count / maxN)); });
     s.hours.forEach(function (h) { a.push(Math.round(92 * h.today / scale.hour), Math.round(92 * h.yesterday / scale.hour)); });
@@ -624,9 +808,14 @@
   }
   /* The window or a panel changed size: measure the gap again, and draw. */
   function resized() { box = null; if (W) W.wake(); }
+  /* A lens shifted down, as for a building: the camera still looks down on the villages, and the
+     mountains and the sky come into the picture above them. The steeper the camera looks down,
+     the less of it: all of it over the valley, about half over one village, none from above. A
+     narrow screen keeps the old view. */
+  function lens(pitch) { return narrow() ? 0 : clamp(LENS + (pitch - TILT.bay) * 1.5, LENS, 0); }
   function shift() {
     var B = frameBox(), cx = (B.left + B.right) / 2, cy = (B.top + B.bottom) / 2;
-    return [cx / B.w * 2 - 1, 1 - cy / B.h * 2];
+    return [cx / B.w * 2 - 1, 1 - cy / B.h * 2 + lens(W.cam.pitch)];
   }
   /* The distance at which a half-width X and a half-height Y fit the gap the panels leave. */
   function fit(X, Y) {
@@ -635,13 +824,14 @@
   }
   function goal() {
     if (view.mode === 'site' && view.site) {
-      var o = view.site.o, pitch = .55, rw = view.site.R.wall;
-      return { target: [o[0], 2, o[2]], yaw: .12, pitch: pitch, dist: clamp(fit(rw + 3, (rw + 3) * Math.sin(pitch) + 6) * 1.02, 24, 200) };
+      var o = view.site.o, pitch = narrow() ? .55 : TILT.site, rw = view.site.R.wall;
+      return { target: [o[0], 2, o[2]], yaw: .12, pitch: pitch, dist: clamp(fit(rw + 3, (rw + 3) * Math.sin(pitch) + 6) * 1.02 * (1 - lens(pitch) * .8), 24, 200) };
     }
     var x0 = Math.min.apply(null, sites.map(function (s) { return s.o[0] - s.R.wall; }).concat([-16])), x1 = Math.max.apply(null, sites.map(function (s) { return s.o[0] + s.R.wall; }).concat([16]));
     var zs = sites.map(function (s) { return s.o[2]; }), cz = sites.length ? (Math.min.apply(null, zs) + Math.max.apply(null, zs)) / 2 : 0;
     var big = Math.max.apply(null, sites.map(function (s) { return s.R.wall; }).concat([16]));
-    return { target: [(x0 + x1) / 2, 2, cz], yaw: .08, pitch: .4, dist: clamp(fit((x1 - x0) / 2 + 1, (big + 4) * Math.sin(.4) + 9) * .95, 40, 300) };
+    var pb = narrow() ? .4 : TILT.bay;
+    return { target: [(x0 + x1) / 2, 2, cz], yaw: .08, pitch: pb, dist: clamp(fit((x1 - x0) / 2 + 1, (big + 4) * Math.sin(pb) + 9) * .95 * (1 - lens(pb) * .5), 40, 300) };
   }
   function frameView(instant) { if (W) { view.free = false; W.flyTo(goal(), instant || reduced ? 0 : 1600); } }
 
@@ -672,7 +862,8 @@
       s.walkers = s.walkers.filter(function (w) {
         w.d += dt * w.speed; var a = G.along(w.path, w.d);
         if (a.done) { (w.stall || w.h).flash = 1; cue(w.stall ? 'stall' : 'door', s, w.cue); return false; }
-        villager(M, a.p, a.dir, w.col, Math.abs(Math.sin(w.d * 5)) * .05, w.seed);
+        villager(M, a.p, a.dir, w.col, Math.abs(Math.sin(w.d * 5)) * .05, w.seed, w.d);
+        if (!reduced && Math.floor(w.d / .42) !== w.step) { w.step = Math.floor(w.d / .42); s.steps.push({ p: a.p, dir: a.dir, side: w.step % 2 ? 1 : -1, t: t }); }
         return true;
       });
       s.sparks = s.sparks.filter(function (sp) {
@@ -690,20 +881,19 @@
       W.puffs.push(sm.p[0] + sm.t * .35 + Math.sin(sm.t + sm.s * 6) * .15, sm.p[1] + sm.t * .55, sm.p[2] - sm.t * .1, T.smoke[0], T.smoke[1], T.smoke[2], .28 * (1 - k) * Math.min(1, sm.t * 3), .5 + sm.t * .5);
       return k < 1;
     });
+    /* the steps live villagers left, fading for a minute */
+    var foot = G.mix(T.path, T.stoneDark, .5);
+    sites.forEach(function (s) {
+      s.steps = s.steps.filter(function (st) { return t - st.t < STEPS_S; });
+      if (s.steps.length > 600) s.steps.splice(0, s.steps.length - 600);
+      s.steps.forEach(function (st) {
+        var k = 1 - (t - st.t) / STEPS_S, P = G.frame(st.p[0], st.p[2], st.dir), q = P(st.side * .08, 0, 0);
+        M.flat(q[0], .045, q[2], .11, .22, G.mix(T.snow, foot, k), 0, st.dir);
+      });
+    });
+    sites.forEach(function (s) { if (s.loaded) hands(M, s); });
     var ringed = highlight(M, t);
     return busy || ringed || smoke.length > 0;
-  }
-  function villager(M, p, dir, col, bob, seed) {
-    var P = G.frame(p[0], p[2], dir);
-    M.cone(p[0], bob, p[2], .22, .62, 7, G.mix(T.coat, col, .25), 0, true);
-    M.cyl(p[0], .5 + bob, p[2], .13, .08, 7, col, .35);
-    M.cyl(p[0], .56 + bob, p[2], .11, .18, 7, T.skin, 0, .1, true);
-    M.cone(p[0], .72 + bob, p[2], .13, .2, 7, seed > .5 ? col : T.coat, 0, true);
-    var lh = P(.2, 0, .12);
-    M.cyl(lh[0], .28 + bob, lh[2], .01, .12, 3, T.iron);
-    M.box(lh[0], .2 + bob, lh[2], .09, .11, .09, T.lamp, 1);
-    W.addGlow(W.glow, [lh[0], .26 + bob, lh[2]], T.lamp, .9, 1.5);
-    W.spot([lh[0], Math.max(.07, hf(lh[0], lh[2]) + .06), lh[2]], .5, 2.6, G.scale(T.lamp, .9));
   }
   /* What a visit row points at, its house and its gate, or the stall of a view: their labels are
      marked when the row changes (paintHl), and a ring and a glow are drawn round them. Answers
@@ -762,12 +952,15 @@
       overlay = document.createElement('div'); overlay.className = 'scene-labels';
       canvas.parentNode.insertBefore(overlay, canvas.nextSibling);
       try {
+        var s0 = skyAt(clockHour());
         W = G.world(canvas, overlay, {
-          moonDir: [-.45, .62, .55], moon: T.moonlight, skyAmb: T.skyLight, gndAmb: T.groundLight, rim: T.rim,
-          fog: T.skyLow, fogD: .0062, fogH: 25, skyTop: T.skyTop, skyMid: T.skyMid, skyLow: T.skyLow, moonSky: [-.5, .35, -.8], moonTint: T.moon,
-          edge: .55, edgeCol: T.edge, sat: .92, vig: .55, stars: 1, poolK: 1.9, minDist: 6, maxDist: 220, box: [-60, -60, 120], ground: T.snow, star: T.star,
+          moonDir: s0.sun, moon: s0.moonlight, skyAmb: s0.skyLight, gndAmb: s0.groundLight, skyTop: s0.skyTop, skyMid: s0.skyMid, skyLow: s0.skyLow, fog: s0.skyLow, fogD: .0062, fogFrom: .85, fogH: 25,
+          edge: .3, edgeCol: T.edge, sat: 1, con: .28, vig: .6, grain: .014, poolK: 1.9, minDist: 6, maxDist: 220, box: [-60, -60, 120], ground: T.snow, star: T.star,
+          snowCol: T.snow, snowK: .45, sparkK: 1, ao: .6, aoR: .9, bloom: 1, bloomThr: .8, dof: 7, skyTick: 4, auroraA: T.aurora, auroraB: T.aurora2,
         });
       } catch (e) { W = null; fallback(canvas); return; }
+      applySky(); setInterval(function () { if (!document.hidden) applySky(); }, SKY_MS);
+      document.addEventListener('visibilitychange', function () { if (!document.hidden) applySky(); });
       W.shift = shift;
       land = W.layer();
       if (!reduced) {

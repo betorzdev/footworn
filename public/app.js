@@ -374,6 +374,7 @@
     if (state.site) q.push('site=' + encodeURIComponent(state.site));
     if (state.viewDay) q.push('day=' + state.viewDay);
     if (state.site && ledger.isOpen()) q.push('ledger=1', ledger.query());
+    var hour = params(location.search.slice(1)).hour; if (hour) q.push('hour=' + encodeURIComponent(hour));   // the clock held for the village's light stays held
     var url = location.pathname + (q.length ? '?' + q.join('&') : ''), here = location.pathname + location.search;
     if (url === here) return;
     var was = params(location.search.slice(1)), now = level(state.site, ledger.isOpen());

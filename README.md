@@ -2,7 +2,7 @@
 
 <p align="center">
   A visit counter for static sites that sets no cookies, keeps no IP and needs no consent banner.<br>
-  One Cloudflare Worker on the free plan: the collector, a 1&nbsp;KB tracker, a D1 database, a JSON API and a live dashboard: snowed-in villages on a winter night, where every site is a village, every page a house and every visit a villager walking home.
+  One Cloudflare Worker on the free plan: the collector, a 1&nbsp;KB tracker, a D1 database, a JSON API and a live dashboard: snowed-in villages on a polar winter day, where every site is a village, every page a house and every visit a villager walking home.
 </p>
 
 <p align="center">
@@ -12,7 +12,7 @@
   <img alt="Cloudflare Workers, free plan" src="https://img.shields.io/badge/Cloudflare_Workers-free_plan-4a5a4e">
 </p>
 
-<img alt="The Footworn valley on a winter night: three sites as snowed-in villages, each a ring of houses round a clock square inside a palisade, lamps and windows lit warm on the snow. Each village has a sign with its name, visitors today and the change against yesterday, the views opened, the other events and the share of loads used." src="docs/screenshots/village.png">
+<img alt="The Footworn valley at dusk: three sites as snowed-in villages by a frozen lake under the mountains, each a ring of houses round a clock square inside a low stone wall, lamps and windows lit warm on the snow. Each village has a sign with its name, visitors today and the change against yesterday, the views opened, the other events and the share of loads used." src="docs/screenshots/village.png">
 
 <p align="center"><sub>The valley: one village per site, every page a house, all on one scale, live. Click one to look closer.</sub></p>
 
@@ -31,8 +31,13 @@
 - **Free and tiny.** The Workers Free plan has room for about 50 000 pageviews a day. The
   tracker is 1 KB, the Worker has zero runtime dependencies, the dashboard is a few plain files
   (hand-written WebGL2, no 3D library) behind a strict CSP: no framework, no build.
-- **Cheap to leave open.** The scene is drawn once and kept; while only the snow moves the
-  dashboard shows 30 light frames a second, and with reduced motion on, none until a visit comes.
+- **Cheap to leave open.** The scene is drawn once and kept, with everything costly (lens, glow,
+  shadows, sky) in that one drawing; while only the snow moves the dashboard shows 30 light
+  frames a second and runs the sky's passes again once every four seconds, so the sky moves on;
+  with reduced motion on, no frames at all until a visit comes or the light has changed.
+- **A sky that follows your clock.** A polar winter day: a low golden sun at midday, dusk, the
+  blue hour, the night and its aurora, dawn. The sun never gets high, so the lit windows always
+  read. `?hour=13.5` in the address holds the clock there.
 - **It never breaks the host page.** Everything the tracker does is inside `try/catch`;
   `sendBeacon` first, `fetch keepalive` after; a hit that isn’t valid is dropped with a silent `204`.
 
@@ -40,21 +45,25 @@
 
 **A village, up close.** Click a village (or its sign) and the camera flies in. Round the clock
 square, a house per page (every page of the last 30 days, the busiest at twelve o'clock):
-its storeys are today's pageviews, on one scale for every site, and its windows are lit warm
-from the ground up for the share of loads where the page was *used* (a tap, a key or 10 s in
-view); the label over the roof gives both. Round the square, 24 street lamps, one per UTC hour
+its storeys are today's pageviews, on one scale for every site, and its windows (on every side)
+are lit warm from the ground up for the share of loads where the page was *used* (a tap, a key
+or 10 s in view); the label over the roof gives both. A brass band on its front marks
+yesterday's storeys up to this time (a rod over the roof when yesterday was taller), and the way
+to its door is as wide and worn as today's visits, with their footprints. A page nobody opened
+today is shuttered, its lamp out. Round the square, 24 street lamps, one per UTC hour
 clockwise from midnight at the top: each as tall as that hour's pageviews, with a brass ring at
-yesterday's, the current one glowing. In the palisade, a gate per referrer (every one of the
-last 30 days, then *direct*), as wide as today's arrivals, its lanterns in the referrer's colour.
+yesterday's, the current one glowing. In the low stone wall, a gate per referrer (every one of the
+last 30 days, then *direct*), as wide as today's arrivals, its lanterns in the referrer's colour. The clock on the tower tells the UTC time on a
+24-hour dial, like the ring of lamps: midnight at the top.
 Between the lamps and the tower, a market: a stall per view opened inside a page (a `screen`
-event with a `view`; every one of the last 30 days), with a garland up to the tower whose
-green lanterns light up with today's opens, on one scale for every site; a stall nobody opened
-today is shut and dark. Nothing is grouped: a village is as big as its site's use. Ten stalls
+event with a `view`; every one of the last 30 days), with a pole beside it whose
+green lanterns light up from the ground with today's opens, on one scale for every site; a stall
+nobody opened today is boarded up. Nothing is grouped: a village is as big as its site's use. Ten stalls
 stand round the tower, the next sixteen in a row behind them, and so on; the lamps, the ring
-of houses and the palisade move out as the market, the pages and the referrers need, and a
+of houses and the wall move out as the market, the pages and the referrers need, and a
 page, referrer or view first seen today builds its house, gate or stall there and then.
 Every pageview is a villager with a scarf in that colour who walks in through the gate, across
-the square and into the house; every view opened, one in a green scarf who leaves that page's
+the square and into the house, leaving steps in the snow that fade in a minute; every view opened, one in a green scarf who leaves that page's
 house for the stall; every other event, fireworks over the roof. Drag to turn, wheel or
 pinch to come closer; hover, or tap, a house, a gate or a stall for its numbers. At UTC midnight
 (the day's cut) the windows go dark from the top down and the day starts again.
@@ -240,7 +249,7 @@ the width, no id), live and as the day's history; earlier days are only counts. 
 | | |
 |---|---|
 | `GET /api/sites` | `[{ id, name }]` |
-| `GET /api/scene?site=` | what the village draws, all counts: `pages`, `refs` and `views` (every one of the last 30 days, busiest first, each list cut at 200, `[{ value, hits }]`), `today: { hits, visitors, events, viewsTotal, loads, engaged, pages: [{ path, hits, loads, engaged, events }], refs: [{ ref, hits }], views: [{ view, hits }], viewPages: [{ path, view, hits }] }` (the used rate is `engaged / loads`, as in `/api/stats`; a view is a `screen` event with a `view`, so `viewsTotal` is inside `events`), `yesterday: { visitors }` up to this time of day, and `hours: [{ hour, today, yesterday }]`, pageviews by UTC hour. With `&day=` before today (`past: true` in the answer) it is the village as that day ended: `today` is that day, the 30 days end on it, `yesterday` is the whole day before |
+| `GET /api/scene?site=` | what the village draws, all counts: `pages`, `refs` and `views` (every one of the last 30 days, busiest first, each list cut at 200, `[{ value, hits }]`), `today: { hits, visitors, events, viewsTotal, loads, engaged, pages: [{ path, hits, loads, engaged, events }], refs: [{ ref, hits }], views: [{ view, hits }], viewPages: [{ path, view, hits }] }` (the used rate is `engaged / loads`, as in `/api/stats`; a view is a `screen` event with a `view`, so `viewsTotal` is inside `events`), `yesterday: { visitors, pages: [{ path, hits }] }` up to this time of day, and `hours: [{ hour, today, yesterday }]`, pageviews by UTC hour. With `&day=` before today (`past: true` in the answer) it is the village as that day ended: `today` is that day, the 30 days end on it, `yesterday` is the whole day before |
 | `GET /api/days?site=&from=&to=` | `{ days: [{ day, visitors, hits }] }`, visitors and pageviews per day (a day with none has no row): the bars of the history strip |
 | `GET /api/visits?site=` | today's visits (UTC), newest first, at most 2000, rounded: `{ day, now, visits: [{ minute, path, ref, device, browser, os, lang, country, first, event, props }] }`. Never the width, the second or an id |
 | `GET /api/live-ticket` | `{ ticket }`, good for 60 s, to open the live socket |

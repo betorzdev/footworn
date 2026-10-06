@@ -73,19 +73,34 @@ errors, loading state, URL state, reduced motion, focus rings and press feedback
 - **Rings of houses**: since 2026-10-06 nothing is grouped and a village's ring of houses
   widens with its pages (option A of `design/growth`, that day's round). Past about 40 pages
   that leaves a snowy hole between the lamps and the houses: then option B, a second ring of
-  houses behind the first, the palisade behind the last, each ring keeping the gates' lanes free.
+  houses behind the first, the wall behind the last, each ring keeping the gates' lanes free.
   Also, the five gate colours repeat from the sixth referrer on; more `--village-lane-*` tokens
   if a site with many referrers finds that confusing.
-- **Sky by the clock**: the village is always at night; if wanted, the blue-hour or day light of
-  the 2026-10-05 design round (Blue hour, Storybook) by the viewer's hour.
+- **Sky by the clock**: done on 2026-10-06 ("polar day": `LIGHTS` and `DAY` in `public/village.js`,
+  the colours of each light in `tokens.css`; `PRODUCT.md` has the look and what it costs). Seen
+  that day and left out: "Storybook", the same world through a brush filter (Kuwahara), whose
+  strokes barely showed. Still open: the aurora is soft curtains, not yet fine rays; the lens
+  shift that brings the horizon into the picture is off on a narrow screen, which keeps the old
+  high view; the cost on the GPU of one drawing of the scene, or of the sky's tick, was not measured
+  (headless Chrome gave no usable timing), only Chrome's CPU and the count of drawings.
+- **A kit per village** (agreed 2026-10-06, its option round next): each site gets a style the
+  owner sets (`npm run site:add -- … --style <kit>`, a `style` column in `sites`): a few generic
+  architecture kits (alpine, the one today; pale stone with slate spires and cold lamps; a
+  citadel of red roofs, a belfry and battlements) that change shapes and palette, never what a
+  count looks like. The builders already take `s.kit` (`KIT` in `public/village.js`). With it, the
+  site's **icon on its pennant**: the Worker fetches `<origin>/favicon.ico` (or the page's
+  `<link rel=icon>`) once, keeps it, and serves it from its own origin, since the dashboard's CSP
+  only loads images from itself; the pennant draws it as a texture. Site configuration, not
+  visitor data; through `/store-field` all the same.
 - **Country off the live view**: a switch (a var in `wrangler.toml`) for publishers who prefer
   not to see it per visit; `docs/privacy.md` already says how.
 - **Big numbers in the ledger's column charts**: the left axis clips labels past four digits
   (`frame()` in `public/ledger.js`, `L: 36`).
 - **Performance on weak GPUs**: done on 2026-10-05 for the resting cost (the scene is drawn once
   and kept, see the head of `public/gl.js`; `PRODUCT.md` has the rule). Still open: the camera's
-  flight draws the whole scene 60 times a second, with a 2048 shadow map; if a phone struggles
-  there, drop the shadow map to 1024 and `DRAFT_PX` in `gl.js`.
+  flight draws the whole scene 60 times a second, with a 2048 shadow map and, since 2026-10-06,
+  the picture's passes at fewer taps; if a phone struggles there, drop the shadow map to 1024
+  and `DRAFT_PX` in `gl.js`, and the contact shadow and the lens while it flies.
 - **The visits list, row by row**: a live visit redraws the 200 rows of the panel (four times a
   second at most); insert the new row instead if a busy site makes that show.
 

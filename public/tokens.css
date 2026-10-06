@@ -57,16 +57,38 @@
   --track: .12em;
   --t-fast: 150ms; --t-base: 220ms;
 
-  /* The village on a winter night. village.js reads every --village-* colour with getComputedStyle.
-     The sky and the haze it fades into: */
-  --village-sky-top: #03060f;
-  --village-sky-mid: #0b1738;
-  --village-sky-low: #1d2b52;      /* the horizon, and the fog distance fades everything to */
+  /* The village on a polar winter day. village.js reads every --village-* colour with getComputedStyle.
+     The light follows the viewer's clock through four skies; village.js (LIGHTS, DAY) has their hours.
+     Each is the same set. The night, and its aurora: */
+  --village-sky-top: #02040d;
+  --village-sky-mid: #081a35;
+  --village-sky-low: #17335a;      /* the horizon, and the fog distance fades everything to */
   --village-moon: #f2f5ff;         /* the disc in the sky */
-  --village-moonlight: #6b80bf;    /* the light it casts, and its shadows */
-  --village-sky-light: #33406b;    /* what the sky gives a surface facing up */
-  --village-ground-light: #0f121f; /* and what the snow gives back to one facing down */
-  --village-rim: #141a33;          /* the cool edge round a shape against the night */
+  --village-moonlight: #a3b8ea;    /* the light it casts, and its shadows */
+  --village-sky-light: #23405c;    /* what the sky gives a surface facing up */
+  --village-ground-light: #0b0e1b; /* and what the snow gives back to one facing down */
+  --village-rim: #18204a;          /* the cool edge round a shape against the sky */
+  --village-haze: #1a2142;         /* the glow in the air round the disc */
+  --village-cloud: #141a33;
+  --village-ice: #16284c;          /* the frozen lake, where no snow lies on it */
+  --village-tint-shadow: #d4eaff;  /* the hue the dark half of the picture leans to, */
+  --village-tint-light: #fff0e0;   /* and the bright half */
+  --village-aurora: #14ff6b; --village-aurora-2: #7326f2;   /* a curtain's foot, and its top */
+  /* the blue hour, before the sun and after it */
+  --village-sky-top-blue: #0a1640; --village-sky-mid-blue: #22407e; --village-sky-low-blue: #5d7fb8;
+  --village-moon-blue: #f2f5ff; --village-moonlight-blue: #8fa6e0; --village-sky-light-blue: #3e568e; --village-ground-light-blue: #141a30;
+  --village-rim-blue: #2a3a70; --village-haze-blue: #404d8c; --village-cloud-blue: #384780; --village-ice-blue: #2a4274;
+  --village-tint-shadow-blue: #d4eaff; --village-tint-light-blue: #fff0e0;
+  /* dusk, and dawn: the sun on the mountains */
+  --village-sky-top-dusk: #151d48; --village-sky-mid-dusk: #4b417c; --village-sky-low-dusk: #e0906a;
+  --village-moon-dusk: #ff9e52; --village-moonlight-dusk: #ff9a55; --village-sky-light-dusk: #47548e; --village-ground-light-dusk: #241c30;
+  --village-rim-dusk: #5a3a50; --village-haze-dusk: #ff6b2e; --village-cloud-dusk: #804d6b; --village-ice-dusk: #4a3a5c;
+  --village-tint-shadow-dusk: #d8dbff; --village-tint-light-dusk: #ffecd4;
+  /* the low golden sun of the middle of the day */
+  --village-sky-top-gold: #244a9c; --village-sky-mid-gold: #4f84d6; --village-sky-low-gold: #f4e4d0;
+  --village-moon-gold: #ffe2a8; --village-moonlight-gold: #ffc78a; --village-sky-light-gold: #6a82b8; --village-ground-light-gold: #36323e;
+  --village-rim-gold: #6a6274; --village-haze-gold: #3a2a14; --village-cloud-gold: #f0d8c8; --village-ice-gold: #5a70a0;
+  --village-tint-shadow-gold: #dfe6ff; --village-tint-light-gold: #fffaf2;
   --village-edge: #5a6699;         /* the ink line round the shapes (a multiplier: lighter is fainter) */
   /* The things in it: */
   --village-snow: #e9eef7; --village-snow-2: #dfe6f2; --village-path: #b8bfcc;
@@ -79,7 +101,8 @@
   --village-lamp: #ffb35c;         /* street lamps, door lamps, a villager's lantern */
   --village-coat: #3a3442; --village-skin: #e8c4a6; --village-smoke: #9ea8c2; --village-flake: #f2f6ff;
   --village-view: #8ce8b4;         /* a view opened inside a page: the lanterns of its stall, the scarf of who walks to it, its label */
-  --village-awning: #a8473f; --village-awning-2: #e4d9c4;   /* the canvas of the market stalls, one and the next */
+  --village-awning: #a8473f; --village-awning-2: #e4d9c4; --village-awning-3: #3f6a8a; --village-awning-4: #c9a24a;   /* the canvas of the market stalls, in turn */
+  --village-shutter-1: #3d5a45; --village-shutter-2: #7a3a32; --village-shutter-3: #34466e;   /* doors and shutters, a house's own */
   /* One plaster per house, in turn: */
   --village-wall-1: #c9b49a; --village-wall-2: #b9a58e; --village-wall-3: #d2c2a8; --village-wall-4: #a99484;
   --village-wall-5: #c4ae9c; --village-wall-6: #bfae94; --village-wall-7: #cbb8a2; --village-wall-8: #b3a08c;

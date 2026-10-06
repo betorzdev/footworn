@@ -43,23 +43,42 @@ URL is a bookmark to a site, the open ledger, its range and an open event.
 
 - The village (since 2026-10-05, replacing the bay; the owner asked for 3D and picked the clock
   square of three village options, then three art directions after web research): snowed-in
-  villages on a winter night, one per site, side by side in a valley. In each, a house per page
+  villages on a polar winter day, one per site, side by side in a valley with a frozen lake
+  under the mountains. In each, a house per page
   (every page of the last 30 days) in a ring round a clock square, storeys today's pageviews on
   one scale for every site, warm windows from the ground up for the share of loads used
-  (`$engaged`); 24 street lamps round the square for today's pageviews by UTC hour, a brass ring
+  (`$engaged`), a brass band at yesterday's storeys up to this time (on a rod over the roof when
+  yesterday was taller), the way to its door as wide and worn as today's visits, with their
+  footprints; 24 street lamps round the square for today's pageviews by UTC hour, a brass ring
   at yesterday's, the current hour glowing; a gate per referrer (every one, then direct) in the
-  palisade, as wide as today's arrivals; a market stall per view opened inside a page (`screen`
+  low stone wall, as wide as today's arrivals, with the footprints of who came through it; a market stall per view opened inside a page (`screen`
   events with a `view`, since 2026-10-05; the owner asked for the views in the scene and picked
   the market of three options; since 2026-10-06 every view, in rows of 10, 16, 22 round the
   tower: the owner wants nothing grouped, the village as big as the site's use, so the lamps,
-  the houses and the palisade move out as the counts need) round the clock tower, the green
-  lanterns lit on its garland today's opens on one scale for every site, shut and dark when
-  nobody opened it; every live pageview a villager walking from its gate to its house, every
+  the houses and the wall move out as the counts need) round the clock tower, the green
+  lanterns lit on a pole beside it, from the ground up, today's opens on one scale for every
+  site, boarded up when nobody opened it; the clock telling the UTC time on a 24-hour dial, like the
+  ring of lamps (midnight at the top), under a pennant in the village's colour; every live pageview a villager (a scarf and a hat in its gate's colour) walking from its
+  gate to its house and leaving steps that fade in a minute, every
   view opened one walking from that house to the stall, every other event fireworks over the
   roof; a sign per village (visitors, change against
   yesterday, views, other events, used). Clicking a village flies the camera in; drag turns, wheel or pinch
-  zooms. Moon shadows, warm pools of light on the snow, ink outlines, smoke and snowfall; at UTC
-  midnight the windows go dark. WebGL2 written by hand (`public/gl.js`, the scene in
+  zooms. The objects (since 2026-10-06, a round on each thing; the owner took every proposal):
+  timber-framed houses with windows on all four sides, because the plain boxes hid the used
+  share on their backs; no garlands, which turned a busy market into a web; a low wall instead
+  of the palisade, the heaviest and emptiest shape in the picture; and what is not a count
+  varies by the page's seed (width, gable or hip roof, the colour of door and shutters, a
+  balcony, a woodpile or a bench), so no two houses are alike. Warm pools of light on the snow, ink outlines, smoke and snowfall; at UTC
+  midnight the windows go dark. The look (since 2026-10-06; the owner asked for something more
+  attractive and spectacular that still costs next to nothing at rest, and picked "polar day" of
+  three options, with the sky by the clock): the village photographed like a scale model (a
+  lens that blurs what is off the plane in focus, the glow of lamps and windows, contact
+  shadows, snow with drifts and glitter, long soft shadows), the camera low enough for the
+  mountains and the sky to be in the picture, the lake mirroring them, and a light that follows
+  the viewer's own clock through a polar winter day: a low golden sun from 10:30 to 14:30, dusk,
+  the blue hour, the night with its aurora from 20:00 to 5:30, the blue hour again, dawn. The sun
+  never clears the mountains by much, so the lit windows (the used share) read at any hour.
+  `?hour=13.5` holds the clock there. WebGL2 written by hand (`public/gl.js`, the scene in
   `public/village.js`); without WebGL2 a note sends the owner to the ledger. The rule behind it:
   atmosphere in the light, a chart's structure in the forms (storeys compare as bars, one channel
   per metric, a number beside each), and real rendering craft (light, shadow, outline), because
@@ -104,8 +123,15 @@ URL is a bookmark to a site, the open ledger, its range and an open event.
 - Zero runtime dependencies, no framework, no build: classic scripts and plain CSS. The
   dashboard's CSP allows no inline code, so no inline styles or scripts.
 - The dashboard lives on a second screen, so it has to cost next to nothing at rest: the lit
-  scene is drawn once and kept, a frame is that picture plus what moves (30 a second while it
-  snows, none with reduced motion until a visit comes), no `backdrop-filter` over the canvas,
+  scene is drawn once and kept, everything costly (lens, glow, contact shadow, sky, mirror) is
+  in that one drawing, a frame is that picture plus what moves (30 a second while it
+  snows; with reduced motion none until a visit comes or the light has moved on, a few minutes
+  apart at most), the picture's own passes (sky, mirror, glow, lens) run again every four
+  seconds over the scene as it was drawn, into a second kept picture the first fades to, so the
+  sky moves on (measured on 2026-10-06, headless Chrome at 1920×1080, 20 s at rest: 30 frames a
+  second before and after, no drawing of the scene in either, 25 % of a core before and 26 %
+  after, 27 to 29 % with the timber houses, the wall and the market of poles; two flights of
+  the camera, 62 % before and 66 to 69 % after), no `backdrop-filter` over the canvas,
   and no CSS animation that runs at the screen's rate (they go in `steps()`). The sound follows
   the same rule: no bed under the cues, no audio context until sound is on, and that context
   asleep a few seconds after the last cue.

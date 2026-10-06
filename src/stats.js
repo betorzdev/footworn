@@ -107,7 +107,8 @@ export async function eventStats(db, { site, name, from, to }) {
      rate is engaged / loads, as in `stats`) and events, pageviews per referrer, `views`: how
      many times each view was opened, and `viewPages`: from which pages (the top 200 pairs, for
      the stall's tooltip; the counts are the ones in `views`);
-   - `yesterday`: visitors yesterday up to this time of day, for the change on the sign;
+   - `yesterday`: visitors yesterday up to this time of day, for the change on the sign, and
+     the pageviews of each page up to then (`pages`, cut at 200), for the mark on its house;
    - `hours`: pageviews by UTC hour, today and yesterday, for the day's rhythm.
    With a `day` before today (`past` in the answer) it is the village as that day ended: "today"
    is that day, the 30 days are the ones that end on it, and "yesterday" the whole day before. */
@@ -137,6 +138,8 @@ export async function scene(db, { site, day, now = Date.now() }) {
        WHERE site = ?1 AND day = ?2 AND ${VIEW} GROUP BY view ORDER BY hits DESC, view LIMIT ${SCENE}`),
     d(`SELECT path, json_extract(props, '$.view') AS view, COUNT(*) AS hits FROM hits
        WHERE site = ?1 AND day = ?2 AND ${VIEW} GROUP BY path, view ORDER BY hits DESC, path, view LIMIT ${SCENE}`),
+    db.prepare(`SELECT path, COUNT(*) AS hits FROM hits WHERE site = ?1 AND day = ?2 AND ts <= ?3 AND event IS NULL
+                GROUP BY path ORDER BY hits DESC, path LIMIT ${SCENE}`).bind(site, yesterday, until),
   ]);
   const res = rows.map(r => r.results || []);
   const t = res[2][0] || {};
@@ -146,7 +149,7 @@ export async function scene(db, { site, day, now = Date.now() }) {
     site, day: today, now: secs, past,
     pages: res[0], refs: res[1], views: res[7],
     today: { hits: t.hits || 0, visitors: t.visitors || 0, events: t.events || 0, viewsTotal: t.views || 0, loads: t.loads || 0, engaged: t.engaged || 0, pages: res[3], refs: res[4], views: res[8], viewPages: res[9] },
-    yesterday: { visitors: (res[5][0] && res[5][0].visitors) || 0 },
+    yesterday: { visitors: (res[5][0] && res[5][0].visitors) || 0, pages: res[10] },
     hours,
   };
 }

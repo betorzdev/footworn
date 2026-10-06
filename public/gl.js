@@ -1,20 +1,29 @@
-/* A small WebGL2 world for the village (village.js draws with it). Flat-shaded low-poly meshes in
-   layers; moon shadows (a shadow map with hardware PCF); warm pools of window and lamp light on
-   the snow and soft contact occlusion, both painted once on top-down 2D canvases (after
-   pixel3d-renderer's window pools and Stålberg's blurred top-down AO); a procedural sky with moon
-   and stars; soft sprites (smoke, snow) and additive ones (lanterns); and a post pass with ink
-   outlines from depth and normal edges (the Townscaper look), a night grade and a vignette. An
-   orbit camera that flies, whose centre follows the gap the panels leave (`shift`), and HTML
-   labels pinned to 3D points.
-   It is made to be left open: the lit scene is drawn once and kept, and drawn again only when the
-   camera, a layer, a map or the size changes. A frame is that kept picture and what moves over
-   it (snow, smoke, glows, a few small meshes); when nothing moves there are no frames at all.
+/* A small WebGL2 world for the village (village.js draws with it). Low-poly meshes in layers, lit
+   and then photographed like a scale model. The light: the moon or a low sun with soft shadows (a
+   shadow map, hardware PCF), warm pools of window and lamp light on the snow and soft contact
+   occlusion round what stands on it, both painted once on top-down 2D canvases (after
+   pixel3d-renderer's window pools and Stålberg's blurred top-down AO). Snow has drifts, a light
+   that wraps and grains that glitter (after Journey's sand); ice mirrors. The picture: a sky with
+   its disc, stars, clouds and the aurora; contact shadow from the depth; the glow of what is
+   brighter than the screen (after Jimenez, SIGGRAPH 2014); a lens that blurs what is off the
+   plane in focus, as a close-up of a model does; ink outlines from depth and normal edges (the
+   Townscaper look), a grade and a vignette. Soft sprites (smoke, snow) and additive ones
+   (lanterns), an orbit camera that flies, whose centre follows the gap the panels leave
+   (`shift`), and HTML labels pinned to 3D points.
+   It is made to be left open: the picture is drawn once and kept, and drawn again only when the
+   camera, a layer, a map or the size changes; while the weather moves, the picture's own passes
+   run again every `skyTick` seconds over the scene as it was drawn, into a second kept frame the
+   first fades to, so the sky moves on. A frame is that kept
+   picture and what moves over it (snow, smoke, glows, a few small meshes); when nothing moves
+   there are no frames at all.
    A classic script, no dependencies; colours come in from the caller, who reads them from
    tokens.css. */
 (function () {
   'use strict';
   var G = window.FootwornGL = {};
   var TAU = Math.PI * 2;
+  /* A surface's emission, 0 to 1, or what it is made of: snow, or ice. */
+  G.SNOW = 2; G.ICE = 3;
   var clamp = G.clamp = function (v, a, b) { return Math.max(a, Math.min(b, v)); };
   G.lerp = function (a, b, t) { return a + (b - a) * t; };
   G.ease = function (t) { return t < .5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2; };
@@ -68,10 +77,10 @@
     this.quad(P(-x, y0, -z), P(-x, y0, z), P(-x, y1, z), P(-x, y1, -z), col, em);
   };
   /* a gable roof, ridge along local x; `ends` paints the gable triangles */
-  Mesh.prototype.roof = function (cx, y0, cz, w, h, d, col, rot, over, ends) {
+  Mesh.prototype.roof = function (cx, y0, cz, w, h, d, col, rot, over, ends, em) {
     var P = frame(cx, cz, rot), o = over == null ? .1 : over, x = w / 2 + o, z = d / 2 + o, y1 = y0 + h;
-    this.quad(P(-x, y0, z), P(x, y0, z), P(x, y1, 0), P(-x, y1, 0), col);
-    this.quad(P(x, y0, -z), P(-x, y0, -z), P(-x, y1, 0), P(x, y1, 0), col);
+    this.quad(P(-x, y0, z), P(x, y0, z), P(x, y1, 0), P(-x, y1, 0), col, em);
+    this.quad(P(x, y0, -z), P(-x, y0, -z), P(-x, y1, 0), P(x, y1, 0), col, em);
     if (ends) {
       var xi = w / 2;
       this.tri(P(xi, y0, d / 2), P(xi, y0, -d / 2), P(xi, y1 - h * o / z, 0), ends);
@@ -104,26 +113,27 @@
     this.quad(P(-x, y, z), P(x, y, z), P(x, y, -z), P(-x, y, -z), col, em);
   };
   /* a low-poly blob (rock, bush, snow heap): an n-gon prism with a smaller top */
-  Mesh.prototype.lump = function (cx, y0, cz, r, h, seg, col, seed) {
+  Mesh.prototype.lump = function (cx, y0, cz, r, h, seg, col, seed, em) {
     var pts = [];
     for (var i = 0; i < seg; i++) { var a = i / seg * TAU + G.rand(seed, i) * .4, rr = r * (.8 + G.rand(i, seed) * .4); pts.push([Math.cos(a) * rr, Math.sin(a) * rr]); }
     var top = [cx, y0 + h, cz];
     for (i = 0; i < seg; i++) {
       var p = pts[i], q = pts[(i + 1) % seg];
       var a0 = [cx + p[0], y0, cz + p[1]], b0 = [cx + q[0], y0, cz + q[1]], a1 = [cx + p[0] * .55, y0 + h * .7, cz + p[1] * .55], b1 = [cx + q[0] * .55, y0 + h * .7, cz + q[1] * .55];
-      this.quad(b0, a0, a1, b1, col); this.tri(top, b1, a1, col);
+      this.quad(b0, a0, a1, b1, col, em); this.tri(top, b1, a1, col, em);
     }
   };
   /* a smooth heightfield over [x0, x0+size]² */
-  Mesh.prototype.terrain = function (x0, z0, size, n, hf, cf) {
-    var s = size / n, e = s * .5;
-    function nrm(x, z) { return norm([hf(x - e, z) - hf(x + e, z), 2 * e, hf(x, z - e) - hf(x, z + e)]); }
-    for (var i = 0; i < n; i++) for (var j = 0; j < n; j++) {
-      var xa = x0 + i * s, za = z0 + j * s, xb = xa + s, zb = za + s;
-      var a = [xa, hf(xa, za), za], b = [xa, hf(xa, zb), zb], c = [xb, hf(xb, zb), zb], d = [xb, hf(xb, za), za];
-      var col = cf((a[1] + b[1] + c[1] + d[1]) / 4, xa + s / 2, za + s / 2);
-      var na = nrm(xa, za), nb = nrm(xa, zb), nc = nrm(xb, zb), nd = nrm(xb, za);
-      this.triN(a, b, c, na, nb, nc, col); this.triN(a, c, d, na, nc, nd, col);
+  Mesh.prototype.terrain = function (x0, z0, size, n, hf, cf, em) {
+    var s = size / n, m = n + 3, H = new Float32Array(m * m), i, j;
+    for (i = 0; i < m; i++) for (j = 0; j < m; j++) H[i * m + j] = hf(x0 + (i - 1) * s, z0 + (j - 1) * s);   // each height asked once; a row more all round, for the normals
+    function at(i, j) { return H[(i + 1) * m + j + 1]; }
+    function pt(i, j) { return [x0 + i * s, at(i, j), z0 + j * s]; }
+    function nrm(i, j) { return norm([at(i - 1, j) - at(i + 1, j), 2 * s, at(i, j - 1) - at(i, j + 1)]); }
+    for (i = 0; i < n; i++) for (j = 0; j < n; j++) {
+      var a = pt(i, j), b = pt(i, j + 1), c = pt(i + 1, j + 1), d = pt(i + 1, j), na = nrm(i, j), nc = nrm(i + 1, j + 1);
+      var col = cf((a[1] + b[1] + c[1] + d[1]) / 4, a[0] + s / 2, a[2] + s / 2);
+      this.triN(a, b, c, na, nrm(i, j + 1), nc, col, em); this.triN(a, c, d, na, nc, nrm(i + 1, j), col, em);
     }
   };
 
@@ -131,30 +141,54 @@
   var MAIN_VS = '#version 300 es\nlayout(location=0) in vec3 p;layout(location=1) in vec3 n;layout(location=2) in vec3 c;layout(location=3) in float e;' +
     'uniform mat4 vp;uniform mat4 lvp;out vec3 vP;out vec3 vN;out vec3 vC;out float vE;out vec4 vL;' +
     'void main(){vP=p;vN=n;vC=c;vE=e;vL=lvp*vec4(p,1.);gl_Position=vp*vec4(p,1.);}';
+  /* Shared GLSL. NOISE: value noise and its fbm. TONE: the grade every pixel ends with, the kept
+     scene's and what is drawn over it: exposure, a soft shoulder for what is brighter than the
+     screen, saturation, contrast, a split tone (shadows, highlights) and the vignette. */
+  var NOISE = 'float h21(vec2 p){p=fract(p*vec2(233.34,851.73));p+=dot(p,p+23.45);return fract(p.x*p.y);}\n' +
+      'float vn(vec2 p){vec2 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);return mix(mix(h21(i),h21(i+vec2(1.,0.)),f.x),mix(h21(i+vec2(0.,1.)),h21(i+vec2(1.,1.)),f.x),f.y);}\n' +
+      'float fbm(vec2 p){float a=.5,s=0.;for(int i=0;i<4;i++){s+=a*vn(p);p=p*2.03+17.3;a*=.5;}return s;}\n';
+  var TONE = 'uniform float expo,con,sat,vig,lift;uniform vec3 tintS,tintH;\n' +
+      'vec3 tone(vec3 c,vec2 q){c=max(c*expo+lift,0.);c=mix(c,.6+.4*(1.-exp(-(c-.6)/.4)),step(.6,c));\n' +
+      'float l=dot(c,vec3(.299,.587,.114));c=mix(vec3(l),c,sat);c=mix(c,c*c*(3.-2.*c),con);\n' +
+      'c*=mix(tintS,tintH,smoothstep(.05,.7,l));return c*(1.-vig*dot(q,q)*1.8);}\n';
   /* What is drawn over the kept scene: hidden where the scene's own depth is nearer (`hid`, with
-     a little room, since that depth may be kept at another size), and given the post pass's grade. */
-  var OVER_U = 'uniform highp sampler2D dt;uniform vec2 inv;uniform float near,far,sat,vig;' +
+     a little room, since that depth may be kept at another size), and given the same grade. */
+  var OVER_U = 'uniform highp sampler2D dt;uniform vec2 inv;uniform float near,far;' + TONE +
     'float lin(float z){return 2.*near*far/(far+near-(z*2.-1.)*(far-near));}' +
     'bool hid(){float s=texture(dt,gl_FragCoord.xy*inv).r;return s<1.&&lin(gl_FragCoord.z)>lin(s)*1.002+.04;}' +
-    'vec3 grade(vec3 c){vec2 q=gl_FragCoord.xy*inv-.5;float l=dot(c,vec3(.299,.587,.114));return mix(vec3(l),c,sat)*(1.-vig*dot(q,q)*1.8);}';
-  /* The lit surface: into the scene target (colour and normals), or, `over`, straight to the screen. */
+    'vec3 grade(vec3 c){return tone(c,gl_FragCoord.xy*inv-.5);}';
+  /* The lit surface: into the scene target (colour, and normals with the mirror in alpha: 1 a
+     solid, .5 clear ice), or, `over`, straight to the screen. Snow's normal is bent by drifts and
+     grain, its light wraps, and its grains glitter (after Journey's sand: a random facet per cell
+     that catches the moon, or a lamp, for one view only); ice is dark, with snow blown over it. */
   function mainFS(over) {
-    return '#version 300 es\nprecision highp float;precision highp sampler2DShadow;' +
-      'in vec3 vP;in vec3 vN;in vec3 vC;in float vE;in vec4 vL;' +
-      'uniform vec3 moonDir,moonCol,skyAmb,gndAmb,fogCol,eye,rimCol;uniform float fogD,fogH,bands,poolK;uniform int nl;' +
-      'uniform vec4 lp[16];uniform vec3 lc[16];uniform sampler2DShadow sm;uniform sampler2D lm,ao;uniform vec4 box;' +
-      (over ? OVER_U + 'uniform float lift;out vec4 oC;' : 'layout(location=0) out vec4 oC;layout(location=1) out vec4 oN;') +
-      'float shadow(){vec3 s=vL.xyz/vL.w*.5+.5;if(s.x<0.||s.y<0.||s.x>1.||s.y>1.||s.z>1.)return 1.;vec2 t=1./vec2(textureSize(sm,0));float r=0.;' +
-      'for(int x=-1;x<=1;x++)for(int y=-1;y<=1;y++)r+=texture(sm,vec3(s.xy+vec2(x,y)*t*1.2,s.z-.0018));return r/9.;}' +
-      'void main(){' + (over ? 'if(hid())discard;' : '') + 'vec3 N=normalize(vN);if(!gl_FrontFacing)N=-N;vec3 V=normalize(eye-vP);' +
-      'vec2 uv=(vP.xz-box.xy)/box.z;vec3 pool=texture(lm,uv).rgb;float occ=mix(1.,texture(ao,uv).r,1.-smoothstep(0.,2.2,vP.y));' +
-      'float d=max(dot(N,moonDir),0.)*shadow();if(bands>0.)d=smoothstep(.0,.08,d)*.8+d*.2;' +
-      'vec3 L=mix(gndAmb,skyAmb,N.y*.5+.5)*occ+moonCol*d;' +
-      'L+=pool*poolK*exp(-max(vP.y,0.)*.5)*(.3+.7*clamp(N.y*.7+.4,0.,1.));' +
-      'for(int i=0;i<nl;i++){vec3 q=lp[i].xyz-vP;float r=length(q);float a=max(0.,1.-r/max(lp[i].w,.001));a*=a;L+=lc[i]*a*(max(dot(N,q/max(r,.001)),0.)*.8+.2);}' +
-      'vec3 col=vC*L+rimCol*pow(1.-max(dot(N,V),0.),4.)*(.3+.7*d);col=mix(col,vC,vE);' +
-      'float dist=length(eye-vP);float f=1.-exp(-pow(dist*fogD,1.5));f*=mix(1.,.55,smoothstep(0.,fogH,vP.y));' +
-      'vec3 fc=mix(col,fogCol,clamp(f,0.,1.));' + (over ? 'oC=vec4(grade(fc+lift),1.);}' : 'oC=vec4(fc,1.);oN=vec4(N*.5+.5,1.);}');
+    return '#version 300 es\n' +
+      'precision highp float;precision highp sampler2DShadow;\n' +
+      'in vec3 vP;in vec3 vN;in vec3 vC;in float vE;in vec4 vL;\n' +
+      'uniform vec3 moonDir,moonCol,skyAmb,gndAmb,fogCol,eye,rimCol,snowCol,iceCol;uniform float fogD,fogH,fog0,bands,poolK,snowK,sparkK,emK;uniform int nl;\n' +
+      'uniform vec4 lp[16];uniform vec3 lc[16];uniform sampler2DShadow sm;uniform sampler2D lm,ao;uniform vec4 box;\n' + NOISE + (over ? OVER_U + 'out vec4 oC;' : 'layout(location=0) out vec4 oC;layout(location=1) out vec4 oN;') + '\n' +
+      'float shadow(){vec3 s=vL.xyz/vL.w*.5+.5;if(s.x<0.||s.y<0.||s.x>1.||s.y>1.||s.z>1.)return 1.;vec2 t=1./vec2(textureSize(sm,0));float r=0.;\n' +
+      'for(int x=-2;x<=2;x++)for(int y=-2;y<=2;y++)r+=texture(sm,vec3(s.xy+vec2(x,y)*t*1.1,s.z-.0018));return r/25.;}\n' +
+      'void main(){\n' + (over ? 'if(hid())discard;' : '') + '\n' +
+      'vec3 N=normalize(vN);if(!gl_FrontFacing)N=-N;vec3 V=normalize(eye-vP);float dist=length(eye-vP),ice=step(2.5,vE),snow=step(1.5,vE)*(1.-ice),em=vE>1.5?0.:vE,mat=1.;vec3 base=vC;\n' +
+      'if(ice>.5){float pt=smoothstep(.62,.86,fbm(vP.xz*.09)+.34*fbm(vP.xz*.55));base=mix(iceCol,snowCol*.93,pt);mat=mix(.5,1.,pt);snow=pt;\n' +
+      'N=normalize(vec3((vn(vP.xz*2.3)-.5)*.06,1.,(vn(vP.xz*2.3+9.)-.5)*.06));}\n' +
+      'else if(snow>0.&&snowK>0.&&N.y>.35){vec2 q=vP.xz;float e=.08,n0=fbm(q*.8),gx=fbm(q*.8+vec2(e,0.))-n0,gz=fbm(q*.8+vec2(0.,e))-n0;\n' +
+      'float f=exp(-dist*.03),m0=vn(q*11.),hx=vn(q*11.+vec2(.4,0.))-m0,hz=vn(q*11.+vec2(0.,.4))-m0;\n' +
+      'N=normalize(N-(vec3(gx,0.,gz)/e*exp(-dist*.006)+vec3(hx,0.,hz)*.12*f)*snowK);}\n' +
+      'vec2 uv=(vP.xz-box.xy)/box.z;vec3 pool=texture(lm,uv).rgb;float occ=mix(1.,texture(ao,uv).r,1.-smoothstep(0.,2.2,vP.y));\n' +
+      'float sh=shadow(),nd=dot(N,moonDir),d=max(mix(nd,(nd+.3)/1.3,snow),0.)*sh;if(bands>0.)d=smoothstep(.0,.08,d)*.8+d*.2;\n' +
+      'vec3 L=mix(gndAmb,skyAmb,N.y*.5+.5)*occ+moonCol*d;\n' +
+      'vec3 pl=pool*poolK*exp(-max(vP.y,0.)*.5)*(.3+.7*clamp(N.y*.7+.4,0.,1.));L+=pl;\n' +
+      'for(int i=0;i<nl;i++){vec3 q=lp[i].xyz-vP;float r=length(q);float a=max(0.,1.-r/max(lp[i].w,.001));a*=a;L+=lc[i]*a*(max(dot(N,q/max(r,.001)),0.)*.8+.2);}\n' +
+      'vec3 col=base*L+rimCol*pow(1.-max(dot(N,V),0.),4.)*(.3+.7*d);\n' +
+      'if(snow>0.&&sparkK>0.){vec3 H=normalize(moonDir+V);vec2 c=floor(vP.xz*26.);vec3 Gn=normalize(vec3(h21(c+3.1)-.5,.55,h21(c+7.7)-.5));\n' +
+      'float f=exp(-dist*.07)*snow*sparkK*step(.82,h21(c));\n' +
+      'col+=f*(moonCol*sh*pow(max(dot(Gn,H),0.),90.)*3.5+pl*pow(max(dot(Gn,normalize(V+vec3(0.,1.,0.))),0.),120.)*3.5);\n' +
+      'col+=snow*moonCol*sh*pow(max(dot(N,H),0.),20.)*.22;}\n' +
+      'col=mix(col,vC*mix(1.,emK,em),em);\n' +
+      'float f2=1.-exp(-pow(max(dist-fog0,0.)*fogD,1.5));f2*=mix(1.,.55,smoothstep(0.,fogH,vP.y));\n' +
+      'vec3 fc=mix(col,fogCol,clamp(f2,0.,1.));\n' + (over ? 'oC=vec4(grade(fc),1.);}' : 'oC=vec4(fc,1.);oN=vec4(N*.5+.5,mat);}');
   }
   var DEPTH_VS = '#version 300 es\nlayout(location=0) in vec3 p;uniform mat4 lvp;void main(){gl_Position=lvp*vec4(p,1.);}';
   var DEPTH_FS = '#version 300 es\nprecision mediump float;void main(){}';
@@ -177,28 +211,83 @@
   var SPOT_FS = '#version 300 es\nprecision highp float;in vec3 vQ;in vec3 vC;in float vR;' + OVER_U + 'out vec4 o;' +
     'void main(){float r=length(vQ);if(r>=vR||hid())discard;float a=1.-r/vR;o=vec4(grade(vC*a*a*(vQ.z/r*.8+.2)),0.);}';
   var POST_VS = '#version 300 es\nout vec2 uv;void main(){vec2 p=vec2(gl_VertexID==1?3.:-1.,gl_VertexID==2?3.:-1.);uv=p*.5+.5;gl_Position=vec4(p,0.,1.);}';
-  /* The post pass writes the kept frame. Its alpha is the stars' twinkle, left for the blit to
+  var HEAD = '#version 300 es\nprecision highp float;in vec2 uv;out vec4 o;\n';
+  /* From a pixel back to the world: its depth, and the ray through it (not normalised: the eye
+     plus the ray times the linear depth is the point). */
+  var VIEW_U = 'uniform vec3 camR,camU,camF,eye;uniform vec2 tanH,shift;uniform float near,far;uniform highp sampler2D dt;\n' +
+      'float lin(float z){return 2.*near*far/(far+near-(z*2.-1.)*(far-near));}\n' +
+      'vec3 ray(vec2 u){return camF+(u.x*2.-1.-shift.x)*tanH.x*camR+(u.y*2.-1.-shift.y)*tanH.y*camU;}\n' +
+      'float ign(vec2 p){return fract(52.9829189*fract(dot(p,vec2(.06711056,.00583715))));}\n';
+  /* Contact shadow from the depth itself: how much of the hemisphere over each point is taken
+     (a spiral of taps turned per pixel, blurred 4×4 where it is used). */
+  var AO_FS = HEAD + VIEW_U + 'uniform sampler2D nt;uniform mat4 vp;uniform float rad;uniform int taps;\n' +
+      'void main(){ivec2 ip=ivec2(gl_FragCoord.xy);float z=texelFetch(dt,ip,0).r;if(z>=1.){o=vec4(1.);return;}\n' +
+      'vec3 N=normalize(texelFetch(nt,ip,0).xyz*2.-1.),P=eye+ray(uv)*lin(z);\n' +
+      'vec3 t=normalize(abs(N.y)<.99?cross(N,vec3(0.,1.,0.)):vec3(1.,0.,0.)),b=cross(N,t);float a0=ign(gl_FragCoord.xy)*6.2832,occ=0.,n=float(taps);\n' +
+      'for(int i=0;i<taps;i++){float fi=float(i)+.5,r=sqrt(fi/n),a=a0+fi*2.39996;\n' +
+      'vec3 s=P+N*.04+(t*cos(a)*r+b*sin(a)*r+N*sqrt(1.-r*r*.8))*rad*mix(.25,1.,fract(fi*.618));\n' +
+      'vec4 c=vp*vec4(s,1.);float dz=c.w-lin(texture(dt,c.xy/c.w*.5+.5).r);occ+=step(.03,dz)*(1.-smoothstep(rad,rad*3.,dz));}\n' +
+      'o=vec4(vec3(1.-occ/n),1.);}\n';
+  /* The scene's colour and what belongs to the picture, not to a surface: the sky (gradient,
+     the glow round the moon or the sun, stars, clouds, and the aurora: curtains with a sharp foot
+     that fade upwards, a band of noise seen through a stack of heights), the contact shadow, what the
+     ice mirrors (a march along the mirrored ray through the picture itself, the sky where it
+     finds nothing) and the ink lines. Its alpha is the stars' twinkle, left for the blit to
      play: a star's brightness in the high four bits, its phase in the low four, 0 anywhere else. */
-  var POST_FS = '#version 300 es\nprecision highp float;in vec2 uv;uniform sampler2D ct,nt;uniform highp sampler2D dt;uniform vec2 px;' +
-    'uniform vec3 camR,camU,camF,skyTop,skyMid,skyLow,moonDir,moonTint,edgeCol,starCol;uniform vec2 tanH,shift;uniform float edge,sat,vig,near,far,time,stars,grain,lift;out vec4 o;float sA=0.;' +
-    'float lin(float z){return 2.*near*far/(far+near-(z*2.-1.)*(far-near));}' +
-    'float h21(vec2 p){p=fract(p*vec2(233.34,851.73));p+=dot(p,p+23.45);return fract(p.x*p.y);}' +
-    'vec3 sky(vec3 d){float t=d.y;vec3 c=mix(skyLow,skyMid,smoothstep(-.05,.28,t));c=mix(c,skyTop,smoothstep(.28,.95,t));' +
-    'float m=max(dot(d,moonDir),0.);c+=moonTint*(smoothstep(.99955,.9997,m)*1.6+pow(m,400.)*.35+pow(m,12.)*.12);' +
-    'if(stars>0.&&t>.02){vec2 g=vec2(atan(d.z,d.x)*60.,asin(clamp(t,-1.,1.))*60.);vec2 id=floor(g),f=fract(g)-.5;float r=h21(id);' +
-    'if(r>.965){float s=smoothstep(.08,0.,length(f))*stars*smoothstep(.02,.3,t);c+=starCol*s*.6;' +
-    'sA=(floor(clamp(s,0.,1.)*15.+.5)*16.+floor((r-.965)/.035*15.+.5))/255.;}}return c;}' +
-    'void main(){vec2 tx=px;vec3 c=(texture(ct,uv+tx*vec2(-.25,-.25)).rgb+texture(ct,uv+tx*vec2(.25,-.25)).rgb+texture(ct,uv+tx*vec2(-.25,.25)).rgb+texture(ct,uv+tx*vec2(.25,.25)).rgb)*.25;' +
-    'ivec2 ip=ivec2(uv/px);float z=texelFetch(dt,ip,0).r;vec3 dir=normalize(camF+(uv.x*2.-1.-shift.x)*tanH.x*camR+(uv.y*2.-1.-shift.y)*tanH.y*camU);vec3 col;' +
-    'if(z>=1.){col=sky(dir)+c;}else{col=c;' +
-    'if(edge>0.){float lz=lin(z);vec3 n0=texelFetch(nt,ip,0).xyz*2.-1.;float e=0.;' +
-    'for(int i=0;i<4;i++){ivec2 o2=ip+(i==0?ivec2(1,0):i==1?ivec2(-1,0):i==2?ivec2(0,1):ivec2(0,-1));float z2=texelFetch(dt,o2,0).r;' +
-    'float dz=z2>=1.?1.:abs(lin(z2)-lz)/lz;vec3 n2=texelFetch(nt,o2,0).xyz*2.-1.;e=max(e,max(smoothstep(.015,.04,dz),smoothstep(.25,.5,1.-dot(n0,n2))));}' +
-    'col=mix(col,col*edgeCol,e*edge*(1.-smoothstep(40.,140.,lz)));}}' +
-    'col+=lift;float l=dot(col,vec3(.299,.587,.114));col=mix(vec3(l),col,sat);' +
-    'col*=1.-vig*dot(uv-.5,uv-.5)*1.8;col+=(h21(uv*1000.+fract(time))-.5)*grain;o=vec4(col,sA);}';
-  var BLIT_FS = '#version 300 es\nprecision highp float;uniform sampler2D bt;uniform vec2 inv;uniform float time,vig;uniform vec3 starCol;out vec4 o;' +
-    'void main(){vec4 c=texelFetch(bt,ivec2(gl_FragCoord.xy),0);int v=int(c.a*255.+.5);' +
+  var COMP_FS = HEAD + VIEW_U + NOISE + 'uniform sampler2D ct,nt,at;uniform mat4 vp;\n' +
+      'uniform vec3 skyTop,skyMid,skyLow,moonDir,moonTint,edgeCol,starCol,hazeCol,cloudCol,aurA,aurB;\n' +
+      'uniform float edge,time,stars,aoK,auroraK,cloudK,reflK,discK,disc,mg;uniform int qa,qm;float sA=0.;\n' +
+      'vec3 aurora(vec3 d){vec3 a=vec3(0.);if(d.y<0.)return a;\n' +
+      'float na=float(qa),jt=ign(gl_FragCoord.xy)/na;for(int i=0;i<qa;i++){float fi=float(i)/na+jt,h=.45+fi*.75;vec2 p=d.xz*(h/(d.y+.09));\n' +
+      'float w=fbm(p*.3+vec2(time*.012,3.)),x=p.x*.5+w*5.+p.y*.25;\n' +
+      'float band=pow(1.-abs(sin(x)),12.),rays=.35+.65*vn(vec2(p.x*7.+w*9.,time*.04)),env=smoothstep(.18,.5,fbm(p*.11+vec2(9.,time*.005)));\n' +
+      'a+=mix(aurA,aurB,fi*fi)*band*rays*env*exp(-fi*2.6)*24./na;}\n' +
+      'return (1.-exp(-a*smoothstep(.02,.1,d.y)*.5))*.75;}\n' +
+      'vec3 sky(vec3 d){float t=d.y;vec3 c=mix(skyLow,skyMid,smoothstep(-.03,.17,t));c=mix(c,skyTop,smoothstep(.17,.6,t));\n' +
+      'float m=max(dot(d,moonDir),0.);c+=hazeCol*(pow(m,5.)*.6+pow(m,40.)*.5)*(1.-smoothstep(-.02,.45,t));\n' +
+      'if(stars>0.&&t>.02){vec2 g=vec2(atan(d.z,d.x)*60.,asin(clamp(t,-1.,1.))*60.);vec2 id=floor(g),f=fract(g)-.5;float r=h21(id);\n' +
+      'if(r>.965){float s=smoothstep(.08,0.,length(f))*stars*smoothstep(.02,.3,t);c+=starCol*s*.6;\n' +
+      'sA=(floor(clamp(s,0.,1.)*15.+.5)*16.+floor((r-.965)/.035*15.+.5))/255.;}}\n' +
+      'if(auroraK>0.)c+=aurora(d)*auroraK;\n' +
+      'if(cloudK>0.&&t>0.){vec2 q=d.xz/(t+.18)*.9+vec2(time*.004,0.);float cl=smoothstep(.42,.75,fbm(q)+.12*vn(q*5.))*smoothstep(0.,.12,t)*cloudK;\n' +
+      'c=mix(c,cloudCol+hazeCol*pow(m,3.)*.8,cl*.75);if(cl>.2)sA=0.;}\n' +
+      'c+=moonTint*(smoothstep(disc-.00015,disc,m)*discK+pow(m,400.)*.35+pow(m,12.)*.12);return c;}\n' +
+      'void main(){ivec2 ip=ivec2(gl_FragCoord.xy);vec3 c=texelFetch(ct,ip,0).rgb;float z=texelFetch(dt,ip,0).r;vec3 dir=ray(uv),nd=normalize(dir),col;\n' +
+      'if(z>=1.){col=sky(nd)+c;}else{col=c;float lz=lin(z);vec4 nm=texelFetch(nt,ip,0);vec3 n0=normalize(nm.xyz*2.-1.);\n' +
+      'if(aoK>0.){float a=0.;ivec2 hi=textureSize(at,0)-1;for(int x=-2;x<2;x++)for(int y=-2;y<2;y++)a+=texelFetch(at,clamp(ip+ivec2(x,y),ivec2(0),hi),0).r;col*=mix(1.,a/16.,aoK);}\n' +
+      'float rf=clamp((1.-nm.a)*2.,0.,1.)*reflK;\n' +
+      'if(rf>.01){vec3 P=eye+dir*lz,R=reflect(nd,n0),rc=sky(R);sA=0.;float t=.5;\n' +
+      'for(int i=0;i<qm;i++){vec4 q=vp*vec4(P+R*t,1.);if(q.w<=0.)break;vec2 u=q.xy/q.w*.5+.5;if(u.x<0.||u.x>1.||u.y<0.||u.y>1.)break;\n' +
+      'float sz=texture(dt,u).r;if(sz<1.){float dd=q.w-lin(sz);if(dd>0.&&dd<1.2+t*(mg-1.)*2.){rc=texture(ct,u).rgb;break;}}t*=mg;}\n' +
+      'col=mix(col,rc,clamp(.22+.78*pow(1.-max(dot(-nd,n0),0.),3.),0.,1.)*rf);}\n' +
+      'if(edge>0.){float e=0.;for(int i=0;i<4;i++){ivec2 o2=ip+(i==0?ivec2(1,0):i==1?ivec2(-1,0):i==2?ivec2(0,1):ivec2(0,-1));float z2=texelFetch(dt,o2,0).r;\n' +
+      'float dz=z2>=1.?1.:abs(lin(z2)-lz)/lz;vec3 n2=texelFetch(nt,o2,0).xyz*2.-1.;e=max(e,max(smoothstep(.015,.04,dz),smoothstep(.25,.5,1.-dot(n0,n2))));}\n' +
+      'col=mix(col,col*edgeCol,e*edge*(1.-smoothstep(40.,140.,lz)));}}\n' +
+      'o=vec4(col,z>=1.?sA:0.);}\n';
+  /* The glow of what is brighter than the screen (after Jimenez, SIGGRAPH 2014): halved down a
+     chain, then added back up it, each step through a small tent. */
+  var DOWN_FS = HEAD + 'uniform sampler2D t;uniform vec2 px;uniform float thr;\n' +
+      'void main(){vec3 c=(texture(t,uv+px*vec2(-1.,-1.)).rgb+texture(t,uv+px*vec2(1.,-1.)).rgb+texture(t,uv+px*vec2(-1.,1.)).rgb+texture(t,uv+px*vec2(1.,1.)).rgb)*.25;\n' +
+      'if(thr>0.){float l=max(c.r,max(c.g,c.b));c*=max(l-thr,0.)/max(l,1e-4);}o=vec4(min(c,vec3(40.)),1.);}\n';
+  var UP_FS = HEAD + 'uniform sampler2D t;uniform vec2 px;\n' +
+      'void main(){vec3 c=texture(t,uv).rgb*4.;for(int i=0;i<4;i++){vec2 d=i==0?vec2(1.,0.):i==1?vec2(-1.,0.):i==2?vec2(0.,1.):vec2(0.,-1.);c+=texture(t,uv+d*px).rgb*2.+texture(t,uv+(d+d.yx)*px*vec2(1.,i<2?1.:-1.)).rgb;}\n' +
+      'o=vec4(c/16.,1.);}\n';
+  /* The lens: what stands off the plane in focus is blurred, as a close-up of a scale model is
+     (a disc of taps as wide as the pixel's circle of confusion; a tap in focus and nearer than
+     the pixel is left out, so nothing sharp bleeds); then the glow, the grade and the grain. */
+  var FINAL_FS = HEAD + NOISE + TONE + 'uniform sampler2D ht,bt;uniform highp sampler2D dt;uniform vec2 px;uniform float near,far,focus,dofK,bloomK,grain,time;uniform int taps;\n' +
+      'float lin(float z){return 2.*near*far/(far+near-(z*2.-1.)*(far-near));}\n' +
+      'float ign(vec2 p){return fract(52.9829189*fract(dot(p,vec2(.06711056,.00583715))));}\n' +
+      'float coc(float z){if(z>=1.)return 0.;float l=lin(z),a=l<focus?(focus*.62-l)/(focus*.4):min((l-focus*1.5)/(focus*1.6),.6);return clamp(a,0.,1.)*dofK;}\n' +
+      'void main(){float z=texture(dt,uv).r,lz=lin(z),cc=coc(z);vec3 acc=texture(ht,uv).rgb;float ws=1.;\n' +
+      'if(cc>.6){float a0=ign(gl_FragCoord.xy)*6.2832,n=float(taps);for(int i=0;i<taps;i++){float fi=float(i)+.5,r=sqrt(fi/n)*cc,a=a0+fi*2.39996;vec2 u=uv+vec2(cos(a),sin(a))*r*px;\n' +
+      'float sz=texture(dt,u).r,w=(coc(sz)>=r*.8||lin(sz)>lz+.5)?1.:0.;acc+=texture(ht,u).rgb*w;ws+=w;}}\n' +
+      'vec3 col=tone(acc/ws+texture(bt,uv).rgb*bloomK,uv-.5);col+=(h21(uv*1000.+fract(time))-.5)*grain;\n' +
+      'o=vec4(col,texelFetch(ht,ivec2(uv*vec2(textureSize(ht,0))),0).a);}\n';
+  /* The kept frame to the screen (two of them while the sky moves on: the one before fades to
+     the new one), and the stars' twinkle. */
+  var BLIT_FS = '#version 300 es\nprecision highp float;uniform sampler2D bt,bt2;uniform vec2 inv;uniform float time,vig,fade;uniform vec3 starCol;out vec4 o;' +
+    'void main(){ivec2 ip=ivec2(gl_FragCoord.xy);vec4 c=texelFetch(bt,ip,0);if(fade<1.)c.rgb=mix(texelFetch(bt2,ip,0).rgb,c.rgb,fade);int v=int(c.a*255.+.5);' +
     'if(v>15){float r=.965+float(v&15)/15.*.035;vec2 q=gl_FragCoord.xy*inv-.5;' +
     'c.rgb+=starCol*(float(v>>4)/15.)*.4*sin(time*(1.+r*3.)+r*40.)*(1.-vig*dot(q,q)*1.8);}o=vec4(c.rgb,1.);}';
 
@@ -221,7 +310,10 @@
     if (!gl) throw new Error('WebGL2 is not available');
     var MAIN = compile(gl, MAIN_VS, mainFS(false)), OVER = compile(gl, MAIN_VS, mainFS(true)), DEPTH = compile(gl, DEPTH_VS, DEPTH_FS),
       SPR = compile(gl, SPR_VS, SPR_FS), SNOW = compile(gl, SNOW_VS, SPR_FS), SPOT = compile(gl, SPOT_VS, SPOT_FS),
-      POST = compile(gl, POST_VS, POST_FS), BLIT = compile(gl, POST_VS, BLIT_FS);
+      AO = compile(gl, POST_VS, AO_FS), COMP = compile(gl, POST_VS, COMP_FS), DOWN = compile(gl, POST_VS, DOWN_FS), UP = compile(gl, POST_VS, UP_FS),
+      FINAL = compile(gl, POST_VS, FINAL_FS), BLIT = compile(gl, POST_VS, BLIT_FS);
+    /* Light brighter than the screen needs a float target; without one the scene stays in eight bits and only glows less. */
+    var hdr = !!gl.getExtension('EXT_color_buffer_float'), HF = hdr ? gl.RGBA16F : gl.RGBA8, HT = hdr ? gl.HALF_FLOAT : gl.UNSIGNED_BYTE;
     /* `layers`, `lights` and the glows of setGlow are the scene that is kept; `dyn`, `glow`,
        `puffs` and the spots are what moves over it, emptied before every onFrame. */
     var W = {
@@ -304,32 +396,45 @@
     var smF = gl.createFramebuffer(); gl.bindFramebuffer(gl.FRAMEBUFFER, smF);
     gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, gl.TEXTURE_2D, smT, 0); gl.drawBuffers([gl.NONE]); gl.readBuffer(gl.NONE);
     var md = norm(env.moonDir), LVP;
-    /* the square of ground the maps and the shadow cover: [x0, z0, size] */
-    W.bounds = function (box) {
-      W.box = box;
-      var h = box[2] / 2, sc = [box[0] + h, 0, box[1] + h];
+    /* The light's view of the square of ground the maps and the shadow cover. */
+    function cast() {
+      var h = W.box[2] / 2, sc = [W.box[0] + h, 0, W.box[1] + h];
       LVP = mul(ortho(-h, h, -h, h, 1, 200 + h * 2), lookAt([sc[0] + md[0] * (100 + h), md[1] * (100 + h), sc[2] + md[2] * (100 + h)], sc, [0, 1, 0]));
-      shadowDirty = true; W.invalidate();
-    };
+      shadowDirty = true;
+    }
+    /* that square: [x0, z0, size] */
+    W.bounds = function (box) { W.box = box; cast(); W.invalidate(); };
+    /* The moon, or the sun, somewhere else: the shadows follow with the next drawing of the scene. */
+    W.setSun = function (dir) { md = norm(dir); cast(); };
     W.bounds(W.box);
 
     /* the scene target (colour, normals, depth), and the frame kept from it */
     var fb = gl.createFramebuffer(), cT = tex(gl.LINEAR), nT = tex(gl.NEAREST), dT = tex(gl.NEAREST), fw = 0, fh = 0;
+    var hF = gl.createFramebuffer(), hT = tex(gl.LINEAR), aF = gl.createFramebuffer(), aT = tex(gl.NEAREST), BL = [];
+    for (var bi = 0; bi < 6; bi++) BL.push({ f: gl.createFramebuffer(), t: tex(gl.LINEAR), w: 1, h: 1 });
+    function one(F, T, fmt, type, w, h) {
+      gl.bindTexture(gl.TEXTURE_2D, T); gl.texImage2D(gl.TEXTURE_2D, 0, fmt, w, h, 0, gl.RGBA, type, null);
+      gl.bindFramebuffer(gl.FRAMEBUFFER, F); gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, T, 0);
+    }
+    /* Answers whether the targets are new, and so empty. */
     function target(w, h) {
-      if (w === fw && h === fh) return; fw = w; fh = h;
-      gl.bindTexture(gl.TEXTURE_2D, cT); gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA8, w, h, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+      if (w === fw && h === fh) return false; fw = w; fh = h;
+      gl.bindTexture(gl.TEXTURE_2D, cT); gl.texImage2D(gl.TEXTURE_2D, 0, HF, w, h, 0, gl.RGBA, HT, null);
       gl.bindTexture(gl.TEXTURE_2D, nT); gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA8, w, h, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
       gl.bindTexture(gl.TEXTURE_2D, dT); gl.texImage2D(gl.TEXTURE_2D, 0, gl.DEPTH_COMPONENT24, w, h, 0, gl.DEPTH_COMPONENT, gl.UNSIGNED_INT, null);
       gl.bindFramebuffer(gl.FRAMEBUFFER, fb);
       gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, cT, 0);
       gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT1, gl.TEXTURE_2D, nT, 0);
       gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, gl.TEXTURE_2D, dT, 0);
+      one(hF, hT, HF, HT, w, h); one(aF, aT, gl.RGBA8, gl.UNSIGNED_BYTE, w, h);
+      BL.forEach(function (b, i) { b.w = Math.max(1, w >> (i + 1)); b.h = Math.max(1, h >> (i + 1)); one(b.f, b.t, HF, HT, b.w, b.h); });
+      return true;
     }
-    var kf = gl.createFramebuffer(), kT = tex(gl.NEAREST), kw = 0, kh = 0;
+    /* Two kept frames: the one on screen and, while the sky moves on, the one before it. */
+    var kf = [gl.createFramebuffer(), gl.createFramebuffer()], kT = [tex(gl.NEAREST), tex(gl.NEAREST)], kw = 0, kh = 0, slot = 0, fadeAt = -1e9, bakedAt = 0;
     function keep(w, h) {
-      if (w === kw && h === kh) return; kw = w; kh = h;
-      gl.bindTexture(gl.TEXTURE_2D, kT); gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA8, w, h, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
-      gl.bindFramebuffer(gl.FRAMEBUFFER, kf); gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, kT, 0);
+      if (w === kw && h === kh) return; kw = w; kh = h; fadeAt = -1e9;
+      one(kf[0], kT[0], gl.RGBA8, gl.UNSIGNED_BYTE, w, h); one(kf[1], kT[1], gl.RGBA8, gl.UNSIGNED_BYTE, w, h);
     }
 
     function bindMesh(buf) {
@@ -420,14 +525,15 @@
       if (m && m.addEventListener) m.addEventListener('change', function () { measure(); density(); }, { once: true });
     })();
 
-    var NEAR = .3, FAR = 700, lpA = new Float32Array(64), lcA = new Float32Array(48), cw = 1, ch = 1;
+    var NEAR = .3, FAR = 1100, lpA = new Float32Array(64), lcA = new Float32Array(48), cw = 1, ch = 1;
     function lit(P, lights) {
       var u = P.u, E = env, n = Math.min(16, lights.length);
       gl.useProgram(P.p);
       gl.uniformMatrix4fv(u.vp, false, W.vp); gl.uniformMatrix4fv(u.lvp, false, LVP);
       gl.uniform3fv(u.moonDir, md); gl.uniform3fv(u.moonCol, E.moon); gl.uniform3fv(u.skyAmb, E.skyAmb); gl.uniform3fv(u.gndAmb, E.gndAmb);
       gl.uniform3fv(u.fogCol, E.fog); gl.uniform3fv(u.eye, W.eye); gl.uniform3fv(u.rimCol, E.rim || [0, 0, 0]);
-      gl.uniform1f(u.fogD, E.fogD); gl.uniform1f(u.fogH, E.fogH || 30); gl.uniform1f(u.bands, E.bands || 0); gl.uniform1f(u.poolK, E.poolK || 1.6);
+      gl.uniform1f(u.fogD, E.fogD); gl.uniform1f(u.fog0, W.cam.dist * (E.fogFrom || 0)); gl.uniform1f(u.fogH, E.fogH || 30); gl.uniform1f(u.bands, E.bands || 0); gl.uniform1f(u.poolK, E.poolK || 1.6);
+      gl.uniform3fv(u.snowCol, E.snowCol || [1, 1, 1]); gl.uniform3fv(u.iceCol, E.ice || [0, 0, 0]); gl.uniform1f(u.snowK, E.snowK || 0); gl.uniform1f(u.sparkK, E.sparkK || 0); gl.uniform1f(u.emK, E.emK || 1);
       for (var i = 0; i < n; i++) { var L = lights[i]; lpA[i * 4] = L.p[0]; lpA[i * 4 + 1] = L.p[1]; lpA[i * 4 + 2] = L.p[2]; lpA[i * 4 + 3] = L.r; lcA.set(L.c, i * 3); }
       gl.uniform1i(u.nl, n); gl.uniform4fv(u.lp, lpA); gl.uniform3fv(u.lc, lcA); gl.uniform4f(u.box, W.box[0], W.box[1], W.box[2], 0);
       gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, smT); gl.uniform1i(u.sm, 0);
@@ -435,18 +541,33 @@
       gl.activeTexture(gl.TEXTURE2); gl.bindTexture(gl.TEXTURE_2D, aoT); gl.uniform1i(u.ao, 2);
     }
     /* The uniforms of what goes over the kept scene; the scene's depth waits on unit 3. */
+    function toneU(u) {
+      var E = env;
+      gl.uniform1f(u.expo, E.expo || 1); gl.uniform1f(u.con, E.con || 0); gl.uniform1f(u.sat, E.sat == null ? 1 : E.sat); gl.uniform1f(u.vig, E.vig || 0); gl.uniform1f(u.lift, E.lift || 0);
+      gl.uniform3fv(u.tintS, E.tintS || [1, 1, 1]); gl.uniform3fv(u.tintH, E.tintH || [1, 1, 1]);
+    }
     function over(P) {
       var u = P.u;
-      gl.uniform1i(u.dt, 3); gl.uniform2f(u.inv, 1 / cw, 1 / ch); gl.uniform1f(u.near, NEAR); gl.uniform1f(u.far, FAR);
-      gl.uniform1f(u.sat, env.sat == null ? 1 : env.sat); gl.uniform1f(u.vig, env.vig || 0);
+      gl.uniform1i(u.dt, 3); gl.uniform2f(u.inv, 1 / cw, 1 / ch); gl.uniform1f(u.near, NEAR); gl.uniform1f(u.far, FAR); toneU(u);
     }
 
-    /* The scene as it stands, into the kept frame: the lit layers, the glows that stay, the
-       post pass. `ss` is the scene target's scale over the canvas. */
-    function bake(ss) {
-      var E = env, c = W.cam, tw = Math.max(1, Math.round(cw * ss)), th = Math.max(1, Math.round(ch * ss));
-      target(tw, th); keep(cw, ch);
+    /* What the light on the scene is made of: while it stays the same, the scene's own targets do too. */
+    var litAt = null;
+    function litKey() { var E = env; return [E.moon, E.skyAmb, E.gndAmb, E.fog, E.rim, E.ice, E.emK, md].join(); }
+    /* The scene as it stands, into the kept frame `into`: the lit layers, the glows that stay,
+       then the picture's passes. `ss` is the scene target's scale over the canvas; a draft
+       (`q` 1, the camera moving) takes fewer taps and steps. `only` asks for the picture's passes
+       alone, over the scene as it was last drawn: the sky's tick, while nothing else changed. */
+    function bake(ss, q, into, only) {
+      var tw = Math.max(1, Math.round(cw * ss)), th = Math.max(1, Math.round(ch * ss));
+      if (target(tw, th) || shadowDirty || litKey() !== litAt) only = false;
+      keep(cw, ch);
       gl.enable(gl.DEPTH_TEST); gl.disable(gl.BLEND); gl.disable(gl.CULL_FACE); gl.depthMask(true);
+      if (!only) scene(tw, th);
+      picture(tw, th, q, into, only);
+    }
+    function scene(tw, th) {
+      var c = W.cam; litAt = litKey();
       if (shadowDirty) {
         shadowDirty = false;
         gl.bindFramebuffer(gl.FRAMEBUFFER, smF); gl.viewport(0, 0, SM, SM); gl.clear(gl.DEPTH_BUFFER_BIT);
@@ -463,17 +584,52 @@
         gl.uniform1f(SPR.u.over, 0); gl.uniform1i(SPR.u.dt, 2);   // not the depth it is drawing against
         gl.enable(gl.BLEND); gl.depthMask(false); points(gbuf, gcount, false); gl.depthMask(true); gl.disable(gl.BLEND);
       }
-      // post
-      gl.bindFramebuffer(gl.FRAMEBUFFER, kf); gl.viewport(0, 0, cw, ch); gl.disable(gl.DEPTH_TEST);
-      gl.useProgram(POST.p); var P = POST.u;
-      var F = norm(sub(c.target, W.eye)), R = norm(cross(F, [0, 1, 0])), U = cross(R, F), th2 = Math.tan(c.fov / 2);
-      gl.uniform3fv(P.camR, R); gl.uniform3fv(P.camU, U); gl.uniform3fv(P.camF, F); gl.uniform2f(P.tanH, th2 * W.W / W.H, th2); gl.uniform2f(P.shift, W.sh[0], W.sh[1]);
+    }
+    /* contact shadow, sky and mirror, glow, lens, grade */
+    function picture(tw, th, q, into, only) {
+      var E = env, c = W.cam;
+      gl.disable(gl.DEPTH_TEST);
+      var F = norm(sub(c.target, W.eye)), R = norm(cross(F, [0, 1, 0])), U = cross(R, F), th2 = Math.tan(c.fov / 2), full = q === 2;
+      function view(u) {
+        gl.uniform3fv(u.camR, R); gl.uniform3fv(u.camU, U); gl.uniform3fv(u.camF, F); gl.uniform3fv(u.eye, W.eye); gl.uniform2f(u.tanH, th2 * W.W / W.H, th2); gl.uniform2f(u.shift, W.sh[0], W.sh[1]);
+        gl.uniform1f(u.near, NEAR); gl.uniform1f(u.far, FAR); gl.uniformMatrix4fv(u.vp, false, W.vp);
+        gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, nT); gl.uniform1i(u.nt, 1);
+        gl.activeTexture(gl.TEXTURE2); gl.bindTexture(gl.TEXTURE_2D, dT); gl.uniform1i(u.dt, 2);
+      }
+      if (E.ao && !only) {
+        gl.bindFramebuffer(gl.FRAMEBUFFER, aF); gl.viewport(0, 0, tw, th); gl.useProgram(AO.p); view(AO.u);
+        gl.uniform1f(AO.u.rad, E.aoR || .9); gl.uniform1i(AO.u.taps, full ? 16 : 8); gl.drawArrays(gl.TRIANGLES, 0, 3);
+      }
+      gl.bindFramebuffer(gl.FRAMEBUFFER, hF); gl.viewport(0, 0, tw, th); gl.useProgram(COMP.p); var P = COMP.u; view(P);
       gl.uniform3fv(P.skyTop, E.skyTop); gl.uniform3fv(P.skyMid, E.skyMid); gl.uniform3fv(P.skyLow, E.skyLow); gl.uniform3fv(P.moonDir, norm(E.moonSky || E.moonDir)); gl.uniform3fv(P.moonTint, E.moonTint || [1, 1, 1]);
-      gl.uniform3fv(P.edgeCol, E.edgeCol || [.2, .2, .3]); gl.uniform3fv(P.starCol, E.star || [1, 1, 1]); gl.uniform1f(P.edge, E.edge || 0); gl.uniform1f(P.sat, E.sat == null ? 1 : E.sat); gl.uniform1f(P.vig, E.vig || 0);
-      gl.uniform1f(P.near, NEAR); gl.uniform1f(P.far, FAR); gl.uniform1f(P.time, W.t); gl.uniform1f(P.stars, E.stars || 0); gl.uniform1f(P.grain, E.grain || .012); gl.uniform1f(P.lift, E.lift || 0);
-      gl.uniform2f(P.px, 1 / tw, 1 / th);
+      gl.uniform3fv(P.hazeCol, E.haze || [0, 0, 0]); gl.uniform3fv(P.cloudCol, E.cloud || [0, 0, 0]); gl.uniform1f(P.cloudK, E.cloudK || 0); gl.uniform1f(P.auroraK, E.aurora || 0); gl.uniform1f(P.reflK, E.refl == null ? 1 : E.refl);
+      gl.uniform1f(P.disc, E.disc || .9997); gl.uniform1f(P.discK, E.discK == null ? 1.6 : E.discK); gl.uniform1f(P.aoK, E.ao || 0);
+      var steps = full ? 40 : 16; gl.uniform1i(P.qa, full ? 24 : 10); gl.uniform1i(P.qm, steps); gl.uniform1f(P.mg, Math.pow(300, 1 / steps));   // the mirror's march reaches 150 either way
+      gl.uniform3fv(P.edgeCol, E.edgeCol || [.2, .2, .3]); gl.uniform3fv(P.starCol, E.star || [1, 1, 1]); gl.uniform1f(P.edge, E.edge || 0);
+      gl.uniform1f(P.time, W.t); gl.uniform1f(P.stars, E.stars || 0); gl.uniform3fv(P.aurA, E.auroraA || [0, 1, .4]); gl.uniform3fv(P.aurB, E.auroraB || [.4, .2, 1]);
       gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, cT); gl.uniform1i(P.ct, 0);
-      gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, nT); gl.uniform1i(P.nt, 1);
+      gl.activeTexture(gl.TEXTURE3); gl.bindTexture(gl.TEXTURE_2D, aT); gl.uniform1i(P.at, 3);
+      gl.drawArrays(gl.TRIANGLES, 0, 3);
+      gl.activeTexture(gl.TEXTURE0);
+      var n = E.bloom ? BL.length : 0, i;
+      if (n) {
+        gl.useProgram(DOWN.p); gl.uniform1i(DOWN.u.t, 0);
+        for (i = 0; i < n; i++) {
+          gl.bindFramebuffer(gl.FRAMEBUFFER, BL[i].f); gl.viewport(0, 0, BL[i].w, BL[i].h); gl.bindTexture(gl.TEXTURE_2D, i ? BL[i - 1].t : hT);
+          gl.uniform2f(DOWN.u.px, 1 / (i ? BL[i - 1].w : tw), 1 / (i ? BL[i - 1].h : th)); gl.uniform1f(DOWN.u.thr, i ? 0 : E.bloomThr || .9); gl.drawArrays(gl.TRIANGLES, 0, 3);
+        }
+        gl.useProgram(UP.p); gl.uniform1i(UP.u.t, 0); gl.enable(gl.BLEND); gl.blendFunc(gl.ONE, gl.ONE);
+        for (i = n - 1; i > 0; i--) {
+          gl.bindFramebuffer(gl.FRAMEBUFFER, BL[i - 1].f); gl.viewport(0, 0, BL[i - 1].w, BL[i - 1].h); gl.bindTexture(gl.TEXTURE_2D, BL[i].t);
+          gl.uniform2f(UP.u.px, 1 / BL[i].w, 1 / BL[i].h); gl.drawArrays(gl.TRIANGLES, 0, 3);
+        }
+        gl.disable(gl.BLEND);
+      }
+      gl.bindFramebuffer(gl.FRAMEBUFFER, kf[into]); gl.viewport(0, 0, cw, ch); gl.useProgram(FINAL.p); P = FINAL.u; toneU(P);
+      gl.uniform2f(P.px, 1 / cw, 1 / ch); gl.uniform1f(P.near, NEAR); gl.uniform1f(P.far, FAR); gl.uniform1f(P.focus, c.dist); gl.uniform1f(P.dofK, (E.dof || 0) * ch / 1080); gl.uniform1i(P.taps, full ? 40 : 14);
+      gl.uniform1f(P.bloomK, n ? (E.bloom || 0) / n : 0); gl.uniform1f(P.grain, E.grain == null ? .012 : E.grain); gl.uniform1f(P.time, W.t);
+      gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, hT); gl.uniform1i(P.ht, 0);
+      gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, n ? BL[0].t : hT); gl.uniform1i(P.bt, 1);
       gl.activeTexture(gl.TEXTURE2); gl.bindTexture(gl.TEXTURE_2D, dT); gl.uniform1i(P.dt, 2);
       gl.drawArrays(gl.TRIANGLES, 0, 3);
       gl.activeTexture(gl.TEXTURE0);
@@ -484,13 +640,15 @@
       var c = W.cam, E = env;
       gl.bindFramebuffer(gl.FRAMEBUFFER, null); gl.viewport(0, 0, cw, ch);
       gl.disable(gl.DEPTH_TEST); gl.disable(gl.BLEND); gl.disable(gl.CULL_FACE); gl.depthMask(true);
-      gl.useProgram(BLIT.p); gl.uniform2f(BLIT.u.inv, 1 / cw, 1 / ch); gl.uniform1f(BLIT.u.time, W.t); gl.uniform1f(BLIT.u.vig, E.vig || 0); gl.uniform3fv(BLIT.u.starCol, E.star || [1, 1, 1]);
-      gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, kT); gl.uniform1i(BLIT.u.bt, 0);
+      var fade = env.skyTick ? clamp((W.t - fadeAt) / env.skyTick, 0, 1) : 1;
+      gl.useProgram(BLIT.p); gl.uniform1f(BLIT.u.fade, fade); gl.uniform2f(BLIT.u.inv, 1 / cw, 1 / ch); gl.uniform1f(BLIT.u.time, W.t); gl.uniform1f(BLIT.u.vig, E.vig || 0); gl.uniform3fv(BLIT.u.starCol, E.star || [1, 1, 1]);
+      gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, kT[1 - slot]); gl.uniform1i(BLIT.u.bt2, 1);
+      gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, kT[slot]); gl.uniform1i(BLIT.u.bt, 0);
       gl.drawArrays(gl.TRIANGLES, 0, 3);
       if (!W.dyn.count && !spots.count && !snow && !W.puffs.length && !W.glow.length) return;
       gl.activeTexture(gl.TEXTURE3); gl.bindTexture(gl.TEXTURE_2D, dT); gl.activeTexture(gl.TEXTURE0);
       gl.enable(gl.DEPTH_TEST); gl.clear(gl.DEPTH_BUFFER_BIT);
-      if (W.dyn.count) { lit(OVER, W.lights.concat(moving)); over(OVER); gl.uniform1f(OVER.u.lift, E.lift || 0); drawMesh(W.dyn); }
+      if (W.dyn.count) { lit(OVER, W.lights.concat(moving)); over(OVER); drawMesh(W.dyn); }
       gl.enable(gl.BLEND); gl.depthMask(false);
       if (spots.count) { gl.useProgram(SPOT.p); gl.uniformMatrix4fv(SPOT.u.vp, false, W.vp); over(SPOT); gl.blendFunc(gl.ONE, gl.ONE); drawMesh(spots); }
       var k = ch / (2 * Math.tan(c.fov / 2));
@@ -509,7 +667,9 @@
     }
 
     /* A frame. The scene is drawn again only when it changed (the camera, a layer, a map, the
-       size): a draft while the camera moves, once in full when it rests. Every other frame is the
+       size): a draft while the camera moves, once in full when it rests; and, at rest while the
+       weather moves, the picture alone once every `skyTick` seconds into the other kept frame
+       (`tick`), for the sky. Every other frame is the
        kept one and what moves over it: at most 60 a second while the camera moves, 30 while only
        the weather does, and none at all when nothing does (the loop sleeps until `wake`). */
     var last = 0, kept = null, keptQ = 0, still = 0;
@@ -540,12 +700,14 @@
       var busy = W.onFrame ? W.onFrame(W.t, dt) : false;
 
       var q = rest && (keptQ === 2 || still > SETTLE) ? 2 : 1, drew = dirty || !same || q > keptQ;
-      if (drew) {
+      var tick = !drew && env.skyTick && rest && busy && keptQ === 2 && W.t - bakedAt >= env.skyTick;
+      if (tick) { slot = 1 - slot; fadeAt = W.t; } else if (drew) fadeAt = -1e9;
+      if (drew || tick) {
         var ss = q === 2 && dpr < 1.5 ? 1.5 : 1, room = q === 2 ? FULL_PX : DRAFT_PX;
         if (cw * ch * ss * ss > room) ss = Math.sqrt(room / (cw * ch));
-        dirty = false; bake(ss); kept = vp; keptQ = q; labelsDirty = true;
+        dirty = false; bake(ss, q, slot, tick); bakedAt = W.t; kept = vp; keptQ = q; if (drew) labelsDirty = true;
       }
-      if (drew || busy || force) present();
+      if (drew || tick || busy || force) present();
       force = false;
 
       if (labelsDirty) {
