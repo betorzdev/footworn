@@ -35,9 +35,12 @@
    kept there; a visit draws its own village again, two seconds apart at most, and only if it
    changed what is seen. Each frame gives only what moves: villagers and their steps, fireworks,
    smoke, the ring round a highlighted house.
-   Every builder takes the village's kit (`KIT`), the style its owner set for the site
-   (`site:add --style`): its shapes, its wall and the colours it reads, the same counts in each.
-   A site with an icon (`site:icon`) flies it on a banner over its tower and shows it on its sign. */
+   Every builder takes the village's kit (`KIT`), the style its owner set for the site (the
+   dashboard's Sites panel, or `site:add --style`): its shapes, its wall and the colours it
+   reads, the same counts in each; the owner may also turn the kit's palette (`hue`, `shade`:
+   `paletteOf`) and pick the site's colour (`tint`). A site with an icon flies it on a banner over
+   its tower and shows it on its sign. A site being added stands as a draft village (`draft`) until
+   it is saved: a sign that says so, nobody walking in. */
 (function () {
   'use strict';
 
@@ -64,15 +67,43 @@
   };
   var KIT_COLORS = ['roof', 'timber', 'stone', 'stone-dark', 'lamp', 'window', 'clock', 'mote'];
   function kitOf(style) { return KIT[style] || KIT.alpine; }
+  /* A site's look as the API gives it: its kit, its colour (1..8, or none: by its place in the
+     list), and how the kit's palette is turned. */
+  function lookOf(s) { return { style: s.style || null, tint: s.tint || null, hue: s.hue || 0, shade: s.shade || 0 }; }
+  function tintOf(s) { return T.sites[((s.look.tint || s.idx + 1) - 1) % T.sites.length]; }
+  /* The kit's palette turned for one site: the material (roof, timber, stone, the walls, the
+     shutters, the awnings) by `hue` degrees and lightened or darkened by `shade` (−40..40, a
+     share of the way to white or black); never the lights (lamp, window, clock, mote), which are
+     counts. Every colour is still a token of tokens.css, turned. */
+  var MATERIAL = ['roof', 'timber', 'stone', 'stoneDark'], MATERIAL_SETS = ['walls', 'shutters', 'awnings'];
+  function paletteOf(s) {
+    var base = s.kit.T || {}, out = {}, k, hue = s.look.hue || 0, shade = s.look.shade || 0;
+    for (k in base) out[k] = base[k];
+    if (!hue && !shade) return out;
+    MATERIAL.forEach(function (n) { out[n] = turned(n in base ? base[n] : T[n], hue, shade); });
+    MATERIAL_SETS.forEach(function (n) { out[n] = (base[n] || T[n]).map(function (c) { return turned(c, hue, shade); }); });
+    return out;
+  }
+  function turned(c, hue, shade) {
+    var r = c[0], g = c[1], b = c[2], max = Math.max(r, g, b), min = Math.min(r, g, b), l = (max + min) / 2, d = max - min, h = 0, sat = 0;
+    if (d) {
+      sat = d / (1 - Math.abs(2 * l - 1));
+      h = max === r ? ((g - b) / d) % 6 : max === g ? (b - r) / d + 2 : (r - g) / d + 4;
+    }
+    h = ((h * 60 + hue) % 360 + 360) % 360;
+    l = shade > 0 ? l + (1 - l) * shade / 100 : l + l * shade / 100;
+    var C = (1 - Math.abs(2 * l - 1)) * sat, X = C * (1 - Math.abs((h / 60) % 2 - 1)), m = l - C / 2, q = h < 60 ? [C, X, 0] : h < 120 ? [X, C, 0] : h < 180 ? [0, C, X] : h < 240 ? [0, X, C] : h < 300 ? [X, 0, C] : [C, 0, X];
+    return [q[0] + m, q[1] + m, q[2] + m];
+  }
   var SPIRE = { pyramid: 10.7, needle: 14.1, belfry: 10.6, iron: 14.3 };   // the top of each kit's tower
   /* Where a village's sign hangs: over its tower, and over its banner when it flies one. */
   function signAt(s) { return [s.o[0], Math.max(14, SPIRE[s.kit.spire] + (icons[s.id] ? 5.8 : 2.3)), s.o[2]]; }
   /* The sites' icons, as loaded images (app.js fetches them with the token: `setIcon`). */
   var icons = {};
   function iconOf(s) { var im = icons[s.id]; return im && im.complete && im.naturalWidth ? im : null; }
-  /* The kit's colours over the tokens while its village is laid out and built. */
+  /* The site's palette (its kit's colours, turned) over the tokens while its village is laid out and built. */
   function withKit(s, fn) {
-    var c = s.kit.T || {}, keep = {}, k;
+    var c = s.palette || s.kit.T || {}, keep = {}, k;
     for (k in c) { keep[k] = T[k]; T[k] = c[k]; }
     try { fn(); } finally { for (k in keep) T[k] = keep[k]; }
   }
@@ -196,12 +227,21 @@
 
   /* ---------- the sites (the counts are the bay's, unchanged) ---------- */
   function makeSite(s, i) {
-    var o = { id: s.id, name: s.name, idx: i, tint: T.sites[i % T.sites.length], towers: [], towerBy: {}, lanes: [], laneBy: {},
+    var o = { id: s.id, name: s.name, idx: i, draft: !!s.draft, look: lookOf(s), towers: [], towerBy: {}, lanes: [], laneBy: {},
       views: [], viewBy: {}, stalls: [], R: null, kit: kitOf(s.style), steps: [], decals: [],
       visitors: 0, pageviews: 0, viewsToday: 0, events: 0, loads: 0, engaged: 0, yesterday: 0, hours: [], loaded: false,
       o: [0, 0, 0], houses: [], gates: [], walkers: [], sparks: [], sign: null,
       layer: null, sig: null, pending: false, builtAt: 0, labels: {}, pools: [], occ: [], glow: [] };
+    o.tint = tintOf(o); o.palette = paletteOf(o);
     o.R = radii(o); return o;
+  }
+  /* The look changed (the Sites panel, as the owner tries one): the kit, the palette, the colour. */
+  function dress(s, look) {
+    var L = lookOf(look), was = s.tint;
+    if (JSON.stringify(L) !== JSON.stringify(s.look)) { s.look = L; s.kit = kitOf(look.style); s.palette = paletteOf(s); s.sig = null; }
+    s.tint = tintOf(s);   // by its place in the list, when it has no colour of its own: that place may have moved
+    if (s.tint !== was) s.sig = null;
+    if (s.sign) { s.sign.p = signAt(s); s.sign.el.firstChild.style.setProperty('--site', css(s.tint)); }
   }
   /* A village's size is its counts': the stalls in rows round the tower (ten in the first, then
      sixteen, then twenty-two), the lamps just outside the last row, the houses on a ring wide
@@ -273,7 +313,7 @@
 
   /* One hit from the live socket. */
   function live(msg) {
-    var s = byId[msg.site]; if (!s || !s.loaded || state.blackout || state.past) return;   // a past day is over: nobody walks in
+    var s = byId[msg.site]; if (!s || !s.loaded || s.draft || state.blackout || state.past) return;   // a past day is over: nobody walks in
     var t = towerFor(s, msg.path), v = isView(msg) ? viewFor(s, msg.props.view) : null;
     if (v) { v.n++; s.viewsToday++; v.total++; cameFrom(v, t, 1); }   // before the village is drawn: a stall that is new opens lit
     if (s.sig == null) refresh(true);   // a village not drawn yet (just loaded, or with a new house or stall) has no door to walk to
@@ -282,7 +322,7 @@
     if (msg.event) {
       t.events++; s.events++;
       if (v) { rebuild(s); toStall(s, h, stallOf(s, v)); }
-      else if (h && W) { s.sparks.push({ h: h, t: 0, col: T.sites[s.idx % T.sites.length] }); cue('event', s, { house: s.houses.indexOf(h) }); }
+      else if (h && W) { s.sparks.push({ h: h, t: 0, col: s.tint }); cue('event', s, { house: s.houses.indexOf(h) }); }
       return;
     }
     var l = laneFor(s, msg.ref);
@@ -751,7 +791,7 @@
     } else { M.cone(o[0], 7.5, o[2], 1.75, 3.2, 4, T.roof); M.cone(o[0], 8.5, o[2], 1.2, 2.25, 4, T.snow, G.SNOW); s.spireTop = 10.7; }
     M.cyl(o[0], s.spireTop, o[2], .04, .7, 4, T.brass);
     s.occ.push([o[0], o[2], 3.4, 3.4, 0, .7]);
-    if (K.gloom) for (var gl2 = 0; gl2 < 3; gl2++) s.occ.push([o[0], o[2], (R.wall + 6) * 2 * (1 - gl2 * .18), (R.wall + 6) * 2 * (1 - gl2 * .18), gl2 * .5, K.gloom * .45, 1]);   // the village's own shade
+    if (K.gloom) s.occ.push([o[0], o[2], (R.wall + 6) * 2, (R.wall + 6) * 2, 0, K.gloom * .85, 1, true]);   // the village's own shade, round
     clock(M, s);
     // the 24 hours: today's lamp, yesterday's brass ring (and rod, where today has not reached it)
     s.nowLamp = null;
@@ -875,7 +915,11 @@
   }
   function paintLabels() {
     sites.forEach(function (s) {
-      if (s.sign) {
+      if (s.sign && s.draft) {   // a site being added: its name, and that it is not saved yet
+        if (write(s.sign, '<span class="name">' + esc(s.name) + '</span><span class="row small">not saved yet</span>', s.sign.el.firstChild))
+          s.sign.el.firstChild.setAttribute('aria-label', s.name + ': a site not saved yet');
+      }
+      else if (s.sign) {
         var d = change(s), up = d == null || d >= 0, b = s.sign.el.firstChild;
         if (write(s.sign, '<span class="name">' + (iconOf(s) ? '<img class="ico" alt="" src="' + esc(icons[s.id].src) + '">' : '') + esc(s.name) + '</span>' +
           '<span class="row"><b class="num">' + fmt(s.visitors) + '</b> visitors' + (d == null ? '' : ' <span class="small ' + (up ? 'up' : 'down') + '">' + arrow(d) + '</span>') + '</span>' +
@@ -915,10 +959,10 @@
     tip.style.top = Math.max(8, y - r.height - 12) + 'px';
   }
   function makeSign(s) {
-    var L = W.label(signAt(s), '<button type="button" class="vsign"></button>', 'v-sign', function () { return view.mode === 'bay' || view.site !== s; });
+    var L = W.label(signAt(s), '<button type="button" class="vsign' + (s.draft ? ' draft' : '') + '"></button>', 'v-sign', function () { return view.mode === 'bay' || view.site !== s; });
     s.sign = L;
     L.el.firstChild.style.setProperty('--site', css(s.tint));
-    L.el.firstChild.addEventListener('click', function () { if (opts.onEnter) opts.onEnter(s.id); });
+    L.el.firstChild.addEventListener('click', function () { if (opts.onEnter && !s.draft) opts.onEnter(s.id); });
   }
 
   /* ---------- the camera ---------- */
@@ -1055,6 +1099,7 @@
   function siteAt(x, y) {
     var best = null, bd = Infinity;
     sites.forEach(function (s) {
+      if (s.draft) return;   // nothing to look closer at yet
       var c = W.project([s.o[0], 1, s.o[2]]), e = W.project([s.o[0] + s.R.wall, 0, s.o[2]]); if (!c || !e) return;
       var r = Math.max(40, Math.hypot(e.x - c.x, e.y - c.y)), d = Math.hypot(c.x - x, c.y - y);
       if (d < r && d < bd) { bd = d; best = s; }
@@ -1127,10 +1172,12 @@
       setInterval(function () { if (!document.hidden) { refresh(); paintLabels(); } }, 500);
       frameView(true);
     },
-    /* [{id, name}], in the order the API lists them: one village each, in that order. */
+    /* [{id, name, style, tint, hue, shade, draft?}], in the order the API lists them: one village
+       each, in that order. One with `draft` is a site being added: it stands on the next lot, says
+       so on its sign, and nobody walks in; the next call without it takes it away. */
     setSites: function (list) {
       var was = view.site && view.site.id, old = byId;
-      sites = list.map(function (s, i) { var k = old[s.id]; if (k) { k.idx = i; k.name = s.name; k.tint = T.sites[i % T.sites.length]; k.kit = kitOf(s.style); return k; } return makeSite(s, i); });
+      sites = list.map(function (s, i) { var k = old[s.id]; if (k) { k.idx = i; k.name = s.name; k.draft = !!s.draft; dress(k, s); return k; } return makeSite(s, i); });
       byId = {}; sites.forEach(function (s) { byId[s.id] = s; });
       if (was && !byId[was]) { view.site = null; view.mode = 'bay'; }
       if (!W) return;
@@ -1147,11 +1194,27 @@
       refresh(true); share(); resized(); frameView(true);
     },
     load: function (id, data) { var s = byId[id]; if (s) load(s, data); },
+    /* The kits a village can be built in (the Sites panel's Surprise me picks among them). */
+    styles: function () { return Object.keys(KIT); },
+    /* A site's look as the owner tries one in the Sites panel: its village is dressed again there
+       and then, nothing else about it changes. */
+    restyle: function (id, look) {
+      var s = byId[id]; if (!s) return;
+      if (look.name) s.name = look.name;
+      dress(s, look);
+      if (!W) return;
+      refresh(true); W.relabel(); W.wake();
+    },
     /* A site's icon, as a URL the page may load (a blob: app.js fetched with the token): on its
        banner and its sign once it is loaded. */
     setIcon: function (id, url) {
       var was = icons[id], im = new Image();
       if (was && was.src.indexOf('blob:') === 0) URL.revokeObjectURL(was.src);
+      if (!url) {   // taken away (the Sites panel): the pennant again
+        delete icons[id]; var s = byId[id];
+        if (s) { s.sig = null; if (s.sign) { s.sign.html = null; s.sign.p = signAt(s); } refresh(true); if (W) W.relabel(); }
+        return;
+      }
       im.onload = function () { var s = byId[id]; if (!s) return; s.sig = null; if (s.sign) { s.sign.html = null; s.sign.p = signAt(s); } refresh(true); if (W) W.relabel(); };
       im.src = url; icons[id] = im;
     },

@@ -36,6 +36,9 @@
   --page-ink: #5d6779;    /* another page's row: a step back from the ink, still 5.5:1 on the glass */
   --tab-shadow: 0 1px 3px rgba(20, 30, 60, .16);
   --visits-w: 380px;
+  --sites-w: 460px;     /* the Sites panel, a drawer down the right */
+  /* The hue slider's track, the circle of hues the kit's palette can be turned through. */
+  --hue-wheel: linear-gradient(to right, #c8402f, #c8a22f, #5ea83a, #2fa8a0, #3a6ec8, #8a3ac8, #c83a8a, #c8402f);
   --strip-h: 96px;      /* the history strip: its bars, and the day marks under them */
   --strip-side: 232px;  /* its date field and readout */
   --ctl: 32px;          /* a control inside a panel, smaller than --tap where a mouse points */

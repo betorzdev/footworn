@@ -1,6 +1,7 @@
 /* Footworn's Worker. Static files (the dashboard, footworn.js, privacy) are served by the assets
    binding before this runs; here live the collector (POST /c), the read API (GET /api/*), the
-   live view's socket (GET /live, relayed to the `Live` Durable Object) and the nightly cron. */
+   Sites panel's writes (PUT/DELETE /api/site, POST/DELETE /api/icon), the live view's socket
+   (GET /live, relayed to the `Live` Durable Object) and the nightly cron. */
 
 import { makeHit, originAllowed, ENGAGED } from './collect.js';
 import { firstToday, rotateSalt } from './visitor.js';
@@ -8,6 +9,10 @@ import { authorized } from './auth.js';
 import { sites, stats, eventStats, scene, days, visits, icon } from './stats.js';
 import { publish } from './live.js';
 import { makeTicket, checkTicket } from './ticket.js';
+import { readCapped } from './body.js';
+import { validateSite, saveSite, removeSite, siteRow, fetchIcon, keepIcon, dropIcon, pageUrl } from './sites.js';
+import { iconType, ICON_MAX } from './icon.js';
+
 
 export { Live } from './live.js';
 
@@ -30,27 +35,6 @@ function json(data, status = 200) {
     status,
     headers: { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' },
   });
-}
-
-/* The body, or null past `max` bytes: read from the stream, so a body without Content-Length
-   (or lying about it) never gets buffered whole. */
-export async function readCapped(request, max) {
-  if (Number(request.headers.get('Content-Length')) > max) return null;
-  if (!request.body) return '';
-  const reader = request.body.getReader();
-  const chunks = [];
-  let size = 0;
-  for (;;) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    size += value.byteLength;
-    if (size > max) { await reader.cancel(); return null; }
-    chunks.push(value);
-  }
-  const all = new Uint8Array(size);
-  let at = 0;
-  for (const c of chunks) { all.set(c, at); at += c.byteLength; }
-  return new TextDecoder().decode(all);
 }
 
 async function collect(request, env, ctx) {
@@ -96,8 +80,60 @@ function range(url) {
   return { from, to };
 }
 
+/* The Sites panel's writes, behind the same token. No cross-site request can make one: each
+   needs the Authorization header and a JSON or image body, which a browser preflights, and
+   /api/* answers no CORS headers, so the preflight fails anywhere but the dashboard's own origin. */
+async function writeSite(request, env, url) {
+  const db = env.DB;
+  if (url.pathname === '/api/site') {
+    if (request.method === 'PUT') {
+      let body;
+      try { body = JSON.parse(await readCapped(request, MAX_BODY)); } catch (e) { return json({ error: 'a site is a JSON object' }, 400); }
+      const v = validateSite(body);
+      if (v.error) return json({ error: v.error }, 400);
+      if (!(await saveSite(db, v.site, { create: body.create === true }))) return json({ error: `there is a site "${v.site.id}" already: edit it, or pick another id` }, 409);
+      return json({ ok: true, site: (await sites(db)).find(s => s.id === v.site.id) });
+    }
+    if (request.method === 'DELETE') {
+      const id = url.searchParams.get('site');
+      if (!id || !(await siteRow(db, id))) return json({ error: 'not found' }, 404);
+      await removeSite(db, id);
+      return json({ ok: true });
+    }
+    return json({ error: 'method' }, 405);
+  }
+  if (url.pathname === '/api/icon') {
+    const id = url.searchParams.get('site');
+    const row = id && await siteRow(db, id);
+    if (!row) return json({ error: 'not found' }, 404);
+    if (request.method === 'DELETE') { await dropIcon(db, id); return json({ ok: true }); }
+    if (request.method !== 'POST') return json({ error: 'method' }, 405);
+    const ct = (request.headers.get('Content-Type') || '').split(';')[0].trim().toLowerCase();
+    if (ct.startsWith('image/')) {
+      /* a file the owner chose: its bytes say what it is, never its name or its header */
+      const bytes = await readCapped(request, ICON_MAX, { bytes: true });
+      if (!bytes) return json({ error: `the file is over ${ICON_MAX / 1024} KB` }, 400);
+      const type = iconType(bytes);
+      if (!type) return json({ error: 'not a PNG, ICO or JPEG' }, 400);
+      await keepIcon(db, id, bytes, type);
+      return json({ ok: true, icon: { type, bytes: bytes.length } });
+    }
+    /* fetched from the site: the page given, or the first allowed origin's front page */
+    let body = {};
+    try { body = JSON.parse((await readCapped(request, MAX_BODY)) || '{}') || {}; } catch (e) { return json({ error: 'a JSON body' }, 400); }
+    const page = body.page ? pageUrl(body.page) : pageUrl(row.origins.split(/\s+/)[0] + '/');
+    if (!page) return json({ error: 'page: an http(s) URL' }, 400);
+    const got = await fetchIcon(fetch, page);
+    if (!got) return json({ error: `no usable icon at ${page}: a PNG, ICO or JPEG of ${ICON_MAX / 1024} KB or less, linked as its icon or at /favicon.ico` }, 422);
+    await keepIcon(db, id, got.bytes, got.type);
+    return json({ ok: true, icon: { type: got.type, bytes: got.bytes.length, url: got.url } });
+  }
+  return json({ error: 'method' }, 405);   // every other path under /api/ is a read
+}
+
 async function api(request, env, url) {
   if (!authorized(request, env)) return json({ error: 'unauthorized' }, 401);
+  if (request.method !== 'GET') return writeSite(request, env, url);
   if (url.pathname === '/api/sites') return json(await sites(env.DB));
   if (url.pathname === '/api/live-ticket') return json({ ticket: await makeTicket(env.ADMIN_TOKEN) });
   const site = url.searchParams.get('site');
@@ -153,7 +189,7 @@ export default {
       return env.LIVE.get(env.LIVE.idFromName('live')).fetch(request);
     }
     if (url.pathname.startsWith('/api/')) {
-      if (request.method !== 'GET') return json({ error: 'method' }, 405);
+      if (!['GET', 'PUT', 'POST', 'DELETE'].includes(request.method)) return json({ error: 'method' }, 405);
       try { return await api(request, env, url); } catch (e) { logError(url.pathname, e); return json({ error: 'internal' }, 500); }
     }
     return new Response('Not found', { status: 404 });

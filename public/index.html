@@ -62,6 +62,7 @@
     <button class="btn" id="toggle-history" type="button" aria-controls="strip" aria-pressed="false">History</button>
     <button class="btn" id="toggle-visits" type="button" aria-controls="visits" aria-pressed="true">Visits</button>
     <button class="btn" id="open-ledger" type="button" hidden aria-controls="ledger">Ledger</button>
+    <button class="btn" id="toggle-sites" type="button" aria-controls="sites" aria-pressed="false">Sites</button>
     <span class="sound" id="sound-box">
       <button class="btn" id="sound" type="button" aria-pressed="false">Sound</button>
       <span class="vol glass" id="volume-box" hidden><input id="volume" name="volume" type="range" min="0" max="100" step="5" aria-label="Sound volume" autocomplete="off"></span>
@@ -99,6 +100,108 @@
   </aside>
 
   <p id="error" class="error glass banner" role="alert" hidden></p>
+
+  <aside id="sites" class="sites glass" hidden aria-labelledby="sites-title">
+    <header class="sites-head">
+      <h2 id="sites-title">Sites</h2>
+      <span class="grow"></span>
+      <button class="btn" id="site-new" type="button">Add a site</button>
+      <button class="btn" id="close-sites" type="button">Close</button>
+    </header>
+    <p class="sub muted">A site is a village. Register it with the origins its pages are served from, dress its village, paste the tag.</p>
+    <ol id="site-list" class="site-list"></ol>
+    <div id="site-park" hidden>
+      <form id="site-form" class="site-form" novalidate hidden>
+        <p id="site-saved" class="ok" role="status" hidden></p>
+        <div class="tabs site-tabs" id="site-tabs" role="tablist" aria-label="This site">
+          <button type="button" role="tab" id="tab-settings" data-pane="settings" aria-controls="site-settings" aria-selected="true">Settings</button>
+          <button type="button" role="tab" id="tab-wire" data-pane="wire" aria-controls="site-wire" aria-selected="false" tabindex="-1">Wire</button>
+        </div>
+        <div id="site-settings" class="pane" role="tabpanel" aria-labelledby="tab-settings">
+        <div class="f">
+          <label for="site-name">Name</label>
+          <input id="site-name" name="name" type="text" maxlength="80" autocomplete="off" spellcheck="false" placeholder="Your Site" required>
+        </div>
+        <div class="f">
+          <label for="site-id">Id</label>
+          <input id="site-id" name="id" type="text" class="num" maxlength="64" autocomplete="off" spellcheck="false" pattern="[a-z0-9][a-z0-9_-]*" placeholder="your-site" required>
+          <span class="hint" id="site-id-hint"></span>
+        </div>
+        <div class="f">
+          <label for="site-origins">Origins, one per line</label>
+          <textarea id="site-origins" name="origins" rows="2" class="num" autocomplete="off" spellcheck="false" placeholder="https://your-site.example" required></textarea>
+          <span class="hint">Scheme and host, no path. Hits from anywhere else are dropped.</span>
+        </div>
+        <div class="f">
+          <span class="lbl" id="site-kits-label">Kit</span>
+          <div class="kits" id="site-kits" role="radiogroup" aria-labelledby="site-kits-label">
+            <button type="button" class="kit kit-alpine" role="radio" aria-checked="true" data-style="alpine"><i aria-hidden="true"></i><b>Alpine</b><small>timber, a palisade</small></button>
+            <button type="button" class="kit kit-stone" role="radio" aria-checked="false" data-style="stone"><i aria-hidden="true"></i><b>Stone</b><small>slate spires, a rampart</small></button>
+            <button type="button" class="kit kit-citadel" role="radio" aria-checked="false" data-style="citadel"><i aria-hidden="true"></i><b>Citadel</b><small>red roofs, a belfry</small></button>
+            <button type="button" class="kit kit-umbra" role="radio" aria-checked="false" data-style="umbra"><i aria-hidden="true"></i><b>Umbra</b><small>dark slate, motes</small></button>
+          </div>
+        </div>
+        <div class="f">
+          <label for="site-hue">Palette turned <output id="site-hue-out" for="site-hue">0°</output></label>
+          <input id="site-hue" name="hue" type="range" class="hue" min="0" max="359" step="1" value="0" autocomplete="off">
+          <label for="site-shade">Shade <output id="site-shade-out" for="site-shade">as the kit</output></label>
+          <input id="site-shade" name="shade" type="range" class="shade" min="-40" max="40" step="1" value="0" autocomplete="off">
+          <span class="hint">Roofs, walls and shutters turn; lamps and windows keep their light, they are counts. <button type="button" class="link" id="site-look-reset" hidden>Back to the kit</button></span>
+        </div>
+        <div class="f">
+          <span class="lbl" id="site-tints-label">Colour <span class="hint">the pennant, the sign, the banner’s band</span></span>
+          <div class="tints" id="site-tints" role="radiogroup" aria-labelledby="site-tints-label">
+            <button type="button" class="sw sw-1" role="radio" aria-checked="false" data-tint="1" aria-label="Colour 1"></button>
+            <button type="button" class="sw sw-2" role="radio" aria-checked="false" data-tint="2" aria-label="Colour 2"></button>
+            <button type="button" class="sw sw-3" role="radio" aria-checked="false" data-tint="3" aria-label="Colour 3"></button>
+            <button type="button" class="sw sw-4" role="radio" aria-checked="false" data-tint="4" aria-label="Colour 4"></button>
+            <button type="button" class="sw sw-5" role="radio" aria-checked="false" data-tint="5" aria-label="Colour 5"></button>
+            <button type="button" class="sw sw-6" role="radio" aria-checked="false" data-tint="6" aria-label="Colour 6"></button>
+            <button type="button" class="sw sw-7" role="radio" aria-checked="false" data-tint="7" aria-label="Colour 7"></button>
+            <button type="button" class="sw sw-8" role="radio" aria-checked="false" data-tint="8" aria-label="Colour 8"></button>
+            <span class="grow"></span>
+            <button type="button" class="btn small" id="site-surprise">Surprise me</button>
+          </div>
+        </div>
+        <div class="f">
+          <span class="lbl">Icon</span>
+          <div class="icon-row">
+            <img id="site-icon-img" class="ico" alt="The site’s icon" hidden>
+            <span id="site-icon-none" class="ico blank" aria-hidden="true"></span>
+            <span class="hint grow" id="site-icon-note"></span>
+            <button type="button" class="btn small" id="site-icon-fetch">Fetch from the site</button>
+            <label class="btn small file"><input type="file" id="site-icon-file" name="icon" accept="image/png,image/x-icon,image/vnd.microsoft.icon,image/jpeg">Choose a file…</label>
+            <button type="button" class="btn small" id="site-icon-drop" hidden>Remove</button>
+          </div>
+          <span class="hint">Its page’s <code translate="no">&lt;link rel="icon"&gt;</code> or <code translate="no">/favicon.ico</code>: a PNG, ICO or JPEG of 40 KB or less. It flies on the tower and sits on the sign.</span>
+        </div>
+        <p id="site-error" class="error" role="alert" hidden></p>
+        <div class="actions">
+          <button type="button" class="btn" id="site-cancel">Cancel</button>
+          <button type="submit" class="btn primary" id="site-save">Save site</button>
+        </div>
+        <div class="f">
+          <button type="button" class="btn small danger" id="site-remove" hidden>Remove site…</button>
+          <div class="remove-box" id="site-remove-box" hidden>
+            <label for="site-confirm">This removes the site and everything counted for it. Type its id to confirm.</label>
+            <div class="icon-row">
+              <input id="site-confirm" name="confirm" type="text" class="num grow" autocomplete="off" spellcheck="false">
+              <button type="button" class="btn small" id="site-remove-no">Keep it</button>
+              <button type="button" class="btn small danger" id="site-remove-go" disabled>Remove</button>
+            </div>
+          </div>
+        </div>
+        </div>
+        <div id="site-wire" class="pane" role="tabpanel" aria-labelledby="tab-wire" hidden>
+          <p class="sub">Do this in the site’s own repository, or hand it to your coding agent opened there: it reads the code and proposes what to track.</p>
+          <button type="button" class="btn primary" id="wire-copy">Copy the prompt for your agent</button>
+          <details class="wire-prompt"><summary>Show the prompt, or do it by hand: the steps are below</summary><pre id="wire-prompt" class="snippet num" translate="no"></pre></details>
+          <p class="wire-first" id="wire-first" role="status"><i aria-hidden="true"></i><span id="wire-first-text"></span></p>
+          <ol class="wire-steps" id="wire-steps"></ol>
+        </div>
+      </form>
+    </div>
+  </aside>
 
   <aside id="ledger" class="ledger" hidden aria-labelledby="ledger-title">
     <header class="top">
@@ -149,6 +252,8 @@
 <script src="ledger.js"></script>
 <script src="history.js"></script>
 <script src="visits.js"></script>
+<script src="wire.js"></script>
+<script src="sites.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

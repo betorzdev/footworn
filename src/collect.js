@@ -4,6 +4,8 @@
 import { isBot, parseUA } from './ua.js';
 
 const MAX_PATH = 200, MAX_REF = 100, MAX_EVENT = 60, MAX_PROPS = 10, MAX_PROP_KEY = 32, MAX_PROP_VAL = 64, MAX_LANG = 8;
+/* What an event may carry, as the Sites panel's wiring prompt tells a site's developer (public/wire.js). */
+export const LIMITS = { event: MAX_EVENT, props: MAX_PROPS, key: MAX_PROP_KEY, value: MAX_PROP_VAL };
 const MAX_WIDTH = 10000;   // wider than any screen; past it the number is noise
 const LANG = /^[a-z]{2,3}$/; // the primary subtag of a BCP 47 tag ("es" of "es-ES"); anything else is not a language
 

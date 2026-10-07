@@ -154,19 +154,28 @@ the `$engaged` with it).
 Without the script (blocked, offline) `window.footworn` is undefined, so call it as
 `window.footworn && footworn.event(...)`.
 
-The site has to be registered with its allowed origins, or its hits are dropped:
+The site has to be registered with its allowed origins, or its hits are dropped. **Sites** in
+the dashboard's dock does it: *Add a site*, a name (the id follows it, fixed once saved), the
+origins its pages are served from, and its village's look, which stands in the valley as a draft
+village while you choose it. The kit: `alpine` (the default: timber, a palisade), `stone` (pale
+stone, slate spires, a rampart with round towers, cold lamps), `citadel` (red roofs, a belfry,
+battlements) or `umbra` (near-black slate, an iron fence, pale light, motes drifting over it, and
+a village that casts its own shade). Its palette can be turned round the hue wheel and made
+lighter or darker (roofs, walls, shutters; never the lamps and windows, which are counts), and the
+site gets one of eight colours for its pennant, its sign and its banner's band. The counts read
+the same in each. Once saved, the site's card opens on **Wire**: what its own repository needs
+(the tag on every page, a guarded `track()` helper for views and actions, a line in its privacy
+notice, its Content-Security-Policy, tagged links, a mention in its docs), each with its snippet,
+and *Copy the prompt for your agent*, the same steps as a prompt for a coding agent opened in that
+repository, which reads the code and proposes what to track before adding it. A line under it
+waits for the site's first visit on the live socket and turns green when it comes. The site can also fly its own icon
+on its tower and show it on its sign: *Fetch from the site* reads its page (its
+`<link rel="icon">`, the largest up to 256 px, else `/favicon.ico`), *Choose a file…* takes one;
+either way a PNG, ICO or JPEG of 40 KB or less, never an SVG, served to the dashboard by the
+Worker. *Edit* changes any of it later (the village is dressed again as you go, *Cancel* puts it
+back); *Remove site…* asks for the id and removes the site with everything counted for it.
 
-```sh
-npm run site:add -- your-site "Your Site" https://your-site.example --remote
-```
-
-Its village can be built in a kit of its own, `--style alpine` (the default: timber, a palisade),
-`stone` (pale stone, slate spires, a rampart with round towers, cold lamps), `citadel` (red roofs,
-a belfry, battlements) or `umbra` (near-black slate, an iron fence, pale light, motes drifting over
-it, and a village that casts its own shade). The counts read the same in each. And it can fly the
-site's own icon on its tower and show it on its sign: Footworn fetches it once from the site's
-page (its `<link rel="icon">`, the largest up to 256 px, else `/favicon.ico`; a PNG, ICO or JPEG of
-40 KB or less, never an SVG) and serves it to the dashboard itself:
+From a shell, the same without the look's colour and turn (`npm run dev` and the smoke test use these):
 
 ```sh
 npm run site:add -- your-site "Your Site" https://your-site.example --style stone --remote
@@ -225,7 +234,8 @@ locally for `/verify`.
 3. `npm run migrate` (applies `migrations/` to the remote database).
 4. `npx wrangler secret put ADMIN_TOKEN` (a long random string; it’s the dashboard’s password).
 5. `npm run deploy` → `https://footworn.<account>.workers.dev`.
-6. Register each site with `npm run site:add -- <id> "<name>" "<origin> [<origin>…]" --remote`.
+6. Open the dashboard with the token and register each site from **Sites** (or `npm run site:add -- <id> "<name>" "<origin> [<origin>…]" --remote`).
+   A database made before the Sites panel needs `npm run migrate` again (`0003_site_look.sql`).
 
 Free plan room: 100 000 requests/day and 100 000 D1 writes/day; a pageview costs two writes and
 an event one, so about 50 000 pageviews a day. The live view adds one Durable Object request per
@@ -261,8 +271,12 @@ the width, no id), live and as the day's history; earlier days are only counts. 
 
 | | |
 |---|---|
-| `GET /api/sites` | `[{ id, name, style, icon }]`: the kit its village is built in (null is alpine), and whether it has an icon |
-| `GET /api/icon?site=` | the site's icon as kept by `site:icon` (PNG, ICO or JPEG), or 404 |
+| `GET /api/sites` | `[{ id, name, origins, style, tint, hue, shade, icon }]`: its allowed origins, the kit its village is built in (null is alpine), its colour (1–8, null: by its place in the list), how the kit's palette is turned (`hue` 0–359, `shade` −40–40, null: as it is), and whether it has an icon |
+| `GET /api/icon?site=` | the site's icon as kept (PNG, ICO or JPEG), or 404 |
+| `PUT /api/site` | the Sites panel's save: `{ id, name, origins: [..], style, tint, hue, shade }` (JSON), added or updated (never its icon); `{ ok, site }`, or `400 { error }` |
+| `DELETE /api/site?site=` | removes the site and every hit counted for it; 404 for an unknown one |
+| `POST /api/icon?site=` | an image body (`Content-Type: image/…`, 40 KB at most, its bytes must say PNG, ICO or JPEG) is kept as the icon; any other body (`{ page? }`, JSON) has the Worker fetch it from that page or the site's first origin, as `site:icon` does; `422` when none is usable |
+| `DELETE /api/icon?site=` | forgets the icon: the pennant again |
 | `GET /api/scene?site=` | what the village draws, all counts: `pages`, `refs` and `views` (every one of the last 30 days, busiest first, each list cut at 200, `[{ value, hits }]`), `today: { hits, visitors, events, viewsTotal, loads, engaged, pages: [{ path, hits, loads, engaged, events }], refs: [{ ref, hits }], views: [{ view, hits }], viewPages: [{ path, view, hits }] }` (the used rate is `engaged / loads`, as in `/api/stats`; a view is a `screen` event with a `view`, so `viewsTotal` is inside `events`), `yesterday: { visitors, pages: [{ path, hits }] }` up to this time of day, and `hours: [{ hour, today, yesterday }]`, pageviews by UTC hour. With `&day=` before today (`past: true` in the answer) it is the village as that day ended: `today` is that day, the 30 days end on it, `yesterday` is the whole day before |
 | `GET /api/days?site=&from=&to=` | `{ days: [{ day, visitors, hits }] }`, visitors and pageviews per day (a day with none has no row): the bars of the history strip |
 | `GET /api/visits?site=` | today's visits (UTC), newest first, at most 2000, rounded: `{ day, now, visits: [{ minute, path, ref, device, browser, os, lang, country, first, event, props }] }`. Never the width, the second or an id |
@@ -283,10 +297,12 @@ src/stats.js      the API's queries
 src/live.js       the live view: what a live message carries, and the Live Durable Object that relays it
 src/ticket.js     the live socket's 60-second ticket
 src/auth.js       the bearer check
-public/           footworn.js, the dashboard (index.html, app.js, gl.js, village.js, sound.js, live.js, ledger.js, history.js, visits.js, theme.js, style.css, tokens.css), privacy, demo,
+src/sites.js      the Sites panel's writes: a site checked, saved, removed; its icon fetched or kept
+src/body.js       a request or response body read with a cap
+public/           footworn.js, the dashboard (index.html, app.js, gl.js, village.js, sound.js, live.js, ledger.js, history.js, visits.js, sites.js, theme.js, style.css, tokens.css), privacy, demo,
                   _headers (nosniff and no-referrer everywhere; the dashboard's CSP: no inline code, no framing)
 migrations/       the D1 schema
 test/             node --test
-tools/            dev.js, site-add.js, smoke.js
+tools/            dev.js, site-add.js, site-icon.js, smoke.js
 docs/             privacy.md (the record of what is stored), backlog.md, screenshots/
 ```

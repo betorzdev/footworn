@@ -9,7 +9,7 @@
   'use strict';
   var TOKEN_KEY = 'footworn.token';
   var $ = function (id) { return document.getElementById(id); };
-  var state = { token: null, sites: [], site: null, day: null, viewDay: null, buffer: null, started: false };   // `day`: today as last seen; `viewDay`: the past day on screen, null for today
+  var state = { token: null, sites: [], icons: {}, site: null, day: null, viewDay: null, buffer: null, started: false, empty: false };   // `day`: today as last seen; `viewDay`: the past day on screen, null for today; `icons`: each site's icon as a blob URL
   var scene = window.FootwornCity;
   var touch = !!(window.matchMedia && matchMedia('(hover: none)').matches);
 
@@ -20,21 +20,26 @@
   function utcDay() { return new Date().toISOString().slice(0, 10); }
   function isDay(s) { if (!/^\d{4}-\d{2}-\d{2}$/.test(s || '')) return false; var t = Date.parse(s); return !isNaN(t) && new Date(t).toISOString().slice(0, 10) === s; }   // a real day: no 31st of February
 
-  function api(path) {
-    return fetch(path, { headers: { Authorization: 'Bearer ' + state.token } }).then(function (r) {
+  /* A read, or with `init` ({ method, body, headers }) one of the Sites panel's writes: a string
+     body is JSON unless said otherwise. An answer that is not ok throws its `error`, if it gave one. */
+  function api(path, init) {
+    var o = init || {}, h = { Authorization: 'Bearer ' + state.token }, k;
+    for (k in o.headers || {}) h[k] = o.headers[k];
+    if (typeof o.body === 'string' && !h['Content-Type']) h['Content-Type'] = 'application/json';
+    return fetch(path, { method: o.method || 'GET', headers: h, body: o.body }).then(function (r) {
       if (r.status === 401) throw new Error('unauthorized');
-      if (!r.ok) throw new Error('HTTP ' + r.status);
+      if (!r.ok) return r.json().catch(function () { return null; }).then(function (j) { throw new Error(j && j.error ? j.error : 'HTTP ' + r.status); });
       return r.json();
     });
   }
 
   /* --- errors: one line over the scene, with Retry when there is something to repeat --- */
   var retry = null;
-  function showError(msg, again) {
+  function showError(msg, again, label) {
     var el = $('error');
     el.textContent = msg || '';
     retry = msg ? again || null : null;
-    if (retry) { var b = document.createElement('button'); b.type = 'button'; b.className = 'btn'; b.id = 'retry'; b.textContent = 'Retry'; el.appendChild(b); }
+    if (retry) { var b = document.createElement('button'); b.type = 'button'; b.className = 'btn'; b.id = 'retry'; b.textContent = label || 'Retry'; el.appendChild(b); }
     el.hidden = !msg;
   }
   $('error').addEventListener('click', function (e) { if (e.target.closest('#retry') && retry) retry(); });
@@ -81,7 +86,7 @@
   var sound = window.FootwornSound();
   var live = window.FootwornLive({
     ticket: function () { return api('/api/live-ticket').then(function (r) { return r.ticket; }); },
-    onMessage: function (msg) { if (state.viewDay) return; if (state.buffer) state.buffer.push(msg); else { scene.live(msg); visits.live(msg); } },   // a past day is over; today is read again on the way back
+    onMessage: function (msg) { sitesPanel.live(msg); if (state.viewDay) return; if (state.buffer) state.buffer.push(msg); else { scene.live(msg); visits.live(msg); } },   // a past day is over; today is read again on the way back
     onState: paintLive,
     onResume: reloadAll,
   });
@@ -93,6 +98,26 @@
     onToggle: function () { if (state.started) scene.refit(true); },
   });
 
+  /* The Sites panel: a site added, dressed (the village is its preview), edited or removed; after
+     each write the sites are read again and the valley follows. */
+  var sitesPanel = window.FootwornSites({
+    api: api, scene: scene,
+    sites: function () { return state.sites; },
+    iconUrl: function (id) { return state.icons[id] || null; },
+    today: function (id) { return state.viewDay ? null : scene.stats(id); },   // today's counts, or null while a past day is on screen
+    /* `iconOf`: the site whose icon was just changed, fetched again; the others keep theirs. */
+    onChange: function (iconOf) {
+      return api('/api/sites').then(function (sites) {
+        var had = state.site;
+        applySites(sites, iconOf);
+        if (had && !sites.some(function (s) { return s.id === had; })) leave();
+        return reloadAll();
+      });
+    },
+    onOpen: function () { if (ledger.isOpen()) ledger.close(); paintPanel(); scene.refit(true); syncUrl(); },
+    onClose: function () { paintPanel(); scene.refit(true); },
+  });
+
   /* The panels' room at the top, bottom and right of the window, so the scene frames what they leave free. */
   function insets() {
     var top = 16, bottom = 16, right = 0, W = window.innerWidth, H = window.innerHeight;
@@ -102,8 +127,9 @@
     });
     /* An open ledger, or the visits panel, takes the right of a wide window; on a phone the
        panel is a sheet at the bottom. */
-    var led = $('ledger'), vis = $('visits');
+    var led = $('ledger'), vis = $('visits'), st = $('sites');
     if (!led.hidden && led.offsetWidth < W) right = led.offsetWidth;
+    else if (!st.hidden && st.offsetWidth < W) right = st.offsetWidth;
     else if (!vis.hidden) {
       var v = vis.getBoundingClientRect();
       if (v.height > H / 2 && v.left > W * .4) right = W - v.left; else bottom = Math.max(bottom, H - v.top);
@@ -127,22 +153,10 @@
             /* On a phone the history strip hangs under the title panel, whatever its height (style.css). */
             document.documentElement.style.setProperty('--hud-bottom', Math.round(document.querySelector('.hud').getBoundingClientRect().bottom) + 'px');
           });
-          ['.hud', '.stats', '.strip', '.dock', '#visits', '#ledger'].forEach(function (sel) { ro.observe(document.querySelector(sel)); });
+          ['.hud', '.stats', '.strip', '.dock', '#visits', '#ledger', '#sites'].forEach(function (sel) { ro.observe(document.querySelector(sel)); });
         }
       }
-      scene.setSites(sites);
-      /* Each site's icon, fetched with the token, for its banner and its sign. */
-      sites.forEach(function (s) {
-        if (!s.icon || !scene.setIcon) return;
-        fetch('/api/icon?site=' + encodeURIComponent(s.id), { headers: { Authorization: 'Bearer ' + state.token } })
-          .then(function (r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.blob(); })
-          .then(function (b) { scene.setIcon(s.id, URL.createObjectURL(b)); })
-          .catch(function () { /* no icon: the pennant in its colour */ });
-      });
-      $('places').innerHTML = sites.map(function (s) {
-        return '<li><button class="btn place" type="button" data-id="' + esc(s.id) + '">' + esc(s.name) + '</button></li>';
-      }).join('');
-      if (!sites.length) showError('No sites registered yet. Register one with: npm run site:add -- <id> "<name>" <origin> --remote');
+      applySites(sites);
       var want = state.site; state.site = null;
       restoring = true;
       try {
@@ -157,6 +171,32 @@
       $('gate-form').querySelector('button').disabled = false;
       showGate(e.message === 'unauthorized' ? 'That token is not accepted. Check it and try again.' : 'Could not reach the API (' + e.message + '). Check that the Worker is up, then retry.');
     });
+  }
+
+  /* The sites as read, or read again after the Sites panel wrote: the valley, each site's icon
+     (fetched with the token, for its banner and its sign), the dock's buttons, the empty state. */
+  function applySites(sites, iconOf) {
+    state.sites = sites;
+    scene.setSites(sitesPanel.withDraft(sites));   // a site being added stays in the valley meanwhile
+    Object.keys(state.icons).forEach(function (id) {   // a site removed: its icon let go
+      if (state.icons[id] && !sites.some(function (s) { return s.id === id; })) { delete state.icons[id]; scene.setIcon(id, null); }   // the scene lets the blob go, so a site added later with that id flies none
+    });
+    sites.forEach(function (s) {
+      if (!scene.setIcon) return;
+      if (!s.icon) { if (state.icons[s.id]) { delete state.icons[s.id]; scene.setIcon(s.id, null); sitesPanel.icons(); } return; }   // the scene lets the blob go
+      if (state.icons[s.id] && s.id !== iconOf) return;   // already here, and unchanged
+      fetch('/api/icon?site=' + encodeURIComponent(s.id), { headers: { Authorization: 'Bearer ' + state.token } })
+        .then(function (r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.blob(); })
+        .then(function (b) { var url = URL.createObjectURL(b); state.icons[s.id] = url; scene.setIcon(s.id, url); sitesPanel.icons(); })   // the scene revokes the one it had
+        .catch(function () { /* no icon: the pennant in its colour */ });
+    });
+    $('places').innerHTML = sites.map(function (s) {
+      return '<li><button class="btn place" type="button" data-id="' + esc(s.id) + '">' + esc(s.name) + '</button></li>';
+    }).join('');
+    if (!sites.length) showError('No sites yet.', function () { showError(null); sitesPanel.addFirst(); }, 'Add your first site');
+    else if (state.empty) showError(null);
+    state.empty = !sites.length;
+    sitesPanel.refresh();
   }
 
   /* Every village from /api/scene and every site's visits from /api/visits. Live hits that
@@ -301,15 +341,16 @@
 
   $('places').addEventListener('click', function (e) { var b = e.target.closest('button.place'); if (b) go(b.dataset.id); });
   $('back').addEventListener('click', leave);
-  function openLedger(event, range) { ledger.open(state.site, event, range); paintPanel(); syncUrl(); scene.refit(true); $('close-ledger').focus({ preventScroll: true }); }
+  function openLedger(event, range) { if (sitesPanel.isOpen()) sitesPanel.close(); ledger.open(state.site, event, range); paintPanel(); syncUrl(); scene.refit(true); $('close-ledger').focus({ preventScroll: true }); }
   /* From an event's card in the visits panel: its site's ledger, open at that event. */
   function openEvent(id, name) { if (state.site !== id) go(id, true); openLedger(name); }
   function closeLedger() { ledger.close(); paintPanel(); scene.refit(true); $('open-ledger').focus({ preventScroll: true }); }
-  /* The visits panel: shown unless the reader put it away (remembered), and never under the ledger. */
+  /* The visits panel: shown unless the reader put it away (remembered), and never under the ledger or the Sites panel. */
   function paintPanel() {
-    $('visits').hidden = !state.showVisits || ledger.isOpen();
+    $('visits').hidden = !state.showVisits || ledger.isOpen() || sitesPanel.isOpen();
     $('ui').classList.toggle('with-visits', !$('visits').hidden);   // the history strip ends where the panel begins
     $('ui').classList.toggle('with-ledger', ledger.isOpen());       // and is put away under the ledger, which would cover half of it
+    $('ui').classList.toggle('with-sites', sitesPanel.isOpen());    // or under the Sites panel, likewise
     visits.shown();
     $('toggle-visits').setAttribute('aria-pressed', String(!!state.showVisits));
   }
@@ -354,7 +395,8 @@
   $('close-ledger').addEventListener('click', closeLedger);
   document.addEventListener('keydown', function (e) {
     if (e.key !== 'Escape' || !$('gate').hidden) return;
-    if (ledger.isOpen()) closeLedger();
+    if (sitesPanel.isOpen()) sitesPanel.close();
+    else if (ledger.isOpen()) closeLedger();
     else if (state.site) leave();
   });
   /* A window turned from landscape to portrait (or back) gets the scene rearranged, if it asks to. */
@@ -363,7 +405,7 @@
     clearTimeout(relayout);
     relayout = setTimeout(function () {
       if (!state.started || !scene.wantsRelayout()) return;
-      scene.setSites(state.sites); if (state.site) scene.enter(state.site, true);
+      scene.setSites(sitesPanel.withDraft(state.sites)); if (state.site) scene.enter(state.site, true);
       reloadAll();
     }, 300);
   });

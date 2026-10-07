@@ -83,6 +83,26 @@ errors, loading state, URL state, reduced motion, focus rings and press feedback
   shift that brings the horizon into the picture is off on a narrow screen, which keeps the old
   high view; the cost on the GPU of one drawing of the scene, or of the sky's tick, was not measured
   (headless Chrome gave no usable timing), only Chrome's CPU and the count of drawings.
+- **The Sites panel**: done on 2026-10-07 (`public/sites.js`, `src/sites.js`): add, dress, edit and
+  remove a site from the dashboard, the village as the preview; the icon fetched again with one
+  button. Its second step the same day: a *Wire* tab with the steps for the site's own repository
+  and a prompt for a coding agent (`public/wire.js`), and a line that turns green with the first
+  live visit. Seen and left out there: a prompt alone (nothing to read without an agent, no check)
+  and a `FOOTWORN.md` file to drop in the site's repository (a copy that goes stale). Seen that day and left out: a settings page of its own (no preview) and editing in the
+  valley (a popover on a sign: hard to find, poor on a phone); an icon from a pasted image URL; a
+  free palette per site (every role editable), which would break `tokens.css` as the one source.
+- **The look from the site itself** (asked on 2026-10-07, thought through, not built): Footworn
+  proposes a village from the site's own aesthetics, and the owner keeps or adjusts it. The signals
+  that need no dependency: from the page the icon fetch already reads (`fetchIcon` in
+  `src/sites.js` can return them as `hints`), `<meta name="theme-color">` and `color-scheme`; from
+  the icon, already a same-origin blob in the dashboard, its pixels through a `<canvas>`: mean
+  lightness and dominant hue (a 12-bucket histogram of saturated pixels). A pure
+  `suggestLook({ themeColor, scheme, iconHue, iconLight })` → `{ style, hue, shade, tint }`, tested
+  on the two calculators: dark theme or icon → umbra; warm saturated hue → citadel; cool greyish
+  → stone; else alpine; `hue` the turn from the kit's own roof hue to the site's (the roofs lean
+  to it, never a flat copy), `shade` from the lightness, `tint` the nearest of the eight site
+  colours. In the panel, *Suggest from the site* beside *Fetch from the site* fills the form and
+  previews it; nothing is saved without the owner's look.
 - **A kit per village**: done on 2026-10-06 (`KIT` in `public/village.js`, `--style`, `site:icon`).
   Seen in that round and left out: a wall chosen apart from the kit (each kit keeps its own), and
   the old low wall. Still open: the icon is fetched once, by hand; a site that changes its icon

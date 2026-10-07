@@ -413,17 +413,23 @@
       });
       gl.bindTexture(gl.TEXTURE_2D, lmT); gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, lmC); W.invalidate();
     };
-    /* [[x, z, w, d, rot, darkness, shade], …]: every footprint drawn sharp, then the lot blurred at once.
+    /* [[x, z, w, d, rot, darkness, shade, round], …]: every footprint drawn sharp, then the lot blurred at once.
        A footprint marked `shade` (a village's own shade) darkens the red channel only: the lit
-       surface reads it as shade on the direct light too, not only on what the sky gives.
+       surface reads it as shade on the direct light too, not only on what the sky gives. One marked
+       `round` is an ellipse that fades out over its outer half instead of a sharp rectangle.
        (a blur a shape is hundreds of passes, and stalls the GPU for most of a second). */
     W.paintOcclusion = function (list) {
       var key = W.box.join() + '|' + list.join(';'); if (key === occKey) return; occKey = key;
       var S = 1024 / W.box[2];
       ink.clearRect(0, 0, 1024, 1024);
       list.forEach(function (s) {
-        var p = toMap(s[0], s[1]); ink.save(); ink.translate(p[0], p[1]); ink.rotate(-s[4]); ink.fillStyle = (s[6] ? 'rgba(0,255,255,' : 'rgba(0,0,0,') + s[5] + ')';
-        ink.fillRect(-s[2] / 2 * S, -s[3] / 2 * S, s[2] * S, s[3] * S); ink.restore();
+        var p = toMap(s[0], s[1]), c = s[6] ? 'rgba(0,255,255,' : 'rgba(0,0,0,'; ink.save(); ink.translate(p[0], p[1]); ink.rotate(-s[4]);
+        if (s[7]) {
+          var g = ink.createRadialGradient(0, 0, 0, 0, 0, s[2] / 2 * S);
+          g.addColorStop(0, c + s[5] + ')'); g.addColorStop(.5, c + s[5] + ')'); g.addColorStop(1, c + '0)');
+          ink.scale(1, s[3] / s[2]); ink.fillStyle = g; ink.beginPath(); ink.arc(0, 0, s[2] / 2 * S, 0, Math.PI * 2); ink.fill();
+        } else { ink.fillStyle = c + s[5] + ')'; ink.fillRect(-s[2] / 2 * S, -s[3] / 2 * S, s[2] * S, s[3] * S); }
+        ink.restore();
       });
       ao.filter = 'none'; ao.fillStyle = '#fff'; ao.fillRect(0, 0, 1024, 1024);
       ao.filter = 'blur(' + Math.round(S * .55) + 'px)'; ao.drawImage(inkC, 0, 0); ao.filter = 'none';

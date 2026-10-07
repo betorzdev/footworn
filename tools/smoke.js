@@ -131,6 +131,36 @@ try {
   assert.equal(ic.headers.get('content-type'), 'image/png', 'icon: its type');
   assert.equal(Buffer.from(await ic.arrayBuffer()).toString('hex'), PNG, 'icon: its bytes');
   assert.equal((await api('/api/sites'))[0].icon, true, 'sites: one has an icon');
+
+  /* The Sites panel's writes: a site added, dressed, given an icon, then removed with its hits. */
+  const H = { Authorization: 'Bearer ' + TOKEN };
+  const put = body => fetch(BASE + '/api/site', { method: 'PUT', headers: { ...H, 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+  assert.equal((await fetch(BASE + '/api/site', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: '{}' })).status, 401, 'write: token needed');
+  assert.equal((await put({ id: 'Bad Id', name: 'x', origins: ['https://three.example'] })).status, 400, 'write: a bad id is refused');
+  assert.equal((await put({ id: 'three', name: 'x', origins: ['https://three.example/path'] })).status, 400, 'write: an origin with a path is refused');
+  assert.equal((await put({ id: 'one', name: 'Not One', origins: ['https://x.example'], create: true })).status, 409, 'write: a new site never overwrites one');
+  assert.equal((await api('/api/sites')).find(s => s.id === 'one').name, 'Site One', 'write: the old one stands');
+  assert.equal((await fetch(BASE + '/api/stats?site=one', { method: 'DELETE', headers: H })).status, 405, 'write: a read path is not written');
+  const saved = await (await put({ id: 'three', name: 'Site Three', origins: ['https://three.example'], style: 'citadel', tint: 5, hue: 120, shade: -20, create: true })).json();
+  assert.deepEqual(saved.site, { id: 'three', name: 'Site Three', origins: ['https://three.example'], style: 'citadel', tint: 5, hue: 120, shade: -20, icon: false }, 'write: the site as saved');
+  await put({ id: 'three', name: 'Site Three', origins: ['https://three.example', 'https://www.three.example'], style: 'stone' });
+  const three = (await api('/api/sites')).find(s => s.id === 'three');
+  assert.deepEqual([three.style, three.tint, three.hue, three.origins.length], ['stone', null, null, 2], 'write: an edit replaces the look');
+  const upPng = Buffer.from('89504e470d0a1a0a0000000d49484452', 'hex');
+  assert.equal((await fetch(BASE + '/api/icon?site=three', { method: 'POST', headers: { ...H, 'Content-Type': 'image/png' }, body: Buffer.from('<svg></svg>') })).status, 400, 'icon upload: not an image');
+  assert.equal((await fetch(BASE + '/api/icon?site=three', { method: 'POST', headers: { ...H, 'Content-Type': 'image/png' }, body: upPng })).status, 200, 'icon upload');
+  const ic3 = await fetch(BASE + '/api/icon?site=three', { headers: H });
+  assert.equal(Buffer.from(await ic3.arrayBuffer()).toString('hex'), upPng.toString('hex'), 'icon upload: its bytes, served back');
+  assert.equal((await fetch(BASE + '/api/icon?site=three', { method: 'DELETE', headers: H })).status, 200, 'icon removed');
+  assert.equal((await fetch(BASE + '/api/icon?site=three', { headers: H })).status, 404, 'icon removed: none kept');
+  await post({ s: 'three', p: '/' }, { origin: 'https://www.three.example', ip: '203.0.113.9' });
+  assert.equal((await api('/api/stats?site=three')).totals.hits, 1, 'a site added from the panel counts');
+  assert.equal((await fetch(BASE + '/api/site?site=nope', { method: 'DELETE', headers: H })).status, 404, 'remove: unknown site');
+  assert.equal((await fetch(BASE + '/api/site?site=three', { method: 'DELETE', headers: H })).status, 200, 'remove');
+  assert.deepEqual((await api('/api/sites')).map(s => s.id), ['one', 'two'], 'remove: gone from the list');
+  assert.equal((await api('/api/stats?site=three')).totals.hits, 0, 'remove: its hits went with it');
+  await post({ s: 'three', p: '/' }, { origin: 'https://three.example' });
+  assert.equal((await api('/api/stats?site=three')).totals.hits, 0, 'remove: its hits are dropped again');
   assert.deepEqual(sc.today.viewPages, [{ path: '/', view: 'combat', hits: 1 }, { path: '/map/', view: 'map', hits: 1 }], 'scene views today by page');
   assert.equal(sc.today.viewsTotal, 2, 'scene views today, all of them');
   assert.ok(!('live' in sc), 'no count of the last 5 minutes any more');

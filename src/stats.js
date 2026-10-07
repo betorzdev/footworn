@@ -5,10 +5,13 @@
 const TOP = 30;
 const SCENE = 200;   // the village draws every page, referrer and view, of the month and of today: each list is cut here for safety
 
-/* The sites, with the kit each village is built in (null: alpine) and whether it has an icon. */
+/* The sites, each with its allowed origins and its look: the kit its village is built in (null:
+   alpine), its colour (`tint`, 1..8; null: by its place in the list), how the kit's palette is
+   turned (`hue`, `shade`; null: as it is) and whether it has an icon. */
 export async function sites(db) {
-  const r = await db.prepare('SELECT id, name, style, icon IS NOT NULL AS icon FROM sites ORDER BY name').all();
-  return (r.results || []).map(s => ({ id: s.id, name: s.name, style: s.style || null, icon: !!s.icon }));
+  const r = await db.prepare('SELECT id, name, origins, style, tint, hue, shade, icon IS NOT NULL AS icon FROM sites ORDER BY name').all();
+  return (r.results || []).map(s => ({ id: s.id, name: s.name, origins: String(s.origins || '').split(/\s+/).filter(Boolean),
+    style: s.style || null, tint: s.tint || null, hue: s.hue || null, shade: s.shade || null, icon: !!s.icon }));
 }
 
 /* A site's icon as kept (`npm run site:icon`): { bytes, type }, or null. */

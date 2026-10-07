@@ -89,7 +89,7 @@ test('origin allowlist', () => {
 });
 
 test('readCapped stops at the cap, with or without Content-Length', async () => {
-  const { readCapped } = await import('../src/index.js');
+  const { readCapped } = await import('../src/body.js');
   const small = new Request('http://x/c', { method: 'POST', body: '{"s":"a"}' });
   assert.equal(await readCapped(small, 64), '{"s":"a"}');
   const big = new Request('http://x/c', { method: 'POST', body: 'x'.repeat(100) });

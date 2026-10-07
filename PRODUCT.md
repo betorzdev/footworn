@@ -116,6 +116,31 @@ URL is a bookmark to a site, the open ledger, its range and an open event.
   touch screen gets); it never stays
   (the owner asked, 2026-10-05). The usual at 80, silence at 0, about 4 dB more at 100,
   remembered too. Wide windows only: a phone has no button and no sound.
+- Sites (since 2026-10-07; the owner wanted adding, dressing and editing a site to be much
+  simpler than three shell commands, and picked a drawer in the dock, with the real village as the
+  preview, of three options: a drawer, a page of its own, editing in the valley): *Sites* in the
+  dock opens a drawer like the ledger's, a card per site and one form for a new site or an edit.
+  Name (the id slugged from it, fixed once saved: pages carry it), origins one per line, the kit
+  as four cards with its colours, the palette turned round a hue wheel and made lighter or darker
+  (the material only: roofs, timber, stone, walls, shutters, awnings; never lamps, windows, the
+  clock or the motes, which are counts; the owner chose this over a free palette per site, so
+  every colour is still a token turned), one of the eight site colours (stored, so adding a site
+  no longer recolours the others), *Surprise me*, and the icon fetched from the site or chosen as
+  a file. Every change dresses the village there and then; a new site stands as a draft village
+  on the next lot, with a canned day so its kit shows houses, gates and stalls, a dashed sign that
+  says "not saved yet", nobody walking in. Cancel puts the saved look back. After a save, the tag
+  to paste. *Remove site…* asks for the id typed, and removes the site with its hits. Then the
+  second step (the same day; the owner asked for instructions for the site's own repository, maybe
+  a prompt, and picked a Wire tab of three options: the tab, a prompt alone, a FOOTWORN.md file):
+  each card has *Settings* and *Wire*, and saving a new site opens *Wire*: the steps that wired the
+  calculators (the tag on every page, generated pages and the 404 too; a guarded `track()`; a line
+  in the privacy notice; the CSP; tagged links; the docs), each with its snippet, and one button
+  that copies them as a prompt for a coding agent. The owner chose that the agent reads the code
+  and proposes which views and actions to track, asking before adding more than a few. A line
+  waits for the site's first live visit and turns green with its page and referrer (or says
+  today's pageviews, for a site already counting): the proof the wiring works, without leaving
+  the panel. On a phone
+  the drawer is a full sheet, so the preview shows once it is put away.
 - Another day (since 2026-10-06; the owner asked to go back a day, or to any day, and picked the
   day strip of three options: a stepper, the strip, a calendar): *History* in the dock brings up
   a strip over it with the last 60 days as bars of visitors (30 on a phone, under the title),

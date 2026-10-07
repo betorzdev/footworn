@@ -19,10 +19,11 @@ maps to it.
 | `lang`                     | Part of the browser's description (its language setting)            |
 | `first`                    | The daily "unique visitor" flag (a count, not an identifier)        |
 
-Besides the hits, `sites` keeps each site's own configuration, set by its owner: its name, the
-Origins allowed to count, the kit its village is drawn in (`style`) and the site's public icon
-(`icon`, `icon_type`: fetched once from the site's own page by `npm run site:icon`). None of it is
-about a visitor.
+Besides the hits, `sites` keeps each site's own configuration, set by its owner from the
+dashboard's Sites panel (or `npm run site:add`, `site:icon`): its name, the Origins allowed to
+count, the look of its village (`style`, the kit; `tint`, its colour; `hue` and `shade`, how the
+kit's palette is turned) and the site's public icon (`icon`, `icon_type`: fetched from the site's
+own page, or a file the owner chose). None of it is about a visitor.
 
 Not in the list and therefore not collected: load time and scroll depth (allowed by the guide,
 just not built yet) and anything beyond it, above all session journeys
