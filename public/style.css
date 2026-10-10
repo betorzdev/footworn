@@ -55,7 +55,6 @@ input {
 .scene-labels .v-house, .scene-labels .v-gate, .scene-labels .v-view, .scene-labels .v-event { pointer-events: auto; }
 .scene-labels .p { font-weight: 600; }
 .scene-labels .num { font-family: var(--font-num); font-weight: 700; color: var(--village-ink-num); }
-.scene-labels .s { display: block; color: var(--village-ink-soft); font-size: var(--fs-xs); }
 .scene-labels .v-gate > div { border-color: var(--lane); }
 .scene-labels .v-gate .p { color: var(--lane); }
 /* A stall's label is bare text, a step below the houses' signs; ringed from the panel, it is a sign too. */
@@ -65,7 +64,8 @@ input {
 /* A workshop's label: bare text too, in its lantern's colour. */
 .scene-labels .v-event > div { background: none; border-color: transparent; padding: 0 var(--s-1); text-shadow: 0 1px 2px var(--village-sky-top), 0 0 5px var(--village-sky-top), 0 0 9px var(--village-sky-top); }
 .scene-labels .v-event .p { color: var(--lane); }
-.scene-labels .v-tick span { display: block; transform: translate(-50%, -50%); font: 600 var(--fs-xs) var(--font-num); color: var(--village-ink-num); text-shadow: 0 1px 3px var(--village-sky-top); }
+.scene-labels .pop .num::after { content: "+1"; display: inline-block; margin-left: var(--s-1); color: var(--village-up); animation: plus 3s steps(12) var(--pop-in, 0ms) both; }   /* a visit just reached it; twelve steps, not the screen's rate; a count written meanwhile goes on from where it was */
+@keyframes plus { from { opacity: 0; transform: translateY(var(--s-1)); } 15% { opacity: 1; transform: none; } 70% { opacity: 1; transform: translateY(calc(var(--s-1) / -2)); } to { opacity: 0; transform: translateY(calc(var(--s-1) * -1.5)); } }
 .scene-labels .hl > div, .scene-labels .hl .vsign { border-color: var(--village-hover); box-shadow: 0 0 0 1px var(--village-hover); }
 .vsign { pointer-events: auto; cursor: pointer; font: inherit; font-size: var(--fs-s); padding: var(--s-2) var(--s-3); border-left: var(--s-1) solid var(--site); text-align: left; touch-action: manipulation; user-select: none; }
 .vsign:focus-visible { outline: 2px solid var(--village-hover); outline-offset: 2px; }
@@ -460,7 +460,7 @@ td.n { text-align: right; padding-left: var(--s-3); font-family: var(--font-num)
 @media (prefers-reduced-motion: reduce) {
   .btn, .tile .v, [aria-busy="true"] .chart, [aria-busy="true"] .grid, [aria-busy="true"] .detail { transition: none; }
   .btn:active { transform: none; }
-  .ledger, .detail:not([hidden]), .visit.fresh, .visit-detail.unfold { animation: none; }
+  .ledger, .detail:not([hidden]), .visit.fresh, .visit-detail.unfold, .scene-labels .pop .num::after { animation: none; }
 }
 
 /* Under 16px iOS zooms the page into a focused input. */

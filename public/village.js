@@ -42,6 +42,9 @@
      lanterns' colour; every other event one who leaves that page's house for its workshop,
      works there a moment and leaves a crate. Each of those moments is also
      given to `onCue`, for the ear (sound.js).
+   A label rides over what had visits today only, and of two that would overlap the busier one
+   stays (`vie`); a hidden one still answers the pointer, and a live visit lifts a "+1" on its
+   gate and on what it walked to (`pop`).
    Click a quarter (or its sign) and the camera flies in. At UTC midnight the windows go dark and
    the day starts again. Turned back to a past day (`setDay`, from the history strip) a village
    is that day as it ended: every lamp lit, nobody walking in. A classic script over gl.js (WebGL2), no dependencies; every colour comes
@@ -483,7 +486,8 @@
     if (!h || !g || !W) return;
     var c = { lane: s.lanes.indexOf(l), house: s.houses.indexOf(h), first: !!msg.first };
     cue('gate', s, c);
-    if (reduced) { h.flash = 1; cue('door', s, { house: c.house, first: c.first, delay: .8 }); return; }   // nobody walks: the bell follows the steps
+    pop(g.label);
+    if (reduced) { reached(h); cue('door', s, { house: c.house, first: c.first, delay: .8 }); return; }   // nobody walks: the bell follows the steps
     var side = (Math.random() - .5) * g.w * .5, tan = [-Math.sin(g.a) * side, 0, Math.cos(g.a) * side];
     var path = (g.from && across(g.from, s)) || [[g.end[0] + tan[0], 0, g.end[2] + tan[2]]];   // no way across yet (the city just changed): from the avenue's mouth
     path.push([g.pos[0] + tan[0], 0, g.pos[2] + tan[2]]);
@@ -516,7 +520,7 @@
      market to the stall: in through the nearest gap of each row outside the stall's own. */
   function toStall(s, h, st) {
     if (!h || !st || !W) return;
-    if (reduced) { st.flash = 1; cue('stall', s, { view: st.k }); return; }
+    if (reduced) { reached(st); cue('stall', s, { view: st.k }); return; }
     var step = TAU / 24, cross = (Math.floor((h.a + Math.PI / 2) / step) + .5) * step - Math.PI / 2;
     var path = [h.door.slice(), at(s.o, cross, s.R.post + .9)];
     for (var i = s.R.rows.length - 1; i > st.row; i--) {
@@ -548,7 +552,7 @@
     path.push(w.front.slice());
     s.walkers.push({ path: path, d: 0, speed: 2.3 + Math.random() * .7, col: w.e.col, shop: w, work: 0, seed: Math.random() });   // its cue is the workshop's place when it arrives
   }
-  function worked(s, w) { w.e.n++; w.flash = 1; cue('work', s, { shop: w.k }); rebuild(s); }
+  function worked(s, w) { w.e.n++; reached(w); cue('work', s, { shop: w.k }); rebuild(s); }
   function houseOf(s, t) { for (var i = 0; i < s.houses.length; i++) if (s.houses[i].t === t) return s.houses[i]; return null; }
   function workshopOf(s, e) { for (var i = 0; i < s.workshops.length; i++) if (s.workshops[i].e === e) return s.workshops[i]; return null; }
   function gateOf(s, l) { for (var i = 0; i < s.gates.length; i++) if (s.gates[i].l === l) return s.gates[i]; return null; }
@@ -1210,24 +1214,23 @@
       M.cyl(p[0], hy, p[2], .17, .06, 10, T.brass, .3);
       if (!future && dark !== 1) W.addGlow(s.glow, [p[0], ht + .17, p[2]], T.lamp, now ? 0 : .45, 2.2);
       if (now) s.nowLamp = [p[0], ht + .17, p[2]];
-      if (hh.hour % 6 === 0) write(labelAt('t' + hh.hour, [o[0] + Math.cos(a) * (R.post + 1.05), .1, o[2] + Math.sin(a) * (R.post + 1.05)], 'v-tick', inside(s)), '<span>' + String(hh.hour).padStart(2, '0') + ':00</span>');
     });
     s.houses.forEach(function (h) {
       house(M, s, h, dark);
       h.label = labelAt('h' + h.t.path, [h.pos[0], h.top + 2.2, h.pos[2]], 'v-house', function (d) { return view.site === s && (!narrow() || h.rank < 4); });
-      h.label.what = { kind: 'tower', tower: h.t, s: s };
+      h.label.what = { kind: 'tower', tower: h.t, s: s }; vie(h.label, 'house', function () { return h.t.pv; });
     });
     // the market: a stall per view
     s.stalls.forEach(function (st) {
       stall(M, s, st, dark);
       st.label = labelAt('v:' + st.v.name, [st.pos[0], 2.5, st.pos[2]], 'v-view', function () { return view.site === s && (!narrow() || st.rank < 3); });
-      st.label.what = { kind: 'view', view: st.v, s: s };
+      st.label.what = { kind: 'view', view: st.v, s: s }; vie(st.label, 'stall', function () { return st.v.n; });
     });
     // the workshops: one per event
     s.workshops.forEach(function (w) {
       workshop(M, s, w, dark);
       w.label = labelAt('e:' + w.e.name, [w.pos[0], w.top + .9, w.pos[2]], 'v-event', function () { return view.site === s && (!narrow() || w.rank < 3); });
-      w.label.what = { kind: 'event', ev: w.e, s: s };
+      w.label.what = { kind: 'event', ev: w.e, s: s }; vie(w.label, 'workshop', function () { return w.e.n; });
       w.label.el.style.setProperty('--lane', css(w.e.col));   // CSSOM: the CSP refuses style attributes
     });
     s.houses.forEach(function (h, k) {
@@ -1243,7 +1246,7 @@
       var tan = [-Math.sin(g.a), 0, Math.cos(g.a)]; g.lights = [];
       if (g.from) { sisterGate(M, s, g, tan, busiest); g.label = labelAt('g' + g.l.key, [g.pos[0], 2.9, g.pos[2]], 'v-gate', function () { return view.site === s && !narrow(); }); }
       else gate(M, s, g, tan, busiest);
-      g.label.what = { kind: 'lane', lane: g.l, s: s };
+      g.label.what = { kind: 'lane', lane: g.l, s: s }; vie(g.label, 'gate', function () { return g.l.count; });
       g.label.el.style.setProperty('--lane', css(g.col));   // CSSOM: the CSP refuses style attributes
     });
     pines.forEach(function (c) { s.occ.push([c[0], c[1], c[2], c[2], 0, .35]); });
@@ -1287,7 +1290,6 @@
       prints(M, g.end, ia, g.l.count / busiest, g.l.count, 50 + s.gates.indexOf(g), .04);
     }
   }
-  function inside(s) { return function () { return view.site === s; }; }
   /* The snow between the last houses (or workshops) and the wall, where the quarter's visits made
      it wider than what it is made of needs: the city's own houses, on rings, leaving the gates'
      roads, the avenues and the workshops' street free. Nothing in them is a count. */
@@ -1357,8 +1359,31 @@
   /* ---------- what is written over it ---------- */
   function change(s) { if (!s.yesterday) return null; return Math.round((s.visitors / s.yesterday - 1) * 100); }
   function arrow(d) { return d == null ? '' : d > 0 ? '▲ ' + d + '%' : d < 0 ? '▼ ' + Math.abs(d) + '%' : '± 0%'; }
-  /* A label's text, written only when it changes. */
-  function write(L, html, into) { if (L.html === html) return false; L.html = html; (into || L.el).innerHTML = html; return true; }
+  /* A label of the quarter vies for room by its count today (`count`): at 0 it is not shown, and
+     of two that would overlap the busier one stays (gl.js); on a tie, a house before a gate, a
+     gate before a stall, a stall before a workshop. One marked from the visits list, or lifted by
+     a visit just now, always shows. */
+  var TIE = { house: .3, gate: .2, stall: .1, workshop: 0 };
+  function vie(L, kind, count) { L.prio = function () { var n = count(); return L.popped || L.el.classList.contains('hl') ? Infinity : n > 0 ? n + TIE[kind] : 0; }; }
+  /* A visit just reached what the label is over: a "+1" rises on it for a moment. */
+  var POP_MS = 3000;
+  function pop(L) {
+    if (!L || !W) return;
+    clearTimeout(L.popped); L.el.classList.remove('pop'); void L.el.offsetWidth;   // again from the start
+    L.el.classList.add('pop'); L.poppedAt = performance.now(); L.el.style.setProperty('--pop-in', '0ms');
+    L.popped = setTimeout(function () { L.popped = 0; L.el.classList.remove('pop'); L.bw = 0; if (W) W.relabel(); }, POP_MS);
+    L.bw = 0; W.relabel();
+  }
+  /* What a visit walked to lights up, and its label lifts. */
+  function reached(x) { x.flash = 1; pop(x.label); }
+  /* A label's text, written only when it changes: then its size is read again and the labels vie
+     for room again. A "+1" on it goes on from where it was, not from the start. */
+  function write(L, html, into) {
+    if (L.html === html) return false;
+    L.html = html; (into || L.el).innerHTML = html; L.bw = 0;
+    if (L.popped) L.el.style.setProperty('--pop-in', Math.round(L.poppedAt - performance.now()) + 'ms');   // CSSOM: the CSP refuses style attributes
+    if (W) W.relabel(); return true;
+  }
   /* The small row of a village's sign: its views, its other events and the used share, each only
      when there is any; a village with none of them says its pageviews. */
   function signRow(s) {
@@ -1384,7 +1409,7 @@
       }
       s.houses.forEach(function (h) {
         if (!h.label) return; var t = h.t;
-        write(h.label, '<div><span class="p">' + esc(t.label) + '</span> <b class="num">' + fmt(t.pv) + '</b>' + (t.loads ? '<span class="s">' + pct(t.engaged, t.loads) + '% used</span>' : '') + '</div>');
+        write(h.label, '<div><span class="p">' + esc(t.label) + '</span> <b class="num">' + fmt(t.pv) + '</b></div>');
       });
       s.gates.forEach(function (g) {
         if (g.label) write(g.label, '<div><span class="p">' + esc(g.l.label) + '</span> <b class="num">' + fmt(g.l.count) + '</b></div>');
@@ -1423,6 +1448,7 @@
   }
   function makeSign(s) {
     var L = W.label(signAt(s), '<button type="button" class="vsign' + (s.draft ? ' draft' : '') + '"></button>', 'v-sign', function () { return view.mode === 'bay' || view.site !== s; });
+    L.prio = function () { return view.mode === 'bay' ? Infinity : .05; };   // over the valley every sign shows; from a quarter, a neighbour's only where nothing of this one is
     s.sign = L;
     L.el.firstChild.style.setProperty('--site', css(s.tint));
     L.el.firstChild.addEventListener('click', function () { if (opts.onEnter && !s.draft) opts.onEnter(s.id); });
@@ -1503,7 +1529,7 @@
           w.work += dt; if (w.work < WORK_S) { working(M, s, w, dt); return true; }
           worked(s, w.shop); return false;
         }
-        if (a.done) { (w.stall || w.h).flash = 1; cue(w.stall ? 'stall' : 'door', s, w.cue); return false; }
+        if (a.done) { reached(w.stall || w.h); cue(w.stall ? 'stall' : 'door', s, w.cue); return false; }
         villager(M, a.p, a.dir, w.col, Math.abs(Math.sin(w.d * 5)) * .05, w.seed, w.d);
         if (!reduced && Math.floor(w.d / .42) !== w.step) { w.step = Math.floor(w.d / .42); s.steps.push({ p: a.p, dir: a.dir, side: w.step % 2 ? 1 : -1, t: t }); }
         return true;
@@ -1571,10 +1597,14 @@
     });
     return best;
   }
+  /* The label nearest the pointer: one in sight, or else a hidden one, left out for room or at 0. */
   function labelNear(x, y) {
-    var best = null, bd = 44;
-    W.labels.forEach(function (L) { if (!L.what || L.el.hidden) return; var d = Math.hypot(L.sx - x, L.sy - y - 12); if (d < bd) { bd = d; best = L; } });
-    return best;
+    function near(hidden) {
+      var best = null, bd = 44;
+      W.labels.forEach(function (L) { if (!L.what || L.el.hidden !== hidden || hidden && !L.culled) return; var d = Math.hypot(L.sx - x, L.sy - y - 12); if (d < bd) { bd = d; best = L; } });
+      return best;
+    }
+    return near(false) || near(true);
   }
 
   /* ---------- no WebGL2 ---------- */
@@ -1713,7 +1743,7 @@
     },
     /* Rings one visit's house and gate ({ site, path, ref }), a view's house and stall
        ({ site, path, view }), or nothing (null). */
-    highlight: function (h) { view.hl = h || null; paintHl(); if (W) W.wake(); },
+    highlight: function (h) { view.hl = h || null; paintHl(); if (W) { W.relabel(); W.wake(); } },   // a marked label shows even where it had no room
     /* The colour the visits panel shares with the scene: a referrer's gate in a site (direct for
        none; a referrer with no gate yet gets the first gate colour). As CSS rgb(). */
     laneColor: function (id, ref) { var s = byId[id]; var l = s && s.loaded ? laneOf(s, ref) : null; return css(l ? l.color : ref == null ? T.direct : T.lanes[0]); },

@@ -763,17 +763,42 @@
 
       if (labelsDirty) {
         labelsDirty = false;
+        /* The labels on screen vie for room: the highest `prio` is placed first (one without, or at
+           Infinity, always is) and one that would cover a label already placed stays hidden; one
+           that was shown keeps a little more room, so two that barely touch do not blink as the
+           camera moves. A label's size is read once, after its text changes (`bw` set to 0). */
+        var vying = [], unread = [];
         W.labels.forEach(function (L) {
           var s = W.project(L.p), d = Math.hypot(eye[0] - L.p[0], eye[1] - L.p[1], eye[2] - L.p[2]);
           var on = s && (!L.show || L.show(d, W)) && s.x > -60 && s.x < W.W + 60 && s.y > -60 && s.y < W.H + 60;
-          if (!on) { if (!L.el.hidden) L.el.hidden = true; return; }
-          var z = 1000 - Math.round(d);
-          L.el.hidden = false; L.el.style.transform = 'translate(' + s.x.toFixed(1) + 'px,' + s.y.toFixed(1) + 'px)'; if (z !== L.z) { L.z = z; L.el.style.zIndex = String(z); } L.sx = s.x; L.sy = s.y;
+          L.culled = false;
+          if (!on) { L.was = false; if (!L.el.hidden) L.el.hidden = true; return; }
+          L.sx = s.x; L.sy = s.y; L.d = d; L.rank = L.prio ? L.prio() : Infinity;
+          if (L.rank <= 0) { L.culled = true; L.was = false; if (!L.el.hidden) L.el.hidden = true; return; }
+          vying.push(L);
+          if (!L.bw) { L.el.hidden = false; unread.push(L); }
+        });
+        unread.forEach(function (L) { var c = L.el.firstElementChild || L.el; L.bw = c.offsetWidth; L.bh = c.offsetHeight; });   // one layout, for the new ones only
+        var gap = labelGap(), placed = [];
+        vying.sort(function (a, b) { return b.rank - a.rank || b.was - a.was; }).forEach(function (L) {
+          var pad = L.was ? -gap : gap, bx = [L.sx - L.bw / 2 - pad, L.sy - L.bh - pad, L.sx + L.bw / 2 + pad, L.sy + pad];
+          var hit = L.rank !== Infinity && placed.some(function (q) { return bx[0] < q[2] && bx[2] > q[0] && bx[1] < q[3] && bx[3] > q[1]; });
+          L.was = !hit;
+          if (hit) { L.culled = true; if (!L.el.hidden) L.el.hidden = true; return; }
+          placed.push([L.sx - L.bw / 2, L.sy - L.bh, L.sx + L.bw / 2, L.sy]);
+          var z = 1000 - Math.round(L.d);
+          L.el.hidden = false; L.el.style.transform = 'translate(' + L.sx.toFixed(1) + 'px,' + L.sy.toFixed(1) + 'px)'; if (z !== L.z) { L.z = z; L.el.style.zIndex = String(z); }
         });
       }
       if (busy || W.goal || drag || dirty || keptQ < 2 || (env.drift && W.idle > 8)) kick();
     }
     kick();
+    /* A label over a point of the scene, shown while `show(distance, W)` says so. One given a
+       `prio()` vies for room with the others: at 0 or less it is not shown, and the lower of two
+       that would overlap is hidden; either way it is `culled`, still placed (`sx`, `sy`) for the
+       pointer to find. Whoever changes its text sets `bw` to 0, for its size to be read again. */
+    var gapPx = 0;   // the room kept between two labels: the spacing token --s-1
+    function labelGap() { return gapPx || (gapPx = parseFloat(getComputedStyle(overlay).getPropertyValue('--s-1')) || 4); }
     W.label = function (p, html, cls, show) {
       var el = document.createElement('div'); el.className = 'lbl ' + (cls || ''); el.innerHTML = html; el.hidden = true;
       overlay.appendChild(el); var L = { p: p, el: el, show: show }; W.labels.push(L); W.relabel(); return L;

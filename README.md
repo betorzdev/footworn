@@ -53,7 +53,7 @@ pale, shuttered houses, which are no count.
 square, a house per page (every page of the last 7 days, the busiest at twelve o'clock):
 its storeys are today's pageviews, on one scale for every site, and its windows (on every side)
 are lit warm from the ground up for the share of loads where the page was *used* (a tap, a key
-or 10 s in view); the label over the roof gives both. A brass band on its front marks
+or 10 s in view); the label over the roof gives the pageviews, pointing at it gives both. A brass band on its front marks
 yesterday's storeys up to this time (a rod over the roof when yesterday was taller), and the way
 to its door is as wide and worn as today's visits, with their footprints. A page nobody opened
 today is shuttered, its lamp out. Round the square, 24 street lamps, one per UTC hour
@@ -76,6 +76,9 @@ stand round the tower, the next sixteen in a row behind them, and so on; the hou
 one ring while they fit, then on rings behind it (the week's busiest pages inside), the
 workshops behind them, and a page, referrer, view or event first seen today builds its house,
 gate, stall or workshop there and then.
+A label rides over what had visits today only, and where two would overlap the busier one
+stays; pointing at a house, gate, stall or workshop always tells its numbers, and a live visit
+lifts a "+1" on its gate and then on its house (or stall, or workshop) as it gets there.
 A quarter is as big as its site's visits: it widens a step for every three times as many
 pageviews and views in the last 7 days (from 3 a week up to 10 000), and a site with more
 of them than another always has the wider quarter, whatever its pages; what is left before
@@ -99,7 +102,7 @@ files); nothing plays between visits, and the audio goes to sleep a few seconds 
 one. With sound on, point at the button, or reach it with Tab, and its volume slider comes up.
 Not on a phone.
 
-![Hallownest up close: houses round a clock square, the tallest for the busiest pages, warm windows from the ground up, labels with today's pageviews and the used share; street lamps round the square for the hours; gates in the palisade with lanterns in each referrer's colour and their counts; villagers with lanterns walking in.](docs/screenshots/site.png)
+![Hallownest up close: houses round a clock square, the tallest for the busiest pages, warm windows from the ground up, labels with today's pageviews; street lamps round the square for the hours; gates in the palisade with lanterns in each referrer's colour and their counts; villagers with lanterns walking in.](docs/screenshots/site.png)
 
 **Today, one by one.** A panel beside the scene, in two tabs. *Visits* lists every visit to the
 site (a page load) as it comes in, newest first: its referrer's gate colour, the page, where it
@@ -112,9 +115,9 @@ and system, language, whether it was the first page of that visitor's day; a vie
 properties) and today's counts around it: its page's pageviews and used share, its referrer or
 how often that view was opened, its country and its device. *Events* is the same list, one row
 per event in its own colour with its properties, under a pill per event name with today's count
-that filters it; an open event links to its detail in the ledger. Every row names its site.
-Rounded on purpose, so a row is never a fingerprint (no width, no second, nothing joining two
-rows, so a view is never hung under a visit), and gone at UTC midnight.
+(press one or several to list only those); an open event links to its detail in the ledger.
+Every row names its site. Rounded on purpose, so a row is never a fingerprint (no width, no
+second, nothing joining two rows, so a view is never hung under a visit), and gone at UTC midnight.
 
 ![The panel beside a village, on its Visits tab: visits in bold with a dot in their referrer's gate colour, the page, the referrer, a flag and a device mark; views in a lighter, lower row with a hollow dot.](docs/screenshots/visits.png)
 
