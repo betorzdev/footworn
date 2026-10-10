@@ -9,8 +9,8 @@
    - `stall`, a view opened reaches its stall: a wind chime, its pitch the view;
    - `work`, any other event: its villager at the workshop, three knocks of the work;
    - `midnight`, the day's cut: the tower strikes once.
-   Each village sounds from its side of the valley. A cue is { site, of, lane, house, view,
-   first, delay }: village `site` of `of`, left to right; `delay` in seconds.
+   Each quarter sounds from its side of the city. A cue is { site, of, lane, house, view,
+   first, delay }: quarter `site` of `of`, left to right; `delay` in seconds.
    The dashboard lives on a second screen, so the sound costs nothing at rest either: there is no
    bed under the cues, the context is made only once sound is on, and it is put to sleep a few
    seconds after the last cue fades. A browser lets no page sound before a click: with the
@@ -58,7 +58,7 @@
       }
       return b;
     }
-    /* Where a cue sits: its village's side of the valley. One panner per place, kept. */
+    /* Where a cue sits: its quarter's side of the city. One panner per place, kept. */
     var pans = {};
     function at(c) {
       if (!ctx.createStereoPanner || !(c.of > 1)) return out;

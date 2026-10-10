@@ -59,7 +59,7 @@
       var list = $('site-list'), form = $('site-form'), html = '';
       if (state.draft) html += card({ id: DRAFT, name: $('site-name').value || 'New site', style: null, origins: [], icon: false }, true);
       o.sites().forEach(function (s) { html += card(s, false); });
-      if (!o.sites().length && !state.draft) html += '<li class="site-none muted">No sites yet. Add one: its village stands in the valley as you dress it.</li>';
+      if (!o.sites().length && !state.draft) html += '<li class="site-none muted">No sites yet. Add one: its quarter stands in the city as you dress it.</li>';
       var focus = document.activeElement, keep = form.contains(focus) ? focus : null;
       form.hidden = true; $('site-park').appendChild(form);   // out of the list before it is rewritten
       list.innerHTML = html;

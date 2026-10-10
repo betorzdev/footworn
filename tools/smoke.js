@@ -145,7 +145,7 @@ try {
   assert.equal((await api('/api/sites')).find(s => s.id === 'one').name, 'Site One', 'write: the old one stands');
   assert.equal((await fetch(BASE + '/api/stats?site=one', { method: 'DELETE', headers: H })).status, 405, 'write: a read path is not written');
   const saved = await (await put({ id: 'three', name: 'Site Three', origins: ['https://three.example'], style: 'citadel', tint: 5, hue: 120, shade: -20, create: true })).json();
-  assert.deepEqual(saved.site, { id: 'three', name: 'Site Three', origins: ['https://three.example'], style: 'citadel', tint: 5, hue: 120, shade: -20, pieces: null, icon: false }, 'write: the site as saved');
+  assert.deepEqual(saved.site, { id: 'three', name: 'Site Three', origins: ['https://three.example'], hosts: ['three.example'], style: 'citadel', tint: 5, hue: 120, shade: -20, pieces: null, icon: false }, 'write: the site as saved');
   await put({ id: 'three', name: 'Site Three', origins: ['https://three.example', 'https://www.three.example'], style: 'stone' });
   const three = (await api('/api/sites')).find(s => s.id === 'three');
   assert.deepEqual([three.style, three.tint, three.hue, three.origins.length], ['stone', null, null, 2], 'write: an edit replaces the look');

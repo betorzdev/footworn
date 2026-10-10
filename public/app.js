@@ -304,7 +304,7 @@
     $('title').textContent = inSite ? siteName(state.site) : 'Your sites';
     var past = state.viewDay;
     $('sub').textContent = past ? strip.name(past) + ' · ' + past + ' UTC · a past day, as it ended'
-      : 'Today · ' + (state.day || utcDay()) + ' UTC · ' + (inSite ? (touch ? 'tap' : 'hover') + ' the houses, gates and stalls · drag to turn' : 'pick a village');
+      : 'Today · ' + (state.day || utcDay()) + ' UTC · ' + (inSite ? (touch ? 'tap' : 'hover') + ' the houses, gates and stalls · drag to turn' : 'pick a quarter');
     $('ui').classList.toggle('past', !!past);
     $('s-when').textContent = past ? ' that day' : ' today';
     $('stats').setAttribute('aria-label', past ? strip.name(past) : 'Today');
@@ -375,7 +375,7 @@
     b.setAttribute('aria-pressed', st === 'on' ? 'true' : st === 'waiting' ? 'mixed' : 'false');
     b.classList.toggle('armed', st === 'waiting');
     $('volume-box').hidden = st === 'off';
-    b.title = st === 'off' ? 'Hear the visits: steps at the gate, a bell at the door' : st === 'waiting' ? 'Sound is on: it starts with your first click' : 'Silence the village';
+    b.title = st === 'off' ? 'Hear the visits: steps at the gate, a bell at the door' : st === 'waiting' ? 'Sound is on: it starts with your first click' : 'Silence the city';
   }
   if (sound.supported) {
     /* A mouse or a finger leaves no focus behind, on the button (never given it) or on the slider

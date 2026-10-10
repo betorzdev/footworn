@@ -2,7 +2,7 @@
 
 <p align="center">
   A visit counter for static sites that sets no cookies, keeps no IP and needs no consent banner.<br>
-  One Cloudflare Worker on the free plan: the collector, a 1&nbsp;KB tracker, a D1 database, a JSON API and a live dashboard: snowed-in villages on a polar winter day, where every site is a village, every page a house and every visit a villager walking home.
+  One Cloudflare Worker on the free plan: the collector, a 1&nbsp;KB tracker, a D1 database, a JSON API and a live dashboard: a snowed-in city on a polar winter day, where every site is a quarter, every page a house and every visit a villager walking home.
 </p>
 
 <p align="center">
@@ -43,7 +43,13 @@
 
 ## What you see
 
-**A village, up close.** Click a village (or its sign) and the camera flies in. Round the clock
+**One city.** Every site is a quarter of one walled city in the valley: the busiest in the
+middle, the smaller ones behind it, packed together. One wall runs round them all, each
+quarter's stretch in its own kit, and none between them; an avenue runs from square to square
+between two quarters that touch, and the snow between them is filled with the city's own low,
+pale, shuttered houses, which are no count.
+
+**A quarter, up close.** Click a quarter (or its sign) and the camera flies in. Round the clock
 square, a house per page (every page of the last 7 days, the busiest at twelve o'clock):
 its storeys are today's pageviews, on one scale for every site, and its windows (on every side)
 are lit warm from the ground up for the share of loads where the page was *used* (a tap, a key
@@ -52,8 +58,11 @@ yesterday's storeys up to this time (a rod over the roof when yesterday was tall
 to its door is as wide and worn as today's visits, with their footprints. A page nobody opened
 today is shuttered, its lamp out. Round the square, 24 street lamps, one per UTC hour
 clockwise from midnight at the top: each as tall as that hour's pageviews, with a brass ring at
-yesterday's, the current one glowing. In the wall, a gate per referrer (every one of the
-last 7 days, then *direct*), as wide as today's arrivals, its lanterns in the referrer's colour. The clock on the tower tells the UTC time on a
+yesterday's, the current one glowing. In the wall, where the quarter faces the valley, a gate
+per referrer (every one of the last 7 days, then *direct*), as wide as today's arrivals, its
+lanterns in the referrer's colour. A referrer that is another of your sites (one of its
+origins) is no gate: it is the avenue from that site's quarter, with lanterns in its colour
+where it comes in. The clock on the tower tells the UTC time on a
 24-hour dial, like the ring of lamps: midnight at the top.
 Between the lamps and the tower, a market: a stall per view opened inside a page (a `screen`
 event with a `view`; every one of the last 7 days), with a pole beside it whose
@@ -67,12 +76,13 @@ stand round the tower, the next sixteen in a row behind them, and so on; the hou
 one ring while they fit, then on rings behind it (the week's busiest pages inside), the
 workshops behind them, and a page, referrer, view or event first seen today builds its house,
 gate, stall or workshop there and then.
-A village is as big as its site's visits: its wall opens a step for every three times as many
+A quarter is as big as its site's visits: it widens a step for every three times as many
 pageviews and views in the last 7 days (from 3 a week up to 10 000), and a site with more
-of them than another always has the wider village, whatever its pages; what is left before
-the wall is snow and stands of pine, with no count in them.
-Every pageview is a villager with a scarf in that colour who walks in through the gate, across
-the square and into the house, leaving steps in the snow that fade in a minute; every view opened, one in a green scarf who leaves that page's
+of them than another always has the wider quarter, whatever its pages; what is left before
+its edge is the city's own houses, with no count in them.
+Every pageview is a villager with a scarf in that colour who walks in through the gate (or,
+from another of your sites, from that quarter's square along the avenues: someone on Hallownest
+who follows its link to Pharloom is seen crossing the city), across the square and into the house, leaving steps in the snow that fade in a minute; every view opened, one in a green scarf who leaves that page's
 house for the stall; every other event, one in a scarf of the workshop's colour who walks from
 that page's house to its workshop, works there a moment (sparks at the forge, steam at the well)
 and leaves a crate. Drag to turn, wheel or
@@ -83,8 +93,8 @@ pinch to come closer; hover, or tap, a house, a gate, a stall or a workshop for 
 dashboard left on a second screen: two steps in the snow when a villager comes through a gate
 (each gate has its own, darker or brighter), a hand bell when they reach the house (the page is
 the pitch, the top page the lowest; a new visitor's bell is answered an octave up), a wind chime
-at the stall, three knocks of work at a workshop, and one stroke of the tower at UTC midnight. Each village
-sounds from its side of the valley. All of it is synthesised in the browser (Web Audio, no
+at the stall, three knocks of work at a workshop, and one stroke of the tower at UTC midnight. Each quarter
+sounds from its side of the city. All of it is synthesised in the browser (Web Audio, no
 files); nothing plays between visits, and the audio goes to sleep a few seconds after the last
 one. With sound on, point at the button, or reach it with Tab, and its volume slider comes up.
 Not on a phone.

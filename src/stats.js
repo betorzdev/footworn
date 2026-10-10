@@ -2,13 +2,16 @@
    AEPD's guide calls "por página y agregadas diariamente"), with one exception, `visits`: today's
    visits one by one, rounded so that a row is not a fingerprint (docs/privacy.md). */
 
+import { hostsOf } from './collect.js';
+
 const TOP = 30;
 const SCENE = 200;   // the village draws every page, referrer, view and event, of the week and of today: each list is cut here for safety
 
 /* The sites, each with its allowed origins and its look: the kit its village is built in (null:
    alpine), its colour (`tint`, 1..8; null: by its place in the list), how the kit's palette is
    turned (`hue`, `shade`; null: as it is), the pieces set apart from its kit (`pieces`; null:
-   none) and whether it has an icon. */
+   none) and whether it has an icon. `hosts`: its origins' hosts as the referrer filter reads them
+   (`hostsOf`), so the dashboard knows a referrer that is another of the sites. */
 export async function sites(db) {
   let r;
   try { r = await db.prepare('SELECT id, name, origins, style, tint, hue, shade, pieces, icon IS NOT NULL AS icon FROM sites ORDER BY name').all(); }
@@ -17,7 +20,7 @@ export async function sites(db) {
     if (!/no such column/i.test(String(e && e.message))) throw e;
     r = await db.prepare('SELECT id, name, origins, style, icon IS NOT NULL AS icon FROM sites ORDER BY name').all();
   }
-  return (r.results || []).map(s => ({ id: s.id, name: s.name, origins: String(s.origins || '').split(/\s+/).filter(Boolean),
+  return (r.results || []).map(s => ({ id: s.id, name: s.name, origins: String(s.origins || '').split(/\s+/).filter(Boolean), hosts: hostsOf(s.origins),
     style: s.style || null, tint: s.tint || null, hue: s.hue || null, shade: s.shade || null, pieces: parsePieces(s.pieces), icon: !!s.icon }));
 }
 
