@@ -3,7 +3,7 @@
    file. What `tools/site-add.js` and `tools/site-icon.js` do from the shell, for the dashboard.
    Nothing here is about a visitor: a site's row is its owner's configuration (docs/privacy.md). */
 
-import { STYLES, findIcons, iconType, ICON_MAX } from './icon.js';
+import { STYLES, PIECES, findIcons, iconType, ICON_MAX } from './icon.js';
 import { readCapped } from './body.js';
 
 export const ID = /^[a-z0-9][a-z0-9_-]{0,63}$/;   // what `data-site` carries: never changed once pages carry it
@@ -41,7 +41,24 @@ export function validateSite(body) {
     if (!Number.isInteger(v) || v < lo || v > hi) return { error: `${k}: a whole number from ${lo} to ${hi}` };
     look[k] = v;
   }
-  return { site: { id, name, origins: origins.join(' '), style, ...look } };
+  const pieces = validPieces(body.pieces);
+  if (pieces === undefined) return { error: `pieces: an object of ${Object.keys(PIECES).map(k => `${k} (${PIECES[k].join(', ')})`).join('; ')}` };
+  return { site: { id, name, origins: origins.join(' '), style, ...look, pieces } };
+}
+
+/* The pieces a site sets apart from its kit: null for none, undefined when not valid. A piece
+   given as null or "kit" is the kit's own, and not kept. */
+export function validPieces(p) {
+  if (p == null) return null;
+  if (typeof p !== 'object' || Array.isArray(p)) return undefined;
+  const out = {};
+  for (const [k, v] of Object.entries(p)) {
+    if (!PIECES[k]) return undefined;
+    if (v == null || v === 'kit') continue;
+    if (!PIECES[k].includes(v)) return undefined;
+    out[k] = v;
+  }
+  return Object.keys(out).length ? out : null;
 }
 
 /* A new site (`create`): inserted, or false when the id is taken, so a stale list in the dashboard
@@ -49,16 +66,17 @@ export function validateSite(body) {
    icon), or inserted if it is gone. */
 export async function saveSite(db, s, { create = false } = {}) {
   if (create) {
-    const r = await db.prepare('INSERT INTO sites (id, name, origins, style, tint, hue, shade) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7) ON CONFLICT(id) DO NOTHING')
-      .bind(s.id, s.name, s.origins, s.style, s.tint, s.hue, s.shade).run();
+    const r = await db.prepare('INSERT INTO sites (id, name, origins, style, tint, hue, shade, pieces) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8) ON CONFLICT(id) DO NOTHING')
+      .bind(s.id, s.name, s.origins, s.style, s.tint, s.hue, s.shade, pieces(s)).run();
     return !!(r && r.meta && r.meta.changes);
   }
-  await db.prepare(`INSERT INTO sites (id, name, origins, style, tint, hue, shade) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)
+  await db.prepare(`INSERT INTO sites (id, name, origins, style, tint, hue, shade, pieces) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)
                      ON CONFLICT(id) DO UPDATE SET name = excluded.name, origins = excluded.origins, style = excluded.style,
-                                                   tint = excluded.tint, hue = excluded.hue, shade = excluded.shade`)
-    .bind(s.id, s.name, s.origins, s.style, s.tint, s.hue, s.shade).run();
+                                                   tint = excluded.tint, hue = excluded.hue, shade = excluded.shade, pieces = excluded.pieces`)
+    .bind(s.id, s.name, s.origins, s.style, s.tint, s.hue, s.shade, pieces(s)).run();
   return true;
 }
+const pieces = s => s.pieces ? JSON.stringify(s.pieces) : null;
 
 /* The site and everything counted for it: without the site nobody could read its hits. A busy
    site's hits go in rounds, each well inside a query's limits; the site itself goes last, with
@@ -84,11 +102,21 @@ export async function siteRow(db, id) {
    256 px), then /favicon.ico, the first that is a PNG, ICO or JPEG of 40 KB or less. `fetchFn`
    is the platform's fetch (or a stand-in in the tests). { bytes, type, url }, or null. */
 export async function fetchIcon(fetchFn, page) {
-  let html = '', base = page;
+  const { html, base } = await fetchPage(fetchFn, page);
+  return pickIcon(fetchFn, html, base);
+}
+
+/* The head of a page: { html, base } (base: where it ended up after redirects); '' when it could not be read. */
+export async function fetchPage(fetchFn, page) {
   try {
     const r = await fetchFn(page, { redirect: 'follow', headers: { Accept: 'text/html' } });
-    if (r.ok) { html = (await readCapped(r, PAGE_MAX, { head: true })) || ''; base = r.url || page; }   // the links are in its head: a long page is read that far
+    if (r.ok) return { html: (await readCapped(r, PAGE_MAX, { head: true })) || '', base: r.url || page };   // the links are in its head: a long page is read that far
   } catch (e) { /* no page: /favicon.ico is still worth a try */ }
+  return { html: '', base: page };
+}
+
+/* The first of a page's icons that is kept (`iconType`), or null. */
+export async function pickIcon(fetchFn, html, base) {
   for (const url of findIcons(html, base)) {
     try {
       const r = await fetchFn(url, { redirect: 'follow' });

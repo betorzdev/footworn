@@ -1,6 +1,6 @@
 /* Footworn's Worker. Static files (the dashboard, footworn.js, privacy) are served by the assets
    binding before this runs; here live the collector (POST /c), the read API (GET /api/*), the
-   Sites panel's writes (PUT/DELETE /api/site, POST/DELETE /api/icon), the live view's socket
+   Sites panel's writes (PUT/DELETE /api/site, POST/DELETE /api/icon) and its suggested look (POST /api/look), the live view's socket
    (GET /live, relayed to the `Live` Durable Object) and the nightly cron. */
 
 import { makeHit, originAllowed, ENGAGED } from './collect.js';
@@ -12,6 +12,7 @@ import { makeTicket, checkTicket } from './ticket.js';
 import { readCapped } from './body.js';
 import { validateSite, saveSite, removeSite, siteRow, fetchIcon, keepIcon, dropIcon, pageUrl } from './sites.js';
 import { iconType, ICON_MAX } from './icon.js';
+import { readSite, aiLook, validPalette, b64 } from './look.js';
 
 
 export { Live } from './live.js';
@@ -127,6 +128,19 @@ async function writeSite(request, env, url) {
     if (!got) return json({ error: `no usable icon at ${page}: a PNG, ICO or JPEG of ${ICON_MAX / 1024} KB or less, linked as its icon or at /favicon.ico` }, 422);
     await keepIcon(db, id, got.bytes, got.type);
     return json({ ok: true, icon: { type: got.type, bytes: got.bytes.length, url: got.url } });
+  }
+  /* A look for a village, read from the site's own public page (the Sites panel's Suggest): its
+     hints and its icon always, Claude's reading of them when the Worker has a key. Stores nothing. */
+  if (url.pathname === '/api/look' && request.method === 'POST') {
+    let body;
+    try { body = JSON.parse(await readCapped(request, MAX_BODY)) || {}; } catch (e) { return json({ error: 'a JSON body' }, 400); }
+    const page = pageUrl(body.page);
+    if (!page) return json({ error: 'page: an http(s) URL' }, 400);
+    const palette = validPalette(body.palette);
+    const key = env.ANTHROPIC_API_KEY;
+    const site = await readSite(fetch, page, { og: !!(key && palette) });
+    const ai = !key ? {} : palette ? await aiLook(fetch, key, { ...site, palette }) : { aiError: 'the dashboard sent no usable palette' };
+    return json({ hints: site.hints, icon: site.icon ? { type: site.icon.type, data: b64(site.icon.bytes), url: site.icon.url } : null, ai: ai.ai || null, ...(ai.aiError ? { aiError: ai.aiError } : {}) });
   }
   return json({ error: 'method' }, 405);   // every other path under /api/ is a read
 }

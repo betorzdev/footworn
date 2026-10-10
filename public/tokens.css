@@ -98,6 +98,7 @@
   --village-stone: #8d8794; --village-stone-dark: #6f6a78; --village-rock: #7c7a88;
   --village-timber: #5b3f2e; --village-trunk: #4a3428; --village-pine: #21423a;
   --village-roof: #4a3a3e; --village-iron: #26232c; --village-brass: #d9a650;
+  --village-straw: #c9a865;        /* a haystack in the fields round a village */
   --village-clock: #fff1c8;        /* the lit faces of the clock tower */
   --village-window: #ffc77a;       /* a window of a load that was used: lit, with its pool on the snow */
   --village-window-dark: #2c3c5c;  /* one that was only opened */

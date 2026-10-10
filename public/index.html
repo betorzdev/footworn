@@ -133,6 +133,10 @@
           <span class="hint">Scheme and host, no path. Hits from anywhere else are dropped.</span>
         </div>
         <div class="f">
+          <div class="icon-row"><button type="button" class="btn small" id="site-suggest">Suggest from the site</button><span class="hint grow" id="site-suggest-hint">Reads its page and its icon and proposes a look. Nothing is saved until you save.</span></div>
+          <p class="suggest-note" id="site-suggest-note" role="status" hidden></p>
+        </div>
+        <div class="f">
           <span class="lbl" id="site-kits-label">Kit</span>
           <div class="kits" id="site-kits" role="radiogroup" aria-labelledby="site-kits-label">
             <button type="button" class="kit kit-alpine" role="radio" aria-checked="true" data-style="alpine"><i aria-hidden="true"></i><b>Alpine</b><small>timber, a palisade</small></button>
@@ -140,6 +144,10 @@
             <button type="button" class="kit kit-citadel" role="radio" aria-checked="false" data-style="citadel"><i aria-hidden="true"></i><b>Citadel</b><small>red roofs, a belfry</small></button>
             <button type="button" class="kit kit-umbra" role="radio" aria-checked="false" data-style="umbra"><i aria-hidden="true"></i><b>Umbra</b><small>dark slate, motes</small></button>
           </div>
+        </div>
+        <div class="f">
+          <span class="lbl">Pieces <span class="hint">set apart from the kit, to mix kits</span></span>
+          <div class="pieces" id="site-pieces"></div>
         </div>
         <div class="f">
           <label for="site-hue">Palette turned <output id="site-hue-out" for="site-hue">0°</output></label>
@@ -173,6 +181,7 @@
             <label class="btn small file"><input type="file" id="site-icon-file" name="icon" accept="image/png,image/x-icon,image/vnd.microsoft.icon,image/jpeg">Choose a file…</label>
             <button type="button" class="btn small" id="site-icon-drop" hidden>Remove</button>
           </div>
+          <label class="switch" id="site-icon-found-box" hidden><input type="checkbox" id="site-icon-found" name="icon-found" checked> Keep the icon found on the site when saving</label>
           <span class="hint">Its page’s <code translate="no">&lt;link rel="icon"&gt;</code> or <code translate="no">/favicon.ico</code>: a PNG, ICO or JPEG of 40 KB or less. It flies on the tower and sits on the sign.</span>
         </div>
         <p id="site-error" class="error" role="alert" hidden></p>
@@ -253,6 +262,7 @@
 <script src="history.js"></script>
 <script src="visits.js"></script>
 <script src="wire.js"></script>
+<script src="look.js"></script>
 <script src="sites.js"></script>
 <script src="app.js"></script>
 </body>

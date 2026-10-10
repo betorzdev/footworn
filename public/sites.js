@@ -85,16 +85,18 @@
         '<div class="site-row">' +
           (url ? '<img class="ico" alt="" src="' + esc(url) + '">' : '<span class="ico blank" aria-hidden="true"></span>') +
           '<b class="site-name">' + esc(s.name) + '</b>' +
-          (draft ? '<span class="badge draft">not saved yet</span>' : '<span class="badge">' + esc(s.style || 'alpine') + '</span><span class="badge num">' + s.origins.length + (s.origins.length === 1 ? ' origin' : ' origins') + '</span>') +
+          (draft ? '<span class="badge draft">not saved yet</span>' : '<span class="badge">' + esc(s.style || 'alpine') + (s.pieces ? ' +' : '') + '</span><span class="badge num">' + s.origins.length + (s.origins.length === 1 ? ' origin' : ' origins') + '</span>') +
           (draft || editing ? '' : '<button class="btn small site-open" type="button" data-id="' + esc(s.id) + '" aria-label="Edit ' + esc(s.name) + '">Edit</button>') +
         '</div><div class="site-edit"></div></li>';
     }
 
     /* ---------- the form ---------- */
     function fill(s) {
+      busy(false);   // whatever a request held is let go: this form starts afresh, and a late answer finds nothing to give back
       $('site-name').value = s.name; $('site-id').value = s.id; $('site-origins').value = s.origins.join('\n');
       $('site-id').readOnly = !state.draft; $('site-id-hint').textContent = state.draft ? 'What every page carries in data-site. From the name; fixed once saved.' : 'What every page carries in data-site. Fixed.';
-      setKit(s.style || 'alpine'); $('site-hue').value = s.hue || 0; $('site-shade').value = s.shade || 0; setTint(s.tint || null); paintLook();
+      setKit(s.style || 'alpine'); $('site-hue').value = s.hue || 0; $('site-shade').value = s.shade || 0; setTint(s.tint || null); setPieces(s.pieces); paintLook();
+      forgetFound(); $('site-suggest-note').hidden = true; paintSuggest();
       paintIcon(); paintWire(); paintRemove(); $('site-tabs').hidden = state.draft; setPane(state.draft ? 'settings' : state.pane);
       $('site-error').hidden = true;
       $('site-icon-fetch').disabled = $('site-icon-file').disabled = $('site-icon-drop').disabled = state.draft;
@@ -103,7 +105,24 @@
     }
     function look() {
       return { name: $('site-name').value.trim() || 'New site', style: kit() === 'alpine' ? null : kit(), tint: tint(),
-        hue: Number($('site-hue').value) || 0, shade: Number($('site-shade').value) || 0 };
+        hue: Number($('site-hue').value) || 0, shade: Number($('site-shade').value) || 0, pieces: pieces() };
+    }
+    /* The pieces chosen apart from the kit: { piece: option } or null. */
+    function pieces() {
+      var out = {}, any = false;
+      Array.prototype.forEach.call($('site-pieces').querySelectorAll('select'), function (el) { if (el.value) { out[el.dataset.piece] = el.value; any = true; } });
+      return any ? out : null;
+    }
+    function setPieces(p) {
+      Array.prototype.forEach.call($('site-pieces').querySelectorAll('select'), function (el) { el.value = (p && p[el.dataset.piece]) || ''; el.classList.toggle('set', !!el.value); });
+    }
+    var PIECE_NAMES = { spire: 'Spire', wall: 'Wall', roofs: 'Roofs', shade: 'Shade', motes: 'Motes' };
+    function buildPieces() {
+      var all = o.scene.pieces ? o.scene.pieces() : {};
+      $('site-pieces').innerHTML = Object.keys(all).map(function (k) {
+        return '<label>' + esc(PIECE_NAMES[k] || k) + '<select data-piece="' + esc(k) + '" name="piece-' + esc(k) + '"><option value="">From the kit</option>' +
+          all[k].map(function (v) { return '<option value="' + esc(v) + '">' + esc(v) + '</option>'; }).join('') + '</select></label>';
+      }).join('');
     }
     function kit() { var b = $('site-kits').querySelector('[aria-checked="true"]'); return b ? b.dataset.style : 'alpine'; }
     function setKit(name) { Array.prototype.forEach.call($('site-kits').querySelectorAll('[data-style]'), function (b) { b.setAttribute('aria-checked', String(b.dataset.style === name)); }); }
@@ -113,13 +132,76 @@
       $('site-hue-out').textContent = (Number($('site-hue').value) || 0) + '°';
       var sh = Number($('site-shade').value) || 0;
       $('site-shade-out').textContent = sh > 0 ? '+' + sh + ' lighter' : sh < 0 ? sh + ' darker' : 'as the kit';
-      $('site-look-reset').hidden = !Number($('site-hue').value) && !sh;
+      $('site-look-reset').hidden = !Number($('site-hue').value) && !sh && !pieces();
+      Array.prototype.forEach.call($('site-pieces').querySelectorAll('select'), function (el) { el.classList.toggle('set', !!el.value); });
     }
     function paintIcon() {
-      var url = state.editing && !state.draft && o.iconUrl(state.editing), img = $('site-icon-img');
+      var kept = state.editing && !state.draft && o.iconUrl(state.editing), found = state.found && $('site-icon-found').checked ? state.found.url : null;
+      var url = found || kept, img = $('site-icon-img');
       img.hidden = !url; $('site-icon-none').hidden = !!url;
       if (url) img.src = url;
-      $('site-icon-drop').hidden = !url;
+      $('site-icon-drop').hidden = !kept || !!found;
+      $('site-icon-found-box').hidden = !state.found;
+      if (state.found) $('site-icon-note').textContent = $('site-icon-found').checked ? (kept ? 'Found on the site: it takes the place of the current one when you save.' : 'Found on the site: kept when you save.') : (kept ? 'On its banner and its sign.' : 'None yet: the pennant flies in its colour.');
+    }
+
+    /* ---------- Suggest from the site ---------- */
+    function forgetFound() { if (state.found) { URL.revokeObjectURL(state.found.url); state.found = null; } $('site-icon-found').checked = true; }
+    /* The page to read: the first origin the Worker can reach from the Internet (a localhost one only when there is no other). */
+    function firstOrigin() {
+      var ok = $('site-origins').value.split(/\s+/).filter(Boolean).map(function (o1) {
+        try { var u = new URL(o1); return /^https?:$/.test(u.protocol) ? u : null; } catch (e) { return null; }
+      }).filter(Boolean);
+      var pub = ok.filter(function (u) { return !/^(localhost|127\.|0\.0\.0\.0|\[::1\]|10\.|192\.168\.)/.test(u.hostname) && !/\.local$/.test(u.hostname); })[0];
+      var u = pub || ok[0];
+      return u ? u.origin + '/' : null;
+    }
+    function paintSuggest() { if (!state.busy) $('site-suggest').disabled = !firstOrigin(); }
+    /* The tokens the rules and Claude choose among: the eight site colours and each kit's roof. */
+    function palette() {
+      var cs = getComputedStyle(document.documentElement), v = function (n) { return cs.getPropertyValue(n).trim().toLowerCase(); }, roofs = {};
+      (o.scene.styles ? o.scene.styles() : ['alpine']).forEach(function (k) { roofs[k] = v(k === 'alpine' ? '--village-roof' : '--village-roof-' + k); });
+      return { tints: [1, 2, 3, 4, 5, 6, 7, 8].map(function (i) { return v('--village-site-' + i); }), roofs: roofs };
+    }
+    /* The icon's pixels, drawn small: what the colour rules read. */
+    function pixels(url) {
+      return new Promise(function (done) {
+        var im = new Image();
+        im.onload = function () {
+          try { var c = document.createElement('canvas'); c.width = c.height = 32; var g = c.getContext('2d'); g.drawImage(im, 0, 0, 32, 32); done(g.getImageData(0, 0, 32, 32).data); }
+          catch (e) { done(null); }
+        };
+        im.onerror = function () { done(null); };
+        im.src = url;
+      });
+    }
+    function suggest() {
+      var page = firstOrigin(); if (!page) return;
+      var P = palette(), id = state.editing;
+      busy(true); $('site-error').hidden = true;
+      var note = $('site-suggest-note'); note.hidden = false; note.textContent = 'Looking at ' + page + '…';
+      o.api('/api/look', { method: 'POST', body: JSON.stringify({ page: page, palette: P }) }).then(function (r) {
+        if (state.editing !== id) { busy(false); return; }   // the form moved on meanwhile
+        forgetFound();
+        var icon = null;
+        if (r.icon && r.icon.data) {
+          var bin = atob(r.icon.data), bytes = new Uint8Array(bin.length);
+          for (var i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+          var blob = new Blob([bytes], { type: r.icon.type });
+          icon = state.found = { blob: blob, type: r.icon.type, url: URL.createObjectURL(blob) };
+          if (!state.draft && o.iconUrl(id)) $('site-icon-found').checked = false;   // a site with an icon keeps it unless the owner says otherwise
+        }
+        return (icon ? pixels(icon.url) : Promise.resolve(null)).then(function (px) {
+          if (state.editing !== id) { busy(false); return; }
+          var rules = window.FootwornLook.suggestLook(r.hints, px ? window.FootwornLook.iconStats(px) : null, P);
+          var L = r.ai ? r.ai.look : rules, why = r.ai ? r.ai.why : rules.why;
+          setKit(L.style || 'alpine'); $('site-hue').value = L.hue || 0; $('site-shade').value = L.shade || 0; setTint(L.tint || null); setPieces(L.pieces); paintLook();
+          note.innerHTML = '<b>' + (r.ai ? 'Claude' : 'From its colours') + ':</b> ' + esc(why) +
+            (r.aiError ? ' <span class="hint">(Claude was not reached: ' + esc(r.aiError) + '.)</span>' : '') +
+            (icon ? '' : ' <span class="hint">No icon found on its page.</span>');
+          busy(false); paintSuggest(); paintIcon(); preview();
+        });
+      }).catch(function (e) { busy(false); note.hidden = true; fail('Could not read the site (' + e.message + ').'); });
     }
     /* ---------- Wire: the site's own repository ---------- */
     function setPane(name) {
@@ -157,7 +239,7 @@
     }
     function paintRemove() { $('site-remove').hidden = state.draft; $('site-remove-box').hidden = true; }
     function fail(msg) { var el = $('site-error'); el.textContent = msg; el.hidden = false; }
-    function busy(on) { state.busy = on; Array.prototype.forEach.call($('site-form').querySelectorAll('button, input, textarea'), function (el) { if (on) { if (!el.disabled) el.dataset.held = '1'; el.disabled = true; } else if (el.dataset.held) { delete el.dataset.held; el.disabled = false; } }); }
+    function busy(on) { state.busy = on; Array.prototype.forEach.call($('site-form').querySelectorAll('button, input, textarea, select'), function (el) { if (on) { if (!el.disabled) el.dataset.held = '1'; el.disabled = true; } else if (el.dataset.held) { delete el.dataset.held; el.disabled = false; } }); }
 
     /* The village follows the form: the one being edited is dressed again; a new site stands as
        a draft, with the canned day the first time. */
@@ -165,7 +247,7 @@
       var L = look();
       if (state.draft) {
         var real = o.sites(), had = state.drafted;
-        if (!had) { o.scene.setSites(real.concat([{ id: DRAFT, name: L.name, style: L.style, tint: L.tint, hue: L.hue, shade: L.shade, draft: true }])); o.scene.load(DRAFT, DRAFT_SCENE); state.drafted = true; }
+        if (!had) { o.scene.setSites(real.concat([{ id: DRAFT, name: L.name, style: L.style, tint: L.tint, hue: L.hue, shade: L.shade, pieces: L.pieces, draft: true }])); o.scene.load(DRAFT, DRAFT_SCENE); state.drafted = true; }
         else o.scene.restyle(DRAFT, L);
         var nameEl = $('site-list').querySelector('.site-card.draft .site-name'); if (nameEl) nameEl.textContent = L.name;
       }
@@ -188,7 +270,7 @@
     function startEdit(id) {
       var s = siteOf(id); if (!s) return;
       if (state.editing) cancel();
-      state.draft = false; state.editing = id; state.pane = 'settings'; state.saved = { name: s.name, style: s.style, tint: s.tint, hue: s.hue || 0, shade: s.shade || 0 };
+      state.draft = false; state.editing = id; state.pane = 'settings'; state.saved = { name: s.name, style: s.style, tint: s.tint, hue: s.hue || 0, shade: s.shade || 0, pieces: s.pieces || null };
       paintList(); fill(s);
       $('site-name').focus();
     }
@@ -196,13 +278,14 @@
     function cancel() {
       if (!state.editing) return;
       if (state.draft) dropDraft(); else if (state.saved) o.scene.restyle(state.editing, state.saved);
+      forgetFound();
       state.editing = null; state.draft = false; state.saved = null;
       paintList();
     }
 
     function save() {
       var L = look(), body = { id: $('site-id').value.trim(), name: $('site-name').value.trim(), origins: $('site-origins').value.split(/\s+/).filter(Boolean),
-        style: L.style, tint: L.tint, hue: L.hue || null, shade: L.shade || null };
+        style: L.style, tint: L.tint, hue: L.hue || null, shade: L.shade || null, pieces: L.pieces };
       if (!body.id) { fail('The site needs an id: lowercase letters, digits, - and _.'); $('site-id').focus(); return; }
       if (!body.name) { fail('The site needs a name.'); $('site-name').focus(); return; }
       if (!body.origins.length) { fail('At least one origin, like https://your-site.example, so its hits are counted.'); $('site-origins').focus(); return; }
@@ -214,12 +297,17 @@
       o.api('/api/site', { method: 'PUT', body: JSON.stringify(body) }).then(function () {
         var wasDraft = state.draft; stored = true;
         if (wasDraft) { state.drafted = false; delete state.first[body.id]; }   // the next setSites (onChange) lists the real site instead
-        state.draft = false; state.editing = body.id; state.saved = { name: body.name, style: L.style, tint: L.tint, hue: L.hue, shade: L.shade };
+        state.draft = false; state.editing = body.id; state.saved = { name: body.name, style: L.style, tint: L.tint, hue: L.hue, shade: L.shade, pieces: L.pieces };
         if (wasDraft) state.pane = 'wire';   // the next step: the site's own repository
-        return o.onChange().then(function () {
+        /* the icon the suggestion found, kept now that there is a site to keep it on */
+        var found = state.found && $('site-icon-found').checked ? state.found : null;
+        var iconLost = null;
+        var iconDone = found ? o.api('/api/icon?site=' + encodeURIComponent(body.id), { method: 'POST', headers: { 'Content-Type': found.type }, body: found.blob }).catch(function (e) { iconLost = e.message; }) : Promise.resolve(null);
+        return iconDone.then(function () { return o.onChange(found ? body.id : undefined); }).then(function () {
           busy(false); paintList(); fill(siteOf(body.id) || body);
           $('site-saved').hidden = false; $('site-saved').textContent = wasDraft ? 'Saved. Now wire it in the site’s own repository.' : 'Saved.';
           setTimeout(function () { $('site-saved').hidden = true; }, 4000);
+          if (iconLost) fail('Saved, but its icon could not be kept (' + iconLost + '). Use Fetch from the site, or choose a file.');
         });
       }).catch(function (e) {
         busy(false);
@@ -283,11 +371,23 @@
       $(id).addEventListener('input', function () { paintLook(); previewSoon(); });
       $(id).addEventListener('change', function () { clearTimeout(held); held = null; preview(); });   // let go: exactly where it stopped
     });
-    $('site-look-reset').addEventListener('click', function () { $('site-hue').value = 0; $('site-shade').value = 0; paintLook(); preview(); });
+    $('site-look-reset').addEventListener('click', function () { $('site-hue').value = 0; $('site-shade').value = 0; setPieces(null); paintLook(); preview(); });
+    buildPieces();
+    $('site-pieces').addEventListener('change', function () { paintLook(); preview(); });
+    $('site-suggest').addEventListener('click', suggest);
+    $('site-origins').addEventListener('input', paintSuggest);
+    $('site-icon-found').addEventListener('change', paintIcon);
     $('site-surprise').addEventListener('click', function () {
       var kits = o.scene.styles ? o.scene.styles() : ['alpine'], k = kits[Math.floor(Math.random() * kits.length)];
       setKit(k); $('site-hue').value = Math.random() < .35 ? 0 : Math.floor(Math.random() * 360); $('site-shade').value = Math.round((Math.random() - .5) * 60);
-      setTint(1 + Math.floor(Math.random() * 8)); paintLook(); preview();
+      setTint(1 + Math.floor(Math.random() * 8));
+      /* now and then a piece or two from another kit */
+      var all = o.scene.pieces ? o.scene.pieces() : {}, keys = Object.keys(all), p = null;
+      if (keys.length && Math.random() < .5) {
+        p = {};
+        for (var n = 1 + Math.floor(Math.random() * 2); n > 0; n--) { var k2 = keys[Math.floor(Math.random() * keys.length)]; p[k2] = all[k2][Math.floor(Math.random() * all[k2].length)]; }
+      }
+      setPieces(p); paintLook(); preview();
     });
     $('site-icon-fetch').addEventListener('click', fetchIcon);
     $('site-icon-file').addEventListener('change', function () { uploadIcon(this.files && this.files[0]); this.value = ''; });
@@ -329,7 +429,7 @@
       withDraft: function (list) {
         if (!state.drafted) return list;
         var L = look();
-        return list.concat([{ id: DRAFT, name: L.name, style: L.style, tint: L.tint, hue: L.hue, shade: L.shade, draft: true }]);
+        return list.concat([{ id: DRAFT, name: L.name, style: L.style, tint: L.tint, hue: L.hue, shade: L.shade, pieces: L.pieces, draft: true }]);
       },
     };
   };

@@ -7,12 +7,22 @@ const SCENE = 200;   // the village draws every page, referrer and view, of the 
 
 /* The sites, each with its allowed origins and its look: the kit its village is built in (null:
    alpine), its colour (`tint`, 1..8; null: by its place in the list), how the kit's palette is
-   turned (`hue`, `shade`; null: as it is) and whether it has an icon. */
+   turned (`hue`, `shade`; null: as it is), the pieces set apart from its kit (`pieces`; null:
+   none) and whether it has an icon. */
 export async function sites(db) {
-  const r = await db.prepare('SELECT id, name, origins, style, tint, hue, shade, icon IS NOT NULL AS icon FROM sites ORDER BY name').all();
+  let r;
+  try { r = await db.prepare('SELECT id, name, origins, style, tint, hue, shade, pieces, icon IS NOT NULL AS icon FROM sites ORDER BY name').all(); }
+  catch (e) {
+    /* a Worker deployed before `npm run migrate`: the sites still list, with the look they had */
+    if (!/no such column/i.test(String(e && e.message))) throw e;
+    r = await db.prepare('SELECT id, name, origins, style, icon IS NOT NULL AS icon FROM sites ORDER BY name').all();
+  }
   return (r.results || []).map(s => ({ id: s.id, name: s.name, origins: String(s.origins || '').split(/\s+/).filter(Boolean),
-    style: s.style || null, tint: s.tint || null, hue: s.hue || null, shade: s.shade || null, icon: !!s.icon }));
+    style: s.style || null, tint: s.tint || null, hue: s.hue || null, shade: s.shade || null, pieces: parsePieces(s.pieces), icon: !!s.icon }));
 }
+
+/* The pieces as kept (src/sites.js wrote them): an object, or null. */
+function parsePieces(s) { try { const p = s ? JSON.parse(s) : null; return p && typeof p === 'object' && !Array.isArray(p) ? p : null; } catch (e) { return null; } }
 
 /* A site's icon as kept (`npm run site:icon`): { bytes, type }, or null. */
 export async function icon(db, site) {
@@ -120,7 +130,9 @@ export async function eventStats(db, { site, name, from, to }) {
      the stall's tooltip; the counts are the ones in `views`);
    - `yesterday`: visitors yesterday up to this time of day, for the change on the sign, and
      the pageviews of each page up to then (`pages`, cut at 200), for the mark on its house;
-   - `hours`: pageviews by UTC hour, today and yesterday, for the day's rhythm.
+   - `hours`: pageviews by UTC hour, today and yesterday, for the day's rhythm;
+   - `month`: the pageviews (`hits`) and views opened (`views`) of the 30 days, uncut: the
+     village is as big as they are.
    With a `day` before today (`past` in the answer) it is the village as that day ended: "today"
    is that day, the 30 days are the ones that end on it, and "yesterday" the whole day before. */
 export async function scene(db, { site, day, now = Date.now() }) {
@@ -151,9 +163,10 @@ export async function scene(db, { site, day, now = Date.now() }) {
        WHERE site = ?1 AND day = ?2 AND ${VIEW} GROUP BY path, view ORDER BY hits DESC, path, view LIMIT ${SCENE}`),
     db.prepare(`SELECT path, COUNT(*) AS hits FROM hits WHERE site = ?1 AND day = ?2 AND ts <= ?3 AND event IS NULL
                 GROUP BY path ORDER BY hits DESC, path LIMIT ${SCENE}`).bind(site, yesterday, until),
+    m(`SELECT SUM(event IS NULL) AS hits, SUM(${VIEW}) AS views FROM hits WHERE site = ?1 AND day BETWEEN ?2 AND ?3`),
   ]);
   const res = rows.map(r => r.results || []);
-  const t = res[2][0] || {};
+  const t = res[2][0] || {}, mo = res[11][0] || {};
   const hours = Array.from({ length: 24 }, (_, hour) => ({ hour, today: 0, yesterday: 0 }));
   for (const r of res[6]) if (r.hour >= 0 && r.hour < 24) hours[r.hour][r.day === today ? 'today' : 'yesterday'] = r.hits;
   return {
@@ -162,6 +175,7 @@ export async function scene(db, { site, day, now = Date.now() }) {
     today: { hits: t.hits || 0, visitors: t.visitors || 0, events: t.events || 0, viewsTotal: t.views || 0, loads: t.loads || 0, engaged: t.engaged || 0, pages: res[3], refs: res[4], views: res[8], viewPages: res[9] },
     yesterday: { visitors: (res[5][0] && res[5][0].visitors) || 0, pages: res[10] },
     hours,
+    month: { hits: mo.hits || 0, views: mo.views || 0 },
   };
 }
 

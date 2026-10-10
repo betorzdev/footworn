@@ -122,6 +122,7 @@ try {
   assert.deepEqual(sc.views, [{ value: 'combat', hits: 1 }, { value: 'map', hits: 1 }], 'scene stalls: the views, ties by name');
   assert.deepEqual(sc.today.views, [{ view: 'combat', hits: 1 }, { view: 'map', hits: 1 }], 'scene views today');
   assert.deepEqual(sc.yesterday.pages, [], 'scene: nothing yesterday');
+  assert.deepEqual(sc.month, { hits: 4, views: 2 }, 'scene month: every pageview and view of the 30 days, the village\'s size');
   /* a site's look: its kit, and its icon behind the token */
   assert.deepEqual((await api('/api/sites')).map(s => [s.id, s.style, s.icon]), [['one', 'umbra', false], ['two', null, false]], 'sites: style and icon');
   sh(['d1', 'execute', 'DB', '--local', '--command', `UPDATE sites SET icon = X'${PNG}', icon_type = 'image/png' WHERE id = 'one'`]);
@@ -142,10 +143,20 @@ try {
   assert.equal((await api('/api/sites')).find(s => s.id === 'one').name, 'Site One', 'write: the old one stands');
   assert.equal((await fetch(BASE + '/api/stats?site=one', { method: 'DELETE', headers: H })).status, 405, 'write: a read path is not written');
   const saved = await (await put({ id: 'three', name: 'Site Three', origins: ['https://three.example'], style: 'citadel', tint: 5, hue: 120, shade: -20, create: true })).json();
-  assert.deepEqual(saved.site, { id: 'three', name: 'Site Three', origins: ['https://three.example'], style: 'citadel', tint: 5, hue: 120, shade: -20, icon: false }, 'write: the site as saved');
+  assert.deepEqual(saved.site, { id: 'three', name: 'Site Three', origins: ['https://three.example'], style: 'citadel', tint: 5, hue: 120, shade: -20, pieces: null, icon: false }, 'write: the site as saved');
   await put({ id: 'three', name: 'Site Three', origins: ['https://three.example', 'https://www.three.example'], style: 'stone' });
   const three = (await api('/api/sites')).find(s => s.id === 'three');
   assert.deepEqual([three.style, three.tint, three.hue, three.origins.length], ['stone', null, null, 2], 'write: an edit replaces the look');
+  /* pieces: set apart from the kit, read back; an unknown one refused */
+  assert.equal((await put({ id: 'three', name: 'Site Three', origins: ['https://three.example'], style: 'stone', pieces: { wall: 'moat' } })).status, 400, 'pieces: an unknown one');
+  await put({ id: 'three', name: 'Site Three', origins: ['https://three.example', 'https://www.three.example'], style: 'stone', pieces: { wall: 'iron', shade: 'half', roofs: 'kit' } });
+  assert.deepEqual((await api('/api/sites')).find(s => s.id === 'three').pieces, { wall: 'iron', shade: 'half' }, 'pieces: read back');
+  /* the suggested look, read from a page (the Worker's own demo page): hints, no Claude without a key */
+  assert.equal((await fetch(BASE + '/api/look', { method: 'POST', body: '{}' })).status, 401, 'look: token needed');
+  assert.equal((await fetch(BASE + '/api/look', { method: 'POST', headers: { ...H, 'Content-Type': 'application/json' }, body: JSON.stringify({ page: 'file:///etc/passwd' }) })).status, 400, 'look: http(s) only');
+  const lk = await (await fetch(BASE + '/api/look', { method: 'POST', headers: { ...H, 'Content-Type': 'application/json' }, body: JSON.stringify({ page: BASE + '/demo' }) })).json();
+  assert.ok(lk.hints && typeof lk.hints.title === 'string' && lk.hints.title.length > 0, 'look: the page title');
+  assert.equal(lk.ai, null, 'look: no key, no Claude');
   const upPng = Buffer.from('89504e470d0a1a0a0000000d49484452', 'hex');
   assert.equal((await fetch(BASE + '/api/icon?site=three', { method: 'POST', headers: { ...H, 'Content-Type': 'image/png' }, body: Buffer.from('<svg></svg>') })).status, 400, 'icon upload: not an image');
   assert.equal((await fetch(BASE + '/api/icon?site=three', { method: 'POST', headers: { ...H, 'Content-Type': 'image/png' }, body: upPng })).status, 200, 'icon upload');

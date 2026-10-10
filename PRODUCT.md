@@ -54,8 +54,11 @@ URL is a bookmark to a site, the open ledger, its range and an open event.
   wall, as wide as today's arrivals, with the footprints of who came through it; a market stall per view opened inside a page (`screen`
   events with a `view`, since 2026-10-05; the owner asked for the views in the scene and picked
   the market of three options; since 2026-10-06 every view, in rows of 10, 16, 22 round the
-  tower: the owner wants nothing grouped, the village as big as the site's use, so the lamps,
-  the houses and the wall move out as the counts need) round the clock tower, the green
+  tower: the owner wants nothing grouped, so the lamps and the houses move out as the counts
+  need; since 2026-10-10 the village is as big as the site's visits, the 30 days' pageviews
+  and views in steps of ×3 from 10, the busier site always the wider, the houses on rings
+  when one is not enough and fields filling the rest: the owner's sites have few visits, so
+  the steps start low) round the clock tower, the green
   lanterns lit on a pole beside it, from the ground up, today's opens on one scale for every
   site, boarded up when nobody opened it; the clock telling the UTC time on a 24-hour dial, like the
   ring of lamps (midnight at the top), under a pennant in the village's colour; every live pageview a villager (a scarf and a hat in its gate's colour) walking from its
@@ -139,7 +142,15 @@ URL is a bookmark to a site, the open ledger, its range and an open event.
   and proposes which views and actions to track, asking before adding more than a few. A line
   waits for the site's first live visit and turns green with its page and referrer (or says
   today's pageviews, for a site already counting): the proof the wiring works, without leaving
-  the panel. On a phone
+  the panel. The look from the site itself (the same day; the owner asked whether AI could design
+  each village, and agreed on AI that chooses, never one that invents geometry or colours outside
+  the tokens): *Suggest from the site* fills the form from the site's own page, by colour rules
+  that always answer (theme colour, colour scheme, the icon's pixels) and, with an
+  `ANTHROPIC_API_KEY` (the owner picked the Claude API), by Claude reading its title, description,
+  icon and preview image for the mood; the village previews it and nothing is saved until the
+  owner saves. And the pieces: the kit stays the starting point, and its spire, wall, roofs, shade
+  and motes can each be set apart from it (the owner chose pieces over the kit, open to both the
+  owner and the suggestion), in the kit's own colours. On a phone
   the drawer is a full sheet, so the preview shows once it is put away.
 - Another day (since 2026-10-06; the owner asked to go back a day, or to any day, and picked the
   day strip of three options: a stepper, the strip, a calendar): *History* in the dock brings up

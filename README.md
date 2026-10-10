@@ -58,10 +58,14 @@ last 30 days, then *direct*), as wide as today's arrivals, its lanterns in the r
 Between the lamps and the tower, a market: a stall per view opened inside a page (a `screen`
 event with a `view`; every one of the last 30 days), with a pole beside it whose
 green lanterns light up from the ground with today's opens, on one scale for every site; a stall
-nobody opened today is boarded up. Nothing is grouped: a village is as big as its site's use. Ten stalls
-stand round the tower, the next sixteen in a row behind them, and so on; the lamps, the ring
-of houses and the wall move out as the market, the pages and the referrers need, and a
+nobody opened today is boarded up. Nothing is grouped. Ten stalls
+stand round the tower, the next sixteen in a row behind them, and so on; the houses stand on
+one ring while they fit, then on rings behind it (the month's busiest pages inside), and a
 page, referrer or view first seen today builds its house, gate or stall there and then.
+A village is as big as its site's visits: its wall opens a step for every three times as many
+pageviews and views in the last 30 days (from 10 a month up to 30 000), and a site with more
+of them than another always has the wider village, whatever its pages; what is left between
+the last houses and the wall is fields, fences, haystacks and pines, with no count in them.
 Every pageview is a villager with a scarf in that colour who walks in through the gate, across
 the square and into the house, leaving steps in the snow that fade in a minute; every view opened, one in a green scarf who leaves that page's
 house for the stall; every other event, fireworks over the roof. Drag to turn, wheel or
@@ -160,10 +164,17 @@ origins its pages are served from, and its village's look, which stands in the v
 village while you choose it. The kit: `alpine` (the default: timber, a palisade), `stone` (pale
 stone, slate spires, a rampart with round towers, cold lamps), `citadel` (red roofs, a belfry,
 battlements) or `umbra` (near-black slate, an iron fence, pale light, motes drifting over it, and
-a village that casts its own shade). Its palette can be turned round the hue wheel and made
-lighter or darker (roofs, walls, shutters; never the lamps and windows, which are counts), and the
-site gets one of eight colours for its pennant, its sign and its banner's band. The counts read
-the same in each. Once saved, the site's card opens on **Wire**: what its own repository needs
+a village that casts its own shade). Each piece of it can be set apart from the kit, to mix kits:
+the spire, the wall, the roofs, the village's shade and its motes (a stone village with an iron
+fence, say). Its palette can be turned round the hue wheel and made lighter or darker (roofs,
+walls, shutters; never the lamps and windows, which are counts), and the site gets one of eight
+colours for its pennant, its sign and its banner's band. The counts read the same in each.
+*Suggest from the site* proposes all of it from the site's own page: colour rules on its theme
+colour, its colour scheme and its icon (free, always there: a theme near black gives umbra, a warm
+colour citadel, greys stone), and, when the Worker has an `ANTHROPIC_API_KEY` secret, Claude's
+reading of its title, description, icon and preview image, which sees the mood as well as the
+colours. It fills the form and the village previews it; nothing is saved until you save, and the
+icon it found is kept with the site. Once saved, the site's card opens on **Wire**: what its own repository needs
 (the tag on every page, a guarded `track()` helper for views and actions, a line in its privacy
 notice, its Content-Security-Policy, tagged links, a mention in its docs), each with its snippet,
 and *Copy the prompt for your agent*, the same steps as a prompt for a coding agent opened in that
@@ -235,7 +246,9 @@ locally for `/verify`.
 4. `npx wrangler secret put ADMIN_TOKEN` (a long random string; it’s the dashboard’s password).
 5. `npm run deploy` → `https://footworn.<account>.workers.dev`.
 6. Open the dashboard with the token and register each site from **Sites** (or `npm run site:add -- <id> "<name>" "<origin> [<origin>…]" --remote`).
-   A database made before the Sites panel needs `npm run migrate` again (`0003_site_look.sql`).
+   A database made before the Sites panel needs `npm run migrate` again (`0003_site_look.sql`, `0004_site_pieces.sql`).
+7. Optional: `npx wrangler secret put ANTHROPIC_API_KEY` for Claude's suggestions in the Sites panel
+   (one call per *Suggest*, model `claude-opus-5-5`, low effort; without it the colour rules answer alone).
 
 Free plan room: 100 000 requests/day and 100 000 D1 writes/day; a pageview costs two writes and
 an event one, so about 50 000 pageviews a day. The live view adds one Durable Object request per
@@ -277,6 +290,7 @@ the width, no id), live and as the day's history; earlier days are only counts. 
 | `DELETE /api/site?site=` | removes the site and every hit counted for it; 404 for an unknown one |
 | `POST /api/icon?site=` | an image body (`Content-Type: image/…`, 40 KB at most, its bytes must say PNG, ICO or JPEG) is kept as the icon; any other body (`{ page? }`, JSON) has the Worker fetch it from that page or the site's first origin, as `site:icon` does; `422` when none is usable |
 | `DELETE /api/icon?site=` | forgets the icon: the pennant again |
+| `POST /api/look` | `{ page, palette? }` (JSON): the site's page read for a look, stored nowhere: `{ hints: { title, description, lang, themeColor, scheme, ogImage }, icon: { type, data (base64), url } \| null, ai: { look: { style, hue, shade, tint, pieces }, why } \| null, aiError? }`; `ai` only with an `ANTHROPIC_API_KEY` and the dashboard's `palette` (`{ tints: [8 × #rrggbb], roofs: { kit: #rrggbb } }`) |
 | `GET /api/scene?site=` | what the village draws, all counts: `pages`, `refs` and `views` (every one of the last 30 days, busiest first, each list cut at 200, `[{ value, hits }]`), `today: { hits, visitors, events, viewsTotal, loads, engaged, pages: [{ path, hits, loads, engaged, events }], refs: [{ ref, hits }], views: [{ view, hits }], viewPages: [{ path, view, hits }] }` (the used rate is `engaged / loads`, as in `/api/stats`; a view is a `screen` event with a `view`, so `viewsTotal` is inside `events`), `yesterday: { visitors, pages: [{ path, hits }] }` up to this time of day, and `hours: [{ hour, today, yesterday }]`, pageviews by UTC hour. With `&day=` before today (`past: true` in the answer) it is the village as that day ended: `today` is that day, the 30 days end on it, `yesterday` is the whole day before |
 | `GET /api/days?site=&from=&to=` | `{ days: [{ day, visitors, hits }] }`, visitors and pageviews per day (a day with none has no row): the bars of the history strip |
 | `GET /api/visits?site=` | today's visits (UTC), newest first, at most 2000, rounded: `{ day, now, visits: [{ minute, path, ref, device, browser, os, lang, country, first, event, props }] }`. Never the width, the second or an id |
@@ -299,7 +313,8 @@ src/ticket.js     the live socket's 60-second ticket
 src/auth.js       the bearer check
 src/sites.js      the Sites panel's writes: a site checked, saved, removed; its icon fetched or kept
 src/body.js       a request or response body read with a cap
-public/           footworn.js, the dashboard (index.html, app.js, gl.js, village.js, sound.js, live.js, ledger.js, history.js, visits.js, sites.js, theme.js, style.css, tokens.css), privacy, demo,
+src/look.js       a site's page read for a suggested look: its hints, and Claude's reading when there is a key
+public/           footworn.js, the dashboard (index.html, app.js, gl.js, village.js, sound.js, live.js, ledger.js, history.js, visits.js, sites.js, wire.js, look.js, theme.js, style.css, tokens.css), privacy, demo,
                   _headers (nosniff and no-referrer everywhere; the dashboard's CSP: no inline code, no framing)
 migrations/       the D1 schema
 test/             node --test

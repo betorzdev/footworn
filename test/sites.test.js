@@ -13,14 +13,16 @@ function fakeDb() {
   };
 }
 
-const good = { id: 'sheos-forge', name: ' Sheo’s Forge ', origins: ['https://sheosforge.com', 'http://localhost:8787'], style: 'umbra', tint: 3, hue: 40, shade: -10 };
+const good = { id: 'sheos-forge', name: ' Sheo’s Forge ', origins: ['https://sheosforge.com', 'http://localhost:8787'], style: 'umbra', tint: 3, hue: 40, shade: -10, pieces: { wall: 'rampart', shade: 'half', spire: 'kit' } };
 
 test('a site is checked before it is saved', () => {
-  assert.deepEqual(validateSite(good), { site: { id: 'sheos-forge', name: 'Sheo’s Forge', origins: 'https://sheosforge.com http://localhost:8787', style: 'umbra', tint: 3, hue: 40, shade: -10 } });
+  assert.deepEqual(validateSite(good), { site: { id: 'sheos-forge', name: 'Sheo’s Forge', origins: 'https://sheosforge.com http://localhost:8787', style: 'umbra', tint: 3, hue: 40, shade: -10, pieces: { wall: 'rampart', shade: 'half' } } });
+  /* pieces: "kit" or null is the kit's own; none left is null */
+  assert.equal(validateSite({ ...good, pieces: { roofs: 'kit', motes: null } }).site.pieces, null);
   /* origins as the shell gives them: one string; repeated ones once */
   assert.equal(validateSite({ ...good, origins: 'https://a.example  https://b.example https://a.example' }).site.origins, 'https://a.example https://b.example');
   /* the look may be empty: the kit as it is, the colour by position */
-  assert.deepEqual(validateSite({ id: 'a', name: 'A', origins: 'https://a.example' }).site, { id: 'a', name: 'A', origins: 'https://a.example', style: null, tint: null, hue: null, shade: null });
+  assert.deepEqual(validateSite({ id: 'a', name: 'A', origins: 'https://a.example' }).site, { id: 'a', name: 'A', origins: 'https://a.example', style: null, tint: null, hue: null, shade: null, pieces: null });
   assert.equal(validateSite({ id: 'a', name: 'A', origins: 'https://a.example', style: '', tint: '', hue: null }).site.style, null);
   /* as pasted from the address bar: the origin it is */
   assert.equal(validateSite({ ...good, origins: 'https://Site.Example/ https://site.example:443 http://localhost:8787/' }).site.origins, 'https://site.example http://localhost:8787');
@@ -37,6 +39,8 @@ test('a site is checked before it is saved', () => {
     [{ ...good, tint: 0 }, /^tint:/], [{ ...good, tint: 9 }, /^tint:/], [{ ...good, tint: 2.5 }, /^tint:/], [{ ...good, tint: '3' }, /^tint:/],
     [{ ...good, hue: 360 }, /^hue:/], [{ ...good, hue: -1 }, /^hue:/],
     [{ ...good, shade: 41 }, /^shade:/], [{ ...good, shade: -41 }, /^shade:/],
+    [{ ...good, pieces: 'rampart' }, /^pieces:/], [{ ...good, pieces: ['rampart'] }, /^pieces:/],
+    [{ ...good, pieces: { tower: 'iron' } }, /^pieces:/], [{ ...good, pieces: { wall: 'moat' } }, /^pieces:/],
   ];
   for (const [body, re] of bad) assert.match(validateSite(body).error, re, JSON.stringify(body));
 });
@@ -45,10 +49,10 @@ test('saving writes every field but the icon; removing takes the hits and the ha
   const db = fakeDb();
   await saveSite(db, validateSite(good).site);
   assert.equal(db.seen.length, 1);
-  assert.match(db.seen[0].sql, /INSERT INTO sites \(id, name, origins, style, tint, hue, shade\)/);
-  assert.match(db.seen[0].sql, /ON CONFLICT\(id\) DO UPDATE SET name = excluded\.name, origins = excluded\.origins, style = excluded\.style,\s+tint = excluded\.tint, hue = excluded\.hue, shade = excluded\.shade/);
+  assert.match(db.seen[0].sql, /INSERT INTO sites \(id, name, origins, style, tint, hue, shade, pieces\)/);
+  assert.match(db.seen[0].sql, /ON CONFLICT\(id\) DO UPDATE SET name = excluded\.name, origins = excluded\.origins, style = excluded\.style,\s+tint = excluded\.tint, hue = excluded\.hue, shade = excluded\.shade, pieces = excluded\.pieces/);
   assert.doesNotMatch(db.seen[0].sql, /icon/);
-  assert.deepEqual(db.seen[0].args, ['sheos-forge', 'Sheo’s Forge', 'https://sheosforge.com http://localhost:8787', 'umbra', 3, 40, -10]);
+  assert.deepEqual(db.seen[0].args, ['sheos-forge', 'Sheo’s Forge', 'https://sheosforge.com http://localhost:8787', 'umbra', 3, 40, -10, '{"wall":"rampart","shade":"half"}']);
 
   /* a new site never overwrites one: the insert does nothing and says so */
   const db3 = fakeDb();

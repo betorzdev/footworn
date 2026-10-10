@@ -37,6 +37,9 @@ new_sqlite_classes = ["Live"]
 [triggers]
 crons = ["0 0 * * *"]
 
+# Secrets (`npx wrangler secret put <NAME>`): ADMIN_TOKEN, the dashboard's password; and, optional,
+# ANTHROPIC_API_KEY, for Claude's suggested look in the Sites panel (src/look.js).
+
 [vars]
 # The AEPD's audience-measurement guide (January 2024) caps retention at 25 months.
 RETENTION_MONTHS = "25"

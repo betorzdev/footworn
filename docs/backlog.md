@@ -70,10 +70,8 @@ errors, loading state, URL state, reduced motion, focus rings and press feedback
   awake at rest. Still open: the live socket closes while the tab is hidden, so nothing sounds
   from a tab put away; the levels were set by measure, not on many speakers; on a wide touch
   screen the volume slider only comes up for a moment after sound is switched on.
-- **Rings of houses**: since 2026-10-06 nothing is grouped and a village's ring of houses
-  widens with its pages (option A of `design/growth`, that day's round). Past about 40 pages
-  that leaves a snowy hole between the lamps and the houses: then option B, a second ring of
-  houses behind the first, the wall behind the last, each ring keeping the gates' lanes free.
+- **Rings of houses**: done on 2026-10-10, with the village sized by its visits (option A of
+  `design/size-by-visits`: steps of ×3, the busier site always wider, fields in what is left).
   Also, the five gate colours repeat from the sixth referrer on; more `--village-lane-*` tokens
   if a site with many referrers finds that confusing.
 - **Sky by the clock**: done on 2026-10-06 ("polar day": `LIGHTS` and `DAY` in `public/village.js`,
@@ -91,18 +89,11 @@ errors, loading state, URL state, reduced motion, focus rings and press feedback
   and a `FOOTWORN.md` file to drop in the site's repository (a copy that goes stale). Seen that day and left out: a settings page of its own (no preview) and editing in the
   valley (a popover on a sign: hard to find, poor on a phone); an icon from a pasted image URL; a
   free palette per site (every role editable), which would break `tokens.css` as the one source.
-- **The look from the site itself** (asked on 2026-10-07, thought through, not built): Footworn
-  proposes a village from the site's own aesthetics, and the owner keeps or adjusts it. The signals
-  that need no dependency: from the page the icon fetch already reads (`fetchIcon` in
-  `src/sites.js` can return them as `hints`), `<meta name="theme-color">` and `color-scheme`; from
-  the icon, already a same-origin blob in the dashboard, its pixels through a `<canvas>`: mean
-  lightness and dominant hue (a 12-bucket histogram of saturated pixels). A pure
-  `suggestLook({ themeColor, scheme, iconHue, iconLight })` → `{ style, hue, shade, tint }`, tested
-  on the two calculators: dark theme or icon → umbra; warm saturated hue → citadel; cool greyish
-  → stone; else alpine; `hue` the turn from the kit's own roof hue to the site's (the roofs lean
-  to it, never a flat copy), `shade` from the lightness, `tint` the nearest of the eight site
-  colours. In the panel, *Suggest from the site* beside *Fetch from the site* fills the form and
-  previews it; nothing is saved without the owner's look.
+- **The look from the site itself**: done on 2026-10-07 (`public/look.js`, the colour rules;
+  `src/look.js`, the page read and Claude's reading with an `ANTHROPIC_API_KEY`; the pieces over the
+  kit, `PIECES`). Still open: a screenshot of the page (Browser Rendering) for Claude to look at,
+  left out as it costs more than the icon and the preview image; and how the suggestions land on
+  real sites with a key, which only the owner's first tries will tell.
 - **A kit per village**: done on 2026-10-06 (`KIT` in `public/village.js`, `--style`, `site:icon`).
   Seen in that round and left out: a wall chosen apart from the kit (each kit keeps its own), and
   the old low wall. Still open: the icon is fetched once, by hand; a site that changes its icon

@@ -91,6 +91,25 @@ test('today, a day to come, a day that is no date or no day at all: today', asyn
   }
 });
 
+test('the month: every pageview and view of the 30 days, for the size of the village', async () => {
+  const answers = [];
+  answers[11] = [{ hits: 120, views: 340 }];
+  const db = fakeDb(answers);
+  const out = await scene(db, { site: 'one', now: NOW });
+  assert.deepEqual(out.month, { hits: 120, views: 340 });
+  const st = db.seen.find(st => !st.sql.includes('GROUP BY') && st.sql.includes('BETWEEN'));
+  assert.deepEqual(st.args, ['one', '2026-09-06', '2026-10-05']);
+  assert.match(st.sql, /SUM\(event IS NULL\) AS hits, SUM\(event = 'screen' AND json_type\(props, '\$\.view'\) = 'text'\) AS views/);
+  assert.ok(!st.sql.includes('LIMIT'));   // a total, not a list cut at 200
+  for (const bad of [' ts', 'first', 'country', 'browser', 'width']) assert.ok(!st.sql.includes(bad), bad);
+  /* nothing in the 30 days: SUM over no rows is null, the answer zeros */
+  assert.deepEqual((await scene(fakeDb([[], [], [], [], [], [], [], [], [], [], [], [{ hits: null, views: null }]]), { site: 'one', now: NOW })).month, { hits: 0, views: 0 });
+  /* a past day: the 30 days that end on it */
+  const past = fakeDb([]);
+  await scene(past, { site: 'one', day: '2026-09-20', now: NOW });
+  assert.deepEqual(past.seen.find(st => !st.sql.includes('GROUP BY') && st.sql.includes('BETWEEN')).args, ['one', '2026-08-22', '2026-09-20']);
+});
+
 test('the days of the history strip: counts per day, nothing else', async () => {
   const rows = [{ day: '2026-10-04', visitors: 3, hits: 5 }, { day: '2026-10-05', visitors: 1, hits: 1 }];
   const seen = {};

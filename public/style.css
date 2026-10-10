@@ -368,6 +368,12 @@ td.n { text-align: right; padding-left: var(--s-3); font-family: var(--font-num)
 .sw[aria-checked="true"] { border-color: var(--text); }
 .sw-1 { --site: var(--village-site-1); } .sw-2 { --site: var(--village-site-2); } .sw-3 { --site: var(--village-site-3); } .sw-4 { --site: var(--village-site-4); }
 .sw-5 { --site: var(--village-site-5); } .sw-6 { --site: var(--village-site-6); } .sw-7 { --site: var(--village-site-7); } .sw-8 { --site: var(--village-site-8); }
+.pieces { display: grid; grid-template-columns: repeat(auto-fill, minmax(calc(var(--s-6) * 4), 1fr)); gap: var(--s-2); }
+.pieces label { display: flex; flex-direction: column; gap: var(--s-1); }
+.pieces select { font: var(--fs-s)/1.2 var(--font); color: var(--text); background: var(--surface); border: 1px solid var(--glass-line); border-radius: var(--radius); min-height: var(--ctl); padding: 0 var(--s-2); }
+.pieces select.set { border-color: var(--accent); }
+.suggest-note { margin: 0; padding: var(--s-2) var(--s-3); border-radius: var(--radius); background: var(--surface-2); font-size: var(--fs-s); }
+.suggest-note b { font-weight: 650; }
 .icon-row { display: flex; align-items: center; gap: var(--s-2); flex-wrap: wrap; }
 .snippet { display: block; font-size: var(--fs-xs); line-height: 1.5; background: var(--surface-2); border-radius: var(--radius); padding: var(--s-2) var(--s-3); white-space: pre-wrap; overflow-wrap: anywhere; user-select: all; }
 /* The Wire tab: what the site's own repository needs, and whether its first visit came in. */

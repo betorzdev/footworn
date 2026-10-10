@@ -22,8 +22,15 @@ maps to it.
 Besides the hits, `sites` keeps each site's own configuration, set by its owner from the
 dashboard's Sites panel (or `npm run site:add`, `site:icon`): its name, the Origins allowed to
 count, the look of its village (`style`, the kit; `tint`, its colour; `hue` and `shade`, how the
-kit's palette is turned) and the site's public icon (`icon`, `icon_type`: fetched from the site's
-own page, or a file the owner chose). None of it is about a visitor.
+kit's palette is turned; `pieces`, the parts of the village set apart from its kit) and the
+site's public icon (`icon`, `icon_type`: fetched from the site's own page, or a file the owner
+chose). None of it is about a visitor.
+
+The panel's *Suggest from the site* reads the site's own public page (its title, description,
+language, theme colour, colour scheme and icon) to propose that look. When the Worker has an
+`ANTHROPIC_API_KEY`, it also sends those, with the page's preview image (`og:image`), to
+Anthropic's API, which proposes the look; nothing is stored from it. No visitor is involved at any
+point: it is the publisher's own page, read on the publisher's request.
 
 Not in the list and therefore not collected: load time and scroll depth (allowed by the guide,
 just not built yet) and anything beyond it, above all session journeys
