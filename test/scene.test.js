@@ -14,7 +14,7 @@ function fakeDb(answers) {
 
 const NOW = Date.UTC(2026, 9, 5, 12, 0, 30);
 
-test('the views of a site: every one of the 30 days, and today per page', async () => {
+test('the views of a site: every one of the 7 days, and today per page', async () => {
   const answers = [];
   answers[2] = [{ hits: 9, visitors: 2, events: 6, views: 4 }];
   answers[7] = [{ value: 'charms', hits: 40 }, { value: 'map', hits: 12 }];
@@ -33,7 +33,7 @@ test('the views of a site: every one of the 30 days, and today per page', async 
   const byView = st => st.sql.includes("json_extract(props, '$.view')");
   const top = db.seen.find(st => byView(st) && st.sql.includes('BETWEEN')), today = db.seen.find(st => byView(st) && st.sql.includes('GROUP BY view ')),
     pages = db.seen.find(st => byView(st) && st.sql.includes('GROUP BY path, view'));
-  assert.deepEqual(top.args, ['one', '2026-09-06', '2026-10-05']);
+  assert.deepEqual(top.args, ['one', '2026-09-29', '2026-10-05']);
   assert.match(top.sql, /LIMIT 200/);   // every view, no grouping: the cut is a safety net
   assert.match(top.sql, /ORDER BY hits DESC, value/);   // a tie never makes two stalls trade places
   /* A stall's count is its view's own row: the pairs with a page are cut at 200, the counts are not theirs. */
@@ -73,8 +73,8 @@ test('a past day: the village as that day ended', async () => {
   assert.deepEqual(out.hours[23], { hour: 23, today: 2, yesterday: 0 });
   assert.deepEqual(out.hours[0], { hour: 0, today: 0, yesterday: 4 });
   const batch = db.seen.slice(1);   // after loadsSince
-  /* The houses, gates and stalls of the 30 days that end on it; the counts of that day alone. */
-  assert.deepEqual(batch[0].args, ['one', '2026-08-22', '2026-09-20']);
+  /* The houses, gates and stalls of the 7 days that end on it; the counts of that day alone. */
+  assert.deepEqual(batch[0].args, ['one', '2026-09-14', '2026-09-20']);
   assert.deepEqual(batch[2].args, ['one', '2026-09-20']);
   /* The day before, whole: up to its last second, not up to this time of day. */
   assert.deepEqual(batch[5].args, ['one', '2026-09-19', Date.UTC(2026, 8, 20) / 1000 - 1]);
@@ -91,23 +91,51 @@ test('today, a day to come, a day that is no date or no day at all: today', asyn
   }
 });
 
-test('the month: every pageview and view of the 30 days, for the size of the village', async () => {
+test('the week: every pageview and view of the 7 days, for the size of the village', async () => {
   const answers = [];
   answers[11] = [{ hits: 120, views: 340 }];
   const db = fakeDb(answers);
   const out = await scene(db, { site: 'one', now: NOW });
-  assert.deepEqual(out.month, { hits: 120, views: 340 });
+  assert.deepEqual(out.week, { hits: 120, views: 340 });
   const st = db.seen.find(st => !st.sql.includes('GROUP BY') && st.sql.includes('BETWEEN'));
-  assert.deepEqual(st.args, ['one', '2026-09-06', '2026-10-05']);
+  assert.deepEqual(st.args, ['one', '2026-09-29', '2026-10-05']);
   assert.match(st.sql, /SUM\(event IS NULL\) AS hits, SUM\(event = 'screen' AND json_type\(props, '\$\.view'\) = 'text'\) AS views/);
   assert.ok(!st.sql.includes('LIMIT'));   // a total, not a list cut at 200
   for (const bad of [' ts', 'first', 'country', 'browser', 'width']) assert.ok(!st.sql.includes(bad), bad);
-  /* nothing in the 30 days: SUM over no rows is null, the answer zeros */
-  assert.deepEqual((await scene(fakeDb([[], [], [], [], [], [], [], [], [], [], [], [{ hits: null, views: null }]]), { site: 'one', now: NOW })).month, { hits: 0, views: 0 });
-  /* a past day: the 30 days that end on it */
+  /* nothing in the 7 days: SUM over no rows is null, the answer zeros */
+  const empty = []; empty[11] = [{ hits: null, views: null }];
+  assert.deepEqual((await scene(fakeDb(empty), { site: 'one', now: NOW })).week, { hits: 0, views: 0 });
+  /* a past day: the 7 days that end on it */
   const past = fakeDb([]);
   await scene(past, { site: 'one', day: '2026-09-20', now: NOW });
-  assert.deepEqual(past.seen.find(st => !st.sql.includes('GROUP BY') && st.sql.includes('BETWEEN')).args, ['one', '2026-08-22', '2026-09-20']);
+  assert.deepEqual(past.seen.find(st => !st.sql.includes('GROUP BY') && st.sql.includes('BETWEEN')).args, ['one', '2026-09-14', '2026-09-20']);
+});
+
+test('the other events: the workshops of the 7 days by name, and today by name and by page', async () => {
+  const answers = [];
+  answers[12] = [{ value: 'copy', hits: 9 }, { value: 'lang', hits: 30 }];
+  answers[13] = [{ event: 'lang', hits: 4 }];
+  answers[14] = [{ path: '/es/', event: 'lang', hits: 3 }, { path: '/', event: 'lang', hits: 1 }];
+  const db = fakeDb(answers);
+  const out = await scene(db, { site: 'one', now: NOW });
+  assert.deepEqual(out.events, answers[12]);
+  assert.deepEqual(out.today.byEvent, answers[13]);
+  assert.deepEqual(out.today.eventPages, answers[14]);
+  const named = db.seen.filter(st => st.sql.includes('GROUP BY event') || st.sql.includes('GROUP BY path, event'));
+  assert.equal(named.length, 3);
+  const [week, today, pages] = named;
+  assert.deepEqual(week.args, ['one', '2026-09-29', '2026-10-05']);
+  assert.match(week.sql, /GROUP BY event ORDER BY hits DESC, event LIMIT 200\) ORDER BY value/);   // the busiest 200, then by name: a workshop never trades places with another
+  assert.deepEqual(today.args, ['one', '2026-10-05']);
+  assert.match(pages.sql, /GROUP BY path, event ORDER BY hits DESC, path, event LIMIT 200/);
+  for (const st of named) {
+    /* the site's own events, not the tracker's (`$engaged`), and no view: those are stalls */
+    assert.match(st.sql, /event IS NOT NULL AND event NOT LIKE '\$%'/);
+    assert.match(st.sql, /NOT COALESCE\(event = 'screen' AND json_type\(props, '\$\.view'\) = 'text', 0\)/);
+    for (const bad of [' ts', 'first', 'country', 'browser', 'width']) assert.ok(!st.sql.includes(bad), bad);
+  }
+  const none = await scene(fakeDb([]), { site: 'one', now: NOW });
+  assert.deepEqual([none.events, none.today.byEvent, none.today.eventPages], [[], [], []]);
 });
 
 test('the days of the history strip: counts per day, nothing else', async () => {

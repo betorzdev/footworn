@@ -7,7 +7,7 @@
      scale, so a busy minute never clashes; the top page is the lowest), answered an octave up
      when that visit was a new visitor's;
    - `stall`, a view opened reaches its stall: a wind chime, its pitch the view;
-   - `event`, any other event: the fireworks, far off;
+   - `work`, any other event: its villager at the workshop, three knocks of the work;
    - `midnight`, the day's cut: the tower strikes once.
    Each village sounds from its side of the valley. A cue is { site, of, lane, house, view,
    first, delay }: village `site` of `of`, left to right; `delay` in seconds.
@@ -119,11 +119,13 @@
         var d = at(c), t = when(c);
         [0, 1, 3].forEach(function (k, i) { struck(d, t + i * (.07 + Math.random() * .05), note((c.view || 0) + k, 2), GLOCK, .1, .7); });
       },
-      event: function (c) {
+      work: function (c) {
         var d = at(c), t = when(c);
-        tone(d, t, 115, .42, .3, { to: 42 });
-        burst(d, t, .38, { type: 'lowpass', f: 1300, to: 180, q: .7, peak: .34 });
-        for (var i = 0; i < 14; i++) { var x = Math.random(); burst(d, t + .16 + x * 1.1, .03, { type: 'highpass', f: 3600, q: .7, peak: .09 * (1 - x * .8) }); }   // the crackle
+        for (var i = 0; i < 3; i++) {   // three knocks, the last the softest: wood, or a hammer on iron
+          var k = t + i * (.26 + Math.random() * .05), peak = .3 - i * .07;
+          tone(d, k, 180 - i * 6, peak, .12, { to: 90 });
+          burst(d, k, .07, { type: 'bandpass', f: 1100 + Math.random() * 300, q: 3, peak: peak * .8 });
+        }
       },
       midnight: function (c) { struck(out, when(c), 196, TOWER, .2, 5.5); },   // G3, the fourth of the scale
       hello: function (c) { struck(out, when(c), note(2), HAND, .22, 1.2); },   // Sound, just switched on, or the slider let go: this is how loud it is

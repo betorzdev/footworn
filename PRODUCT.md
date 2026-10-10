@@ -45,7 +45,7 @@ URL is a bookmark to a site, the open ledger, its range and an open event.
   square of three village options, then three art directions after web research): snowed-in
   villages on a polar winter day, one per site, side by side in a valley with a frozen lake
   under the mountains. In each, a house per page
-  (every page of the last 30 days) in a ring round a clock square, storeys today's pageviews on
+  (every page of the last 7 days) in a ring round a clock square, storeys today's pageviews on
   one scale for every site, warm windows from the ground up for the share of loads used
   (`$engaged`), a brass band at yesterday's storeys up to this time (on a rod over the roof when
   yesterday was taller), the way to its door as wide and worn as today's visits, with their
@@ -55,16 +55,22 @@ URL is a bookmark to a site, the open ledger, its range and an open event.
   events with a `view`, since 2026-10-05; the owner asked for the views in the scene and picked
   the market of three options; since 2026-10-06 every view, in rows of 10, 16, 22 round the
   tower: the owner wants nothing grouped, so the lamps and the houses move out as the counts
-  need; since 2026-10-10 the village is as big as the site's visits, the 30 days' pageviews
-  and views in steps of ×3 from 10, the busier site always the wider, the houses on rings
-  when one is not enough and fields filling the rest: the owner's sites have few visits, so
-  the steps start low) round the clock tower, the green
+  need; since 2026-10-10 the village is as big as the site's visits, the pageviews and views
+  in steps of ×3, the busier site always the wider, the houses on rings when one is not
+  enough: the owner's sites have few visits, so the steps start low; the same day the whole
+  village moved from 30 days to the last 7, because the owner watches new sites grow day by
+  day) round the clock tower, the green
   lanterns lit on a pole beside it, from the ground up, today's opens on one scale for every
-  site, boarded up when nobody opened it; the clock telling the UTC time on a 24-hour dial, like the
+  site, boarded up when nobody opened it; a workshop per other event of the 7 days behind the
+  houses (since 2026-10-10: the owner found the decorative fields between the houses and the
+  wall unreadable and wanted the events in the scene, with villagers doing something with them;
+  picked from five options shown on real renders): its kind (woodshed, well, forge, windmill,
+  oven, granary) from the event's name so it never changes, its lantern the event's colour, a
+  crate in front for today's, on one scale for every site, and pines in the snow that is left; the clock telling the UTC time on a 24-hour dial, like the
   ring of lamps (midnight at the top), under a pennant in the village's colour; every live pageview a villager (a scarf and a hat in its gate's colour) walking from its
   gate to its house and leaving steps that fade in a minute, every
-  view opened one walking from that house to the stall, every other event fireworks over the
-  roof; a sign per village (visitors, change against
+  view opened one walking from that house to the stall, every other event one walking from
+  that house to its workshop, working there 2.5 s (sparks, steam or dust) and leaving a crate; a sign per village (visitors, change against
   yesterday, views, other events, used). Clicking a village flies the camera in; drag turns, wheel or pinch
   zooms. Each village is built in its site's kit (since 2026-10-06; the owner wanted the villages
   to differ and to carry each site's look, set by them, never guessed): alpine (timber, a
@@ -111,7 +117,7 @@ URL is a bookmark to a site, the open ledger, its range and an open event.
   on that browser: what the scene shows, for the ear. Two steps in the snow at the gate (their
   colour is the gate), a hand bell at the door (its pitch is the page, a pentatonic scale, the
   top page the lowest; an octave answers for a new visitor), a wind chime at the stall, the
-  fireworks far off, one stroke of the tower at UTC midnight; each village from its side of the
+  three knocks of work at a workshop, one stroke of the tower at UTC midnight; each village from its side of the
   valley. Synthesised with Web Audio (`public/sound.js`), no files. A busy moment sounds four
   cues of a kind and shows the rest. Remembered on, it waits for the first click, as browsers
   demand. With sound on, the volume is a slider that comes up over the button while the pointer
@@ -156,7 +162,7 @@ URL is a bookmark to a site, the open ledger, its range and an open event.
   day strip of three options: a stepper, the strip, a calendar): *History* in the dock brings up
   a strip over it with the last 60 days as bars of visitors (30 on a phone, under the title),
   every bar a button, `‹ ›`, a date field for any day and *Today*. The village is then that day
-  as it ended (`/api/scene?day=`): houses, gates and stalls of the 30 days up to it, that day's
+  as it ended (`/api/scene?day=`): houses, gates, stalls and workshops of the 7 days up to it, that day's
   counts, every lamp lit, nothing live and no sound; the title panel wears the accent. The owner
   chose counts only for a past day: the visits panel lists nothing and offers that day in the
   ledger, so the privacy record stands as it was. The day is in the URL (`&day=`); the strip is

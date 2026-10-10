@@ -70,8 +70,11 @@ errors, loading state, URL state, reduced motion, focus rings and press feedback
   awake at rest. Still open: the live socket closes while the tab is hidden, so nothing sounds
   from a tab put away; the levels were set by measure, not on many speakers; on a wide touch
   screen the volume slider only comes up for a moment after sound is switched on.
-- **Rings of houses**: done on 2026-10-10, with the village sized by its visits (option A of
-  `design/size-by-visits`: steps of ×3, the busier site always wider, fields in what is left).
+- **Rings of houses**: done on 2026-10-10, with the village sized by its visits (steps of ×3,
+  the busier site always wider) and the scene moved to the last 7 days. The fields first put in
+  what is left were replaced the same day by a workshop per event (option B of `design/fields`).
+  Still open there: the owner picking each event's workshop in the Sites panel (today it comes
+  from the event's name), and the six kinds repeat from the seventh event on.
   Also, the five gate colours repeat from the sixth referrer on; more `--village-lane-*` tokens
   if a site with many referrers finds that confusing.
 - **Sky by the clock**: done on 2026-10-06 ("polar day": `LIGHTS` and `DAY` in `public/village.js`,

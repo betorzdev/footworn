@@ -2,31 +2,36 @@
    lake under the mountains, on a polar winter day that follows the viewer's clock (a low golden
    sun, the blue hour, the night and its aurora: `LIGHTS` and `DAY`), all on
    one scale, so the tallest houses belong to the busiest pages anywhere. In each village:
-   - every page is a timber-framed house in the ring round the square (in the 30-day order,
+   - every page is a timber-framed house in the ring round the square (in the 7-day order,
      busiest first, so they never trade places during the day; a page first seen today builds at
      the end); its storeys are today's pageviews, its warm windows (on every side), from the
      ground up, the share of loads that were used, the brass band on its front yesterday's
      storeys up to this time; the way to its door is as wide and worn as its visits today, with
      their footprints; a page nobody opened today is shuttered, its lamp out;
-   - every referrer is a gate in the wall (in the 30-day order, then direct), as wide
+   - every referrer is a gate in the wall (in the 7-day order, then direct), as wide
      as today's arrivals, with lanterns in its colour and the footprints of who came through it;
    - every hour of the day (UTC) is a street lamp round the square, clockwise from midnight at the
      top: its height is that hour's pageviews, the brass ring yesterday's, the bright one now;
    - every view opened inside a page (a `screen` event with a `view`) is a stall in the market
-     round the clock tower (in the 30-day order, in rows: ten round the tower, the next behind
+     round the clock tower (in the 7-day order, in rows: ten round the tower, the next behind
      them): the lanterns lit on the pole beside it, from the ground up, are today's opens, and a
      stall nobody opened today is boarded up;
+   - every other event of the 7 days (one of the site's own that is no view) is a workshop
+     behind the houses (by name; its kind, a woodshed, a well, a forge, a windmill, an oven or a
+     granary, by its name too, so it never changes): its lantern lit and a crate in front for
+     today's, dark when nobody did it today;
    - the clock tells the time on a dial of 24 hours, like the ring of lamps (UTC, midnight at the
      top; a past day stops at its end), and flies a pennant in the village's colour;
    Nothing is grouped, and a village is as big as its site's visits: its wall opens a step for
-   every three times as many pageviews and views in the 30 days (`STEPS`), and a village with
+   every three times as many pageviews and views in the 7 days (`STEPS`), and a village with
    more of them than another is always the wider. Its market has as many rows as its views
-   need; its houses stand on one ring while they fit, then on rings behind it; the fields
-   between the last houses and the wall are only snow, fences, hay and pines.
+   need; its houses stand on one ring while they fit, then on rings behind it, the workshops
+   behind them; what is left before the wall is snow and stands of pine.
    - every live visit is a villager with a lantern and a scarf in its gate's colour, in through
      the gate, across the square, home, leaving steps in the snow that fade in a minute;
      every view opened live one who leaves that page's house for the stall, in a scarf of the
-     lanterns' colour; every other event fireworks over its house. Each of those moments is also
+     lanterns' colour; every other event one who leaves that page's house for its workshop,
+     works there a moment and leaves a crate. Each of those moments is also
      given to `onCue`, for the ear (sound.js).
    Click a village (or its sign) and the camera flies in. At UTC midnight the windows go dark and
    the day starts again. Turned back to a past day (`setDay`, from the history strip) a village
@@ -35,8 +40,8 @@
    bay had.
    What stands still (the land, each village in a layer of its own) is given to gl.js once and
    kept there; a visit draws its own village again, two seconds apart at most, and only if it
-   changed what is seen. Each frame gives only what moves: villagers and their steps, fireworks,
-   smoke, the ring round a highlighted house.
+   changed what is seen. Each frame gives only what moves: villagers and their steps, the
+   work at a workshop, smoke, the ring round a highlighted house.
    Every builder takes the village's kit (`KIT`), the style its owner set for the site (the
    dashboard's Sites panel, or `site:add --style`): its shapes, its wall and the colours it
    reads, the same counts in each; the owner may also turn the kit's palette (`hue`, `shade`:
@@ -51,12 +56,16 @@
   var REBUILD_MS = 2000;   // a village that keeps changing is drawn again this often at most
   var NOW_LOW = .5;        // the lamp of the hour breathes between this and 1
   var FLOOR = .95, GAP = 5;   // a storey; the snow between two walls
-  var R_STALL = 4.3, ROW = 2.7, PITCH = { stall: 2.7, house: 5.5, gate: 5.5 };   // the first row of stalls, the next ones, how close things stand
+  var R_STALL = 4.3, ROW = 2.7, PITCH = { stall: 2.7, house: 5.5, gate: 5.5, shop: 6.5 };   // the first row of stalls, the next ones, how close things stand
   var GARLAND = 6;            // the lanterns of a stall's pole
   var RING = 6.5, LANE = 3.4; // between two rings of houses; how far a house stands from a gate's lane, past one ring
-  /* The wall a village's visits ask for (the 30 days' pageviews and views opened): a step every
-     three times as many, so a site of a few dozen visits a month already grows. */
-  var STEPS = [[10, 16], [30, 19], [100, 22], [300, 25], [1000, 28], [3000, 31], [10000, 34], [30000, 37], [Infinity, 40]];
+  /* The wall a village's visits ask for (the 7 days' pageviews and views opened): a step every
+     three times as many, so a site of a handful of visits a week already grows. */
+  var STEPS = [[3, 16], [10, 19], [30, 22], [100, 25], [300, 28], [1000, 31], [3000, 34], [10000, 37], [Infinity, 40]];
+  /* A workshop per event: its kind by its name, so it never turns into another when the ranking
+     moves. How long a villager works there, and the crates of a day at most. */
+  var SHOPS = ['woodshed', 'well', 'forge', 'mill', 'oven', 'granary'];
+  var WORK_S = 2.5, CRATES = 12;
   var ORDER = 3;              // how much wider a village is than every one with fewer visits
   var STEPS_S = 60;           // seconds a live villager's steps stay in the snow
   /* The kits a village can be built in. A kit changes shapes and colours, never what a count
@@ -145,7 +154,7 @@
   function pct(a, b) { return b ? Math.min(100, Math.round(100 * a / b)) : 0; }
   function narrow() { return window.innerWidth < 760; }
   function when() { return state.past ? 'that day' : 'today'; }   // the counts on screen are a past day's, or today's
-  function month() { return state.past ? 'in the 30 days up to it' : 'in the last 30 days'; }
+  function week() { return state.past ? 'in the 7 days up to it' : 'in the last 7 days'; }
   function ang(k, n) { return -Math.PI / 2 + k / n * TAU; }   // 0 at the top (−z), clockwise seen from above
   function at(o, a, r) { return [o[0] + Math.cos(a) * r, 0, o[2] + Math.sin(a) * r]; }
   function angDiff(a, b) { return Math.abs(Math.atan2(Math.sin(a - b), Math.cos(a - b))); }
@@ -255,9 +264,9 @@
   /* ---------- the sites (the counts are the bay's, unchanged) ---------- */
   function makeSite(s, i) {
     var o = { id: s.id, name: s.name, idx: i, draft: !!s.draft, look: lookOf(s), towers: [], towerBy: {}, lanes: [], laneBy: {},
-      views: [], viewBy: {}, stalls: [], R: null, kit: kitOf(s.style, s.pieces), steps: [], decals: [],
-      visitors: 0, pageviews: 0, viewsToday: 0, events: 0, loads: 0, engaged: 0, yesterday: 0, month: 0, hours: [], loaded: false,
-      o: [0, 0, 0], houses: [], gates: [], walkers: [], sparks: [], sign: null,
+      views: [], viewBy: {}, stalls: [], shops: [], shopBy: {}, workshops: [], R: null, kit: kitOf(s.style, s.pieces), steps: [], decals: [],
+      visitors: 0, pageviews: 0, viewsToday: 0, events: 0, loads: 0, engaged: 0, yesterday: 0, week: 0, hours: [], loaded: false,
+      o: [0, 0, 0], houses: [], gates: [], walkers: [], sign: null,
       layer: null, sig: null, pending: false, builtAt: 0, labels: {}, pools: [], occ: [], glow: [] };
     o.tint = tintOf(o); o.palette = paletteOf(o);
     o.R = radii(o); return o;
@@ -270,42 +279,47 @@
     if (s.tint !== was) s.sig = null;
     if (s.sign) { s.sign.p = signAt(s); s.sign.el.firstChild.style.setProperty('--site', css(s.tint)); }
   }
-  /* A village's size is its visits' (`s.month`: the 30 days' pageviews and views opened), in
+  /* A village's size is its visits' (`s.week`: the 7 days' pageviews and views opened), in
      `STEPS`; what it is made of only pushes its wall further out when it does not fit. The stalls
      in rows round the tower (ten in the first, then sixteen, then twenty-two), the lamps just
      outside the last row, the houses round them: on one ring as long as they fit there (the
-     gates in the gaps between them), else on rings behind it, the month's busiest inside, every
+     gates in the gaps between them), else on rings behind it, the week's busiest inside, every
      ring leaving the gates' lanes free and each staggered half a house from the one inside it.
-     The wall behind the last ring, wide enough for every gate and at least the visits' step
-     (`sizeAll` adds the order between villages, and the fields). Then the square's paving, its
-     kerb and the walk round it, and where the paths to the houses start, all from the lamps.
-     Each ring keeps its street (where a villager walks round to a door) and where the way to a
-     door starts. */
+     Behind the houses the workshops, one per event, by name, on a ring of their own (more when
+     they do not fit), off the lanes too. The wall behind all that, wide enough for every gate
+     and at least the visits' step (`sizeAll` adds the order between villages, and the fields).
+     Then the square's paving, its kerb and the walk round it, and where the paths to the houses
+     start, all from the lamps. Each ring keeps its street (where a villager walks round) and
+     where the way to a door starts. */
   function radii(s) {
     var rows = [], left = Math.max(s.views.length, 1), r = R_STALL;
     while (left > 0) { var cap = Math.floor(TAU * r / PITCH.stall); rows.push({ r: r, cap: cap }); left -= cap; if (left > 0) r += ROW; }
     var post = r + 2.1, walk = post + 2.3, inner = post + 3, first = Math.max(11.2, post + 4.8);
-    var pages = s.towers.length, nl = s.lanes.length, slots = Math.max(pages, nl, 5), rings = [], gateA = null;
-    if (pages <= Math.floor(TAU * first / PITCH.house)) {
-      var one = [];
-      for (var k = 0; k < pages; k++) one.push(ang(k, slots));
-      rings.push({ r: Math.max(first, slots * PITCH.house / TAU), street: walk, from: inner, slots: slots, angles: one });
-    } else {
-      gateA = s.lanes.map(function (l, k) { return ang(k + .5, nl); });
-      var rest = pages, rr = first;
-      while (rest > 0) {
-        var S = Math.floor(TAU * rr / PITCH.house), free = [], angles = [], j, a;
-        for (j = 0; j < S; j++) { a = ang(j + rings.length % 2 * .5, S); if (!near(a, rr)) free.push(a); }
-        var n = Math.min(free.length, rest);
-        for (j = 0; j < n; j++) angles.push(free[Math.floor(j * free.length / n)]);   // a ring not full spreads its houses round
-        if (n) rings.push({ r: rr, street: rings.length ? rr - RING / 2 : walk, from: rings.length ? rr - RING / 2 : inner, slots: S, angles: angles });
-        rest -= n; if (rest > 0) rr += RING;
+    var pages = s.towers.length, nl = s.lanes.length, slots = Math.max(pages, nl, 5), rings = [], shops = [], one = pages <= Math.floor(TAU * first / PITCH.house);
+    var gateA = s.lanes.map(function (l, k) { return one ? ang(Math.floor(k * slots / nl) + .5, slots) : ang(k + .5, nl); });   // between two house slots, or on a lane every ring leaves free
+    function near(a, at, room) { return gateA.some(function (g) { return angDiff(a, g) * at < room; }); }
+    /* Things on rings from radius `rr` out, `step` apart, one every `pitch`, none nearer a lane
+       than `room`, a ring not full spreading them round. */
+    function fill(list, n, rr, step, pitch, room, stagger, ring) {
+      while (n > 0) {
+        var S = Math.floor(TAU * rr / pitch), free = [], angles = [], j, a;
+        for (j = 0; j < S; j++) { a = ang(j + (stagger ? list.length % 2 * .5 : .5), S); if (!near(a, rr, room)) free.push(a); }
+        var k = Math.min(free.length, n);
+        for (j = 0; j < k; j++) angles.push(free[Math.floor(j * free.length / k)]);
+        if (k) list.push(ring(rr, S, angles));
+        n -= k; if (n > 0) rr += step;
       }
     }
-    function near(a, at) { return gateA.some(function (g) { return angDiff(a, g) * at < LANE; }); }
+    if (one) {
+      var at1 = [];
+      for (var k = 0; k < pages; k++) at1.push(ang(k, slots));
+      rings.push({ r: Math.max(first, slots * PITCH.house / TAU), street: walk, from: inner, slots: slots, angles: at1 });
+    } else fill(rings, pages, first, RING, PITCH.house, LANE, true, function (rr, S, angles) { var st = rings.length ? rr - RING / 2 : walk; return { r: rr, street: st, from: rings.length ? st : inner, slots: S, angles: angles }; });
     var house = rings[rings.length - 1].r;
-    return { rows: rows, rings: rings, gateA: gateA, post: post, pave: post + 1.2, walk: walk, inner: inner, house: house, fields: null,
-      wall: Math.max(house + 4.8, nl * PITCH.gate / TAU, stepOf(s.month)) };
+    fill(shops, s.shops.length, house + 5.5, PITCH.shop, PITCH.shop, LANE + 1.2, false, function (rr, S, angles) { return { r: rr, street: rr - 2.9, slots: S, angles: angles }; });
+    var out = shops.length ? shops[shops.length - 1].r + 4.4 : house + 4.8;
+    return { rows: rows, rings: rings, shops: shops, gateA: gateA, post: post, pave: post + 1.2, walk: walk, inner: inner, house: house, fields: null,
+      wall: Math.max(out, nl * PITCH.gate / TAU, stepOf(s.week)) };
   }
   function stepOf(n) { for (var i = 0; i < STEPS.length; i++) if (n < STEPS[i][0]) return STEPS[i][1]; }
   /* Every village's radii, then the order: one with more visits than another is ORDER wider than
@@ -314,15 +328,15 @@
      a wall moved. */
   function sizeAll() {
     var was = sites.map(function (x) { return x.R && x.R.wall; }), moved = false, below = 0, i = 0;
-    var list = sites.slice().sort(function (a, b) { return a.month - b.month; });
+    var list = sites.slice().sort(function (a, b) { return a.week - b.week; });
     sites.forEach(function (x) { x.R = radii(x); });
     while (i < list.length) {
       var j = i, top = 0;
-      while (j < list.length && list[j].month === list[i].month) { var R = list[j].R; R.wall = Math.max(R.wall, below + ORDER); top = Math.max(top, R.wall); j++; }
+      while (j < list.length && list[j].week === list[i].week) { var R = list[j].R; R.wall = Math.max(R.wall, below + ORDER); top = Math.max(top, R.wall); j++; }
       below = Math.max(below, top); i = j;
     }
     sites.forEach(function (x, k) {
-      var R = x.R, r0 = R.house + 3, r1 = R.wall - 2.6;
+      var R = x.R, r0 = R.house + 3.6, r1 = R.wall - 2.6;
       R.fields = r1 - r0 > 2 ? [r0, r1] : null;
       if (R.wall !== was[k]) moved = true;
     });
@@ -338,13 +352,14 @@
     place();
     if (!landSoon) landSoon = setTimeout(function () { landSoon = null; if (W) { buildLand(); share(); W.wake(); } }, 0);
     sites.forEach(function (x) {   // the ground moved under whoever was on the way: their bell rings now, as on a load
-      x.sig = null; x.walkers.forEach(function (w) { cue(w.stall ? 'stall' : 'door', x, w.cue); }); x.walkers = []; x.sparks = []; x.steps = [];
+      x.sig = null; x.walkers.forEach(function (w) { if (w.shop) worked(x, w.shop); else cue(w.stall ? 'stall' : 'door', x, w.cue); }); x.walkers = []; x.steps = [];   // a workshop's still leaves its crate
     });
     if (!view.free) frameView();
   }
-  /* Its houses are the month's pages, in that order (a page of today outside the month's list,
-     which the API cuts at 200, builds at the end); its gates the month's referrers, then direct;
-     its stalls the month's views the same way. Storeys and counts are today's. */
+  /* Its houses are the week's pages, in that order (a page of today outside the week's list,
+     which the API cuts at 200, builds at the end); its gates the week's referrers, then direct;
+     its stalls the week's views the same way, its workshops the week's other events by name.
+     Storeys and counts are today's. */
   function load(s, data) {
     s.loaded = false;   // while the lists are filled, nothing grows the village piece by piece: it is sized once at the end
     s.towers = []; s.towerBy = {};
@@ -359,12 +374,17 @@
     (data.views || []).forEach(function (v) { addView(s, v.value, v.hits); });
     (data.today.views || []).forEach(function (v) { viewFor(s, v.view).n += v.hits; });
     (data.today.viewPages || []).forEach(function (v) { cameFrom(viewFor(s, v.view), towerFor(s, v.path), v.hits); });
+    s.shops = []; s.shopBy = {};
+    (data.events || []).forEach(function (e) { addShop(s, e.value, e.hits); });
+    (data.today.byEvent || []).forEach(function (e) { shopFor(s, e.event).n += e.hits; });
+    (data.today.eventPages || []).forEach(function (e) { cameFrom(shopFor(s, e.event), towerFor(s, e.path), e.hits); });
+    byName(s.shops);   // the API cuts the busiest 200 and lists them by name; one only today goes in its place
     s.visitors = data.today.visitors; s.pageviews = data.today.hits; s.viewsToday = data.today.viewsTotal || 0; s.events = data.today.events; s.loads = data.today.loads || 0; s.engaged = data.today.engaged || 0;
     s.yesterday = data.yesterday.visitors;
     s.hours = data.hours || [];
-    s.month = data.month ? (data.month.hits || 0) + (data.month.views || 0) : 0;
-    s.walkers.forEach(function (w) { cue(w.stall ? 'stall' : 'door', s, w.cue); });   // whoever was on the way is not drawn again: their bell rings now
-    s.walkers = []; s.sparks = []; s.steps = [];
+    s.week = data.week ? (data.week.hits || 0) + (data.week.views || 0) : 0;
+    s.walkers.forEach(function (w) { if (w.shop) cue('work', s, { shop: w.shop.k }); else cue(w.stall ? 'stall' : 'door', s, w.cue); });   // whoever was on the way is not drawn again: their bell rings now (a crate is in the counts just loaded)
+    s.walkers = []; s.steps = [];
     s.loaded = true; resize();
     rebuild(s, true);   // new towers and lanes: its houses and gates are made again
   }
@@ -374,6 +394,15 @@
   function addTower(s, path, total) { var t = { path: path, label: path, total: total, pv: 0, ypv: 0, loads: 0, engaged: 0, events: 0, seed: s.idx * 97 + s.towers.length * 13 }; s.towers.push(t); s.towerBy['p:' + path] = t; return t; }
   function addLane(s, ref) { var l = { key: 'ref:' + ref, ref: ref, label: ref, color: T.lanes[(s.lanes.length - (s.laneBy.direct ? 1 : 0)) % T.lanes.length], count: 0 }; s.lanes.push(l); s.laneBy[l.key] = l; return l; }
   function addView(s, name, total) { var v = { name: name, label: name, total: total, n: 0, by: {} }; s.views.push(v); s.viewBy['v:' + name] = v; return v; }
+  function addShop(s, name, total) {
+    var h = 0; for (var i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) | 0;
+    h = Math.abs(h);
+    var e = { name: name, label: name, total: total, n: 0, by: {}, kind: SHOPS[h % SHOPS.length], col: T.awnings[Math.floor(h / SHOPS.length) % T.awnings.length] };
+    s.shops.push(e); s.shopBy['e:' + name] = e;
+    if (s.loaded) byName(s.shops);   // one new today takes its place; load() sorts once, at the end
+    return e;
+  }
+  function byName(list) { list.sort(function (a, b) { return a.name < b.name ? -1 : a.name > b.name ? 1 : 0; }); }
   function grown(s, x) { if (s.loaded) { resize(); rebuild(s, true); } return x; }
   function towerOf(s, path) { return s.towerBy['p:' + path] || null; }
   function laneOf(s, ref) { return ref == null ? s.laneBy.direct || null : s.laneBy['ref:' + ref] || null; }
@@ -381,6 +410,8 @@
   function towerFor(s, path) { return towerOf(s, path) || grown(s, addTower(s, path, 0)); }
   function laneFor(s, ref) { return laneOf(s, ref) || grown(s, addLane(s, ref)); }
   function viewFor(s, name) { return viewOf(s, name) || grown(s, addView(s, name, 0)); }
+  function shopOf(s, name) { return s.shopBy['e:' + name] || null; }
+  function shopFor(s, name) { return shopOf(s, name) || grown(s, addShop(s, name, 0)); }
   function isView(msg) { return msg.event === 'screen' && !!msg.props && typeof msg.props.view === 'string'; }
   /* `n` opens of a view came from a page: kept for its tooltip. */
   function cameFrom(v, t, n) { v.by[t.label] = (v.by[t.label] || 0) + n; }
@@ -390,16 +421,17 @@
   /* One hit from the live socket. */
   function live(msg) {
     var s = byId[msg.site]; if (!s || !s.loaded || s.draft || state.blackout || state.past) return;   // a past day is over: nobody walks in
-    var t = towerFor(s, msg.path), v = isView(msg) ? viewFor(s, msg.props.view) : null;
+    var t = towerFor(s, msg.path), v = isView(msg) ? viewFor(s, msg.props.view) : null, e = msg.event && !v ? shopFor(s, msg.event) : null;
     if (v) { v.n++; s.viewsToday++; v.total++; cameFrom(v, t, 1); }   // before the village is drawn: a stall that is new opens lit
-    if (v || !msg.event) { var step = stepOf(s.month); if (stepOf(++s.month) !== step) resize(); }   // a step crossed: it grows before anyone walks in (passing another village waits for the next load)
+    if (e) { e.total++; cameFrom(e, t, 1); }   // its crate waits for the villager
+    if (v || !msg.event) { var step = stepOf(s.week); if (stepOf(++s.week) !== step) resize(); }   // a step crossed: it grows before anyone walks in (passing another village waits for the next load)
     if (s.sig == null) refresh(true);   // a village not drawn yet (just loaded, or with a new house or stall) has no door to walk to
     var h = houseOf(s, t);
     if (W) W.wake();
     if (msg.event) {
       t.events++; s.events++;
       if (v) { rebuild(s); toStall(s, h, stallOf(s, v)); }
-      else if (h && W) { s.sparks.push({ h: h, t: 0, col: s.tint }); cue('event', s, { house: s.houses.indexOf(h) }); }
+      else if (e) toShop(s, h, e);
       return;
     }
     var l = laneFor(s, msg.ref);
@@ -451,7 +483,24 @@
     for (var j = 0; j <= vs; j++) { var g = ang(j + i * .5, vs), d = angDiff(g, a); if (d < bd) { bd = d; best = g; } }
     return best;
   }
+  /* Any other event: out of the page's door, round its street to the gate's lane nearest the
+     workshop, out along it to the workshops' street and round to its door, in a scarf of its
+     lantern's colour; there it works a moment, then leaves its crate (`worked`). Nobody walks
+     when the page has no house, or motion is reduced: the crate is there at once. */
+  function toShop(s, h, e) {
+    var w = workshopOf(s, e);
+    if (!w || !W) { e.n++; rebuild(s); return; }   // no workshop drawn to walk to: the count still goes up
+    if (reduced || !h || !s.gates.length) { worked(s, w); return; }
+    var lane = s.gates.reduce(function (b, g) { return angDiff(g.a, w.a) < angDiff(b, w.a) ? g.a : b; }, s.gates[0].a);
+    var path = [h.door.slice()];
+    walkRound(path, s, h.a, lane, h.ring.street);
+    walkRound(path, s, lane, w.a, w.ring.street);
+    path.push(w.front.slice());
+    s.walkers.push({ path: path, d: 0, speed: 2.3 + Math.random() * .7, col: w.e.col, shop: w, work: 0, seed: Math.random() });   // its cue is the workshop's place when it arrives
+  }
+  function worked(s, w) { w.e.n++; w.flash = 1; cue('work', s, { shop: w.k }); rebuild(s); }
   function houseOf(s, t) { for (var i = 0; i < s.houses.length; i++) if (s.houses[i].t === t) return s.houses[i]; return null; }
+  function workshopOf(s, e) { for (var i = 0; i < s.workshops.length; i++) if (s.workshops[i].e === e) return s.workshops[i]; return null; }
   function gateOf(s, l) { for (var i = 0; i < s.gates.length; i++) if (s.gates[i].l === l) return s.gates[i]; return null; }
   function stallOf(s, v) { for (var i = 0; i < s.stalls.length; i++) if (s.stalls[i].v === v) return s.stalls[i]; return null; }
 
@@ -531,23 +580,24 @@
   }
 
   /* ---------- the villages ---------- */
-  var scale = { unit: 1, hour: 1, view: 1 };
+  var scale = { unit: 1, hour: 1, view: 1, event: 1 };
   function floors(t) { return Math.max(1, Math.ceil(t.pv / scale.unit)); }
   function measure() {
-    var gm = 1, hm = 1, vm = 1;
+    var gm = 1, hm = 1, vm = 1, em = 1;
     sites.forEach(function (s) {
       s.towers.forEach(function (t) { gm = Math.max(gm, t.pv, t.ypv); });   // yesterday's mark on the same storeys
       s.hours.forEach(function (h) { hm = Math.max(hm, h.today, h.yesterday); });
       s.views.forEach(function (v) { vm = Math.max(vm, v.n); });
+      s.shops.forEach(function (e) { em = Math.max(em, e.n); });
     });
-    scale.unit = Math.max(1, Math.ceil(gm / 6)); scale.hour = hm; scale.view = Math.max(1, Math.ceil(vm / GARLAND));
+    scale.unit = Math.max(1, Math.ceil(gm / 6)); scale.hour = hm; scale.view = Math.max(1, Math.ceil(vm / GARLAND)); scale.event = Math.max(1, Math.ceil(em / CRATES));
   }
   /* Houses round the ring, gates in the gaps between them, so nobody walks through a wall; the
      stalls round the clock tower, their counters to the houses. */
   function layout(s) {
-    var o = s.o, R = s.R, nl = s.lanes.length, slots = R.rings[0].slots, hs = [], k = 0;
-    /* The same house object lives on across rebuilds, so a villager on its way, or fireworks
-       over a roof, still point at the house that is drawn. */
+    var o = s.o, R = s.R, hs = [], k = 0;
+    /* The same house (and workshop) object lives on across rebuilds, so a villager on its way
+       still points at the one that is drawn. */
     R.rings.forEach(function (ring) {
       ring.angles.forEach(function (a) {
         var t = s.towers[k], h = houseOf(s, t) || { t: t, flash: 0 };
@@ -557,9 +607,19 @@
     });
     s.houses = hs;
     rank(s.houses, function (h) { return h.t.pv; });
+    var ws = [], q = 0;
+    R.shops.forEach(function (ring) {
+      ring.angles.forEach(function (a) {
+        var e = s.shops[q], w = workshopOf(s, e) || { e: e, flash: 0 };
+        w.a = a; w.ring = ring; w.pos = at(o, a, ring.r); w.front = at(o, a, ring.r - 2.1); w.k = q++;
+        ws.push(w);
+      });
+    });
+    s.workshops = ws;
+    rank(s.workshops, function (w) { return w.e.n; });
     var maxN = 1; s.lanes.forEach(function (l) { maxN = Math.max(maxN, l.count); });
     s.gates = s.lanes.map(function (l, k) {
-      var a = R.gateA ? R.gateA[k] : ang(Math.floor(k * slots / nl) + .5, slots);   // always between two house slots, or on a lane every ring leaves free
+      var a = R.gateA[k];
       return { l: l, a: a, w: 1.1 + 2.4 * l.count / maxN, col: l.color, pos: at(o, a, R.wall), end: at(o, a, R.wall + 9) };
     });
     /* The stalls fill the rows from the tower out, each row staggered half a stall from the one
@@ -594,6 +654,85 @@
   /* Lanterns lit on a stall's pole: one per `scale.view` opens today, on one scale for every
      site; one at least for a view opened at all. */
   function lit(v) { return v.n ? Math.min(GARLAND, Math.max(1, Math.ceil(v.n / scale.view))) : 0; }
+  /* The crates in front of a workshop: one per `scale.event` of today's, on one scale for every
+     site, one at least for an event done at all. */
+  function crates(e) { return e.n ? Math.min(CRATES, Math.max(1, Math.ceil(e.n / scale.event))) : 0; }
+  /* A workshop, facing the square: its kind (`SHOPS`) by its event's name, a woodshed with its
+     logs, a well, a forge with its anvil, a windmill, a bread oven, a granary on staddle stones.
+     Its lantern is the event's colour, lit when it was done today, and its crates stand in front.
+     Nobody did it today: dark, no crate. */
+  function workshop(M, s, w, dark) {
+    var e = w.e, rot = -w.a - Math.PI / 2, x = w.pos[0], z = w.pos[2], P = G.frame(x, z, rot), open = e.n > 0, warm = open && dark !== 1, top = 2.6, q, i;
+    function V(lx, ly, lz) { var r = P(lx, 0, lz); return [r[0], ly, r[2]]; }
+    function roof(lz, y, L, h, D, col) { var r = P(0, 0, lz); M.roof(r[0], y, r[2], L, h, D, col, rot, .15, null); M.roof(r[0], y + .12, r[2], L - .2, h - .12, D * .78, T.snow, rot, .05, null, G.SNOW); }
+    if (e.kind === 'woodshed') {
+      M.box(x, 0, z, 3, .3, 2, T.stoneDark, 0, rot);
+      q = P(0, 0, -.85); M.box(q[0], .3, q[2], 2.8, 1.6, .2, T.timber, 0, rot);
+      [-1.3, 1.3].forEach(function (lx) { var r = P(lx, 0, .85); M.box(r[0], .3, r[2], .14, 1.6, .14, T.timber, 0, rot); });
+      roof(0, 1.9, 3.1, .7, 2.2, T.roof);
+      for (i = 0; i < 15; i++) { q = P(-1.05 + (i % 5) * .52, 0, -.25); M.box(q[0], .3 + Math.floor(i / 5) * .32, q[2], .44, .3, 1.1, G.mix(T.trunk, T.timber, rand(i, w.k)), 0, rot); }
+      q = P(.9, 0, 1.7); M.cyl(q[0], 0, q[2], .28, .45, 8, T.trunk); M.cyl(q[0], .45, q[2], .28, .03, 8, T.snow, G.SNOW);
+    } else if (e.kind === 'well') {
+      M.cyl(x, 0, z, .9, .8, 12, T.stone, 0, .9, true); M.cyl(x, .8, z, .95, .1, 12, T.snow, G.SNOW, .95, true); M.cyl(x, .82, z, .7, .02, 12, T.iron);
+      [-1, 1].forEach(function (sd) { var r = P(sd * .85, 0, 0); M.box(r[0], 0, r[2], .14, 2, .14, T.timber, 0, rot); });
+      q = P(0, 0, 0); M.box(q[0], 1.6, q[2], 1.7, .08, .08, T.timber, 0, rot); M.box(q[0], 1.1, q[2], .22, .26, .22, T.timber, 0, rot);
+      roof(0, 2, 2.2, .6, 1.4, e.col); top = 2.8;
+    } else if (e.kind === 'forge') {
+      M.box(x, 0, z, 3, .4, 2.2, T.stoneDark, 0, rot); M.box(x, .4, z, 2.8, 1.5, 2, T.stone, 0, rot);
+      roof(0, 1.9, 3.1, .9, 2.4, T.roof);
+      q = P(1, 0, -.4); M.box(q[0], 1.5, q[2], .45, 1.9, .45, T.stoneDark, 0, rot);
+      q = P(-.6, 0, 1.02); M.box(q[0], .55, q[2], .6, .45, .04, warm ? T.lamp : T.iron, warm ? 1 : 0, rot);
+      if (warm) { W.addGlow(s.glow, [q[0], .8, q[2]], T.lamp, .6, 2.2); s.pools.push([q[0], q[2], 1.8, T.lamp, .45]); }
+      q = P(.6, 0, 1.75); M.box(q[0], 0, q[2], .3, .42, .3, T.stoneDark, 0, rot); M.box(q[0], .42, q[2], .62, .16, .26, T.iron, 0, rot);
+      top = 3.5;
+    } else if (e.kind === 'mill') {
+      M.cyl(x, 0, z, 1.15, 2.8, 10, T.stone, 0, .85, true); M.cone(x, 2.8, z, 1.05, 1.1, 10, T.roof, 0, true); M.cone(x, 3.2, z, .7, .72, 10, T.snow, G.SNOW, true);
+      q = P(0, 0, .95); M.box(q[0], 2.35, q[2], .26, .26, .3, T.timber, 0, rot);
+      var hub = 2.48, sail = G.mix(T.snow, T.timber, .3);
+      for (i = 0; i < 4; i++) {
+        var th = i * Math.PI / 2 + .45, cx = Math.cos(th), cy = Math.sin(th), hw = .22, r0 = .25, r1 = 1.9;
+        var a = V(cx * r0 - cy * hw, hub + cy * r0 + cx * hw, 1.12), b = V(cx * r1 - cy * hw, hub + cy * r1 + cx * hw, 1.12), c = V(cx * r1 + cy * hw, hub + cy * r1 - cx * hw, 1.12), d = V(cx * r0 + cy * hw, hub + cy * r0 - cx * hw, 1.12);
+        M.quad(a, b, c, d, sail); M.quad(d, c, b, a, sail);
+      }
+      q = P(0, 0, 1.05); M.box(q[0], 0, q[2], .7, 1.1, .05, T.timber, 0, rot); top = 4.6;
+    } else if (e.kind === 'oven') {
+      M.cyl(x, 0, z, 1.25, .95, 12, T.stone, 0, .6, true); M.cone(x, .95, z, .6, .4, 12, T.stone, 0, true); M.cone(x, 1.02, z, .5, .34, 12, T.snow, G.SNOW, true);
+      q = P(0, 0, 1.12); M.box(q[0], .12, q[2], .52, .42, .06, warm ? T.lamp : T.iron, warm ? 1 : 0, rot);
+      if (warm) { W.addGlow(s.glow, [q[0], .35, q[2]], T.lamp, .55, 2); s.pools.push([q[0], q[2], 1.6, T.lamp, .4]); }
+      q = P(-.3, 0, -.55); M.cyl(q[0], .6, q[2], .14, 1.4, 6, T.stoneDark);
+      for (i = 0; i < 6; i++) { q = P(1.45, 0, -.5 + (i % 3) * .42); M.box(q[0], Math.floor(i / 3) * .3, q[2], .9, .28, .36, T.trunk, 0, rot); }
+      top = 2.4;
+    } else {   // granary
+      [[1, 1], [1, -1], [-1, 1], [-1, -1]].forEach(function (f) { var r = P(f[0] * 1, 0, f[1] * .7); M.cyl(r[0], 0, r[2], .09, .62, 6, T.stoneDark); M.cyl(r[0], .62, r[2], .24, .08, 8, T.stone); });
+      q = P(0, 0, 0); M.box(q[0], .7, q[2], 2.4, 1.45, 1.7, T.timber, 0, rot);
+      q = P(0, 0, .87); M.box(q[0], .9, q[2], .6, .95, .04, T.iron, 0, rot);
+      roof(0, 2.15, 2.8, 1, 2.2, T.straw); top = 3.4;
+    }
+    q = P(1.65, 0, 1.3); M.cyl(q[0], 0, q[2], .04, 1.6, 5, T.iron);
+    M.box(q[0], 1.6, q[2], .2, .26, .2, warm ? e.col : T.iron, warm ? 1 : 0, rot);
+    if (warm) { W.addGlow(s.glow, [q[0], 1.73, q[2]], e.col, .7, 2.4); s.pools.push([q[0], q[2], 2.2, e.col, .5]); }
+    for (i = 0; i < crates(e); i++) {
+      q = P(-1.6 + (i % 3) * .56, 0, 1.6 + Math.floor((i % 6) / 3) * .56);
+      var cy = Math.floor(i / 6) * .49;
+      M.box(q[0], cy, q[2], .48, .48, .48, G.mix(T.straw, T.timber, i % 2 ? .45 : .2), 0, rot);
+      if (i + 6 >= crates(e)) M.box(q[0], cy + .48, q[2], .5, .04, .5, T.snow, G.SNOW, rot);   // snow on the top of each stack
+    }
+    s.occ.push([x, z, 3.4, 2.8, rot, .6]);
+    w.top = top;
+  }
+  /* A villager at a workshop's door, at work: bending to it, with what the work gives off
+     (sparks at the forge, steam at the well and the oven, dust at the rest). */
+  function working(M, s, w, dt) {
+    var so = w.shop, p = so.front, dir = Math.atan2(so.pos[0] - p[0], so.pos[2] - p[2]), k = w.work;
+    villager(M, p, dir, w.col, Math.abs(Math.sin(k * 7)) * .1, w.seed, 0);
+    if (reduced) return;
+    var q = [p[0] + (so.pos[0] - p[0]) * .3, 0, p[2] + (so.pos[2] - p[2]) * .3], kind = so.e.kind;
+    if (kind === 'forge') for (var i = 0; i < 5; i++) {
+      var f = (k * 2.6 + i / 5) % 1, a = i * 2.4 + Math.floor(k * 2.6) * 1.7;
+      W.addGlow(W.glow, [q[0] + Math.cos(a) * f * .8, .7 + f * 1.2 - f * f * 1.3, q[2] + Math.sin(a) * f * .8], T.lamp, (1 - f) * .8, .6);
+    }
+    else if (Math.random() < (kind === 'well' || kind === 'oven' ? 5 : 2.5) * dt) smoke.push({ p: [q[0], kind === 'oven' ? 1.3 : .5, q[2]], t: 0, s: Math.random() });
+  }
   /* Steps in the snow from a to b: as many as came (up to a few dozen), spread as wide as the way is worn. */
   function prints(M, a, b, k, n, seed, y) {
     var dx = b[0] - a[0], dz = b[2] - a[2], L = Math.hypot(dx, dz) || 1, rot = Math.atan2(dx, dz), ux = dx / L, uz = dz / L, steps = Math.min(40, n);
@@ -897,6 +1036,13 @@
       st.label = labelAt('v:' + st.v.name, [st.pos[0], 2.5, st.pos[2]], 'v-view', function () { return view.site === s && (!narrow() || st.rank < 3); });
       st.label.what = { kind: 'view', view: st.v, s: s };
     });
+    // the workshops: one per event
+    s.workshops.forEach(function (w) {
+      workshop(M, s, w, dark);
+      w.label = labelAt('e:' + w.e.name, [w.pos[0], w.top + .9, w.pos[2]], 'v-event', function () { return view.site === s && (!narrow() || w.rank < 3); });
+      w.label.what = { kind: 'event', ev: w.e, s: s };
+      w.label.el.style.setProperty('--lane', css(w.e.col));   // CSSOM: the CSP refuses style attributes
+    });
     s.houses.forEach(function (h, k) {
       var a = h.a + Math.PI / h.ring.slots, p = at(o, a, h.ring.r + .6);
       if (!s.gates.some(function (g) { return angDiff(a, g.a) < .25; })) pine(M, p[0], 0, p[2], .55 + rand(k, 9) * .25, pines);
@@ -934,35 +1080,23 @@
     W.upload(s.layer);
   }
   function inside(s) { return function () { return view.site === s; }; }
-  /* The fields between the last houses and the wall, where the village's visits made it wider
-     than its houses need: fenced plots (a haystack in some), and stands of pine, sown by the
-     village's place in the list, none on a gate's lane. Nothing in them is a count. */
+  /* The snow between the last houses (or workshops) and the wall, where the village's visits
+     made it wider than what it is made of needs: stands of pine, sown by the village's place in
+     the list, none on a gate's lane or by a workshop. Nothing in them is a count. */
   function fields(M, s, pines) {
     var R = s.R; if (!R.fields) return;
-    var o = s.o, r0 = R.fields[0], r1 = R.fields[1], want = Math.round(TAU * (r1 * r1 - r0 * r0) / 2 / 30), placed = [], sd = 71 + s.idx * 53;
-    for (var n = 0; placed.length < want && n < want * 12; n++) {
-      var rr = Math.sqrt(r0 * r0 + rand(sd, n * 4) * (r1 * r1 - r0 * r0)), a = rand(sd, n * 4 + 1) * TAU;
-      var w = 3 + rand(sd, n * 4 + 2) * 3, d = 2.2 + rand(sd, n * 4 + 3) * 2.2, half = Math.hypot(w, d) / 2, p = at(o, a, rr);
+    var o = s.o, r0 = R.fields[0], r1 = R.fields[1], want = Math.round(TAU * (r1 * r1 - r0 * r0) / 2 / 120), sd = 71 + s.idx * 53;
+    var placed = s.workshops.map(function (w) { return [w.pos[0], w.pos[2], 3.4]; }), sown = 0, streets = R.shops.map(function (ring) { return ring.street; });
+    for (var n = 0; sown < want && n < want * 12; n++) {
+      var rr = Math.sqrt(r0 * r0 + rand(sd, n * 4) * (r1 * r1 - r0 * r0)), a = rand(sd, n * 4 + 1) * TAU, half = 1.6 + rand(sd, n * 4 + 2) * 1.2, p = at(o, a, rr);
       if (rr - half < r0 || rr + half > r1) continue;
+      if (streets.some(function (st) { return Math.abs(rr - st) < half + 1; })) continue;   // where villagers walk round to a workshop
       if (s.gates.some(function (g) { return angDiff(a, g.a) * rr < g.w / 2 + 1 + half; })) continue;
       if (placed.some(function (q) { return Math.hypot(q[0] - p[0], q[1] - p[2]) < q[2] + half + .6; })) continue;
-      placed.push([p[0], p[2], half]);
-      var rot = -a - Math.PI / 2, P = G.frame(p[0], p[2], rot), y = 0;   // inside the wall the ground is flat, as under the houses
-      if (rand(n, sd) < .55) {
-        [[0, d / 2, w, .06], [0, -d / 2, w, .06], [w / 2, 0, .06, d], [-w / 2, 0, .06, d]].forEach(function (e) {
-          var c = P(e[0], 0, e[1]); M.box(c[0], y + .32, c[2], e[2], .06, e[3], T.timber, 0, rot); M.box(c[0], y + .14, c[2], e[2], .05, e[3], T.timber, 0, rot);
-        });
-        [[1, 1], [1, -1], [-1, 1], [-1, -1]].forEach(function (f) { var c = P(f[0] * w / 2, 0, f[1] * d / 2); M.box(c[0], y, c[2], .1, .48, .1, T.timber, 0, rot); M.box(c[0], y + .48, c[2], .14, .05, .14, T.snow, G.SNOW, rot); });
-        if (rand(sd, n) < .5) {
-          var hx = P((rand(n, 3) - .5) * w * .5, 0, (rand(n, 4) - .5) * d * .4);
-          M.cyl(hx[0], y, hx[2], .5, .5, 8, T.straw, 0, .44, true); M.cone(hx[0], y + .5, hx[2], .44, .38, 8, T.straw, 0, true); M.cone(hx[0], y + .62, hx[2], .3, .3, 8, T.snow, G.SNOW, true);
-          s.occ.push([hx[0], hx[2], 1.2, 1.2, 0, .45]);
-        }
-      } else {
-        for (var k = 0, many = 2 + Math.floor(rand(n, sd + 1) * 3); k < many; k++) {
-          var c = P((rand(n, k + 10) - .5) * w * .8, 0, (rand(n, k + 20) - .5) * d * .8);
-          pine(M, c[0], 0, c[2], .6 + rand(n, k + 30) * .5, pines);
-        }
+      placed.push([p[0], p[2], half]); sown++;
+      for (var k = 0, many = 2 + Math.floor(rand(n, sd + 1) * 3); k < many; k++) {
+        var ka = rand(n, k + 10) * TAU, kr = rand(n, k + 20) * half * .8;
+        pine(M, p[0] + Math.cos(ka) * kr, 0, p[2] + Math.sin(ka) * kr, .6 + rand(n, k + 30) * .5, pines);
       }
     }
   }
@@ -983,6 +1117,7 @@
     s.lanes.forEach(function (l) { a.push(l.key, Math.round(24 * l.count / maxN)); });
     s.hours.forEach(function (h) { a.push(Math.round(92 * h.today / scale.hour), Math.round(92 * h.yesterday / scale.hour)); });
     s.views.forEach(function (v) { a.push(v.label, lit(v)); });
+    s.shops.forEach(function (e) { a.push(e.name, crates(e)); });
     return a.join('|');
   }
   /* Draws again the villages that are due and no longer match their counts (all that changed,
@@ -1050,6 +1185,9 @@
       s.stalls.forEach(function (st) {
         if (st.label) write(st.label, '<div><span class="p">' + esc(st.v.label) + '</span> <b class="num">' + fmt(st.v.n) + '</b></div>');
       });
+      s.workshops.forEach(function (w) {
+        if (w.label) write(w.label, '<div><span class="p">' + esc(w.e.label) + '</span> <b class="num">' + fmt(w.e.n) + '</b></div>');
+      });
     });
   }
   function showTip(h, x, y) {
@@ -1058,13 +1196,18 @@
     var html = '';
     if (h.kind === 'site') html = '<strong>' + esc(h.s.name) + '</strong>' + plural(h.s.visitors, 'visitor', 'visitors') + ' · ' + plural(h.s.pageviews, 'pageview', 'pageviews') + ' ' + when() + (h.s.loads ? ' · ' + pct(h.s.engaged, h.s.loads) + '% used' : '') + '<small>Click to look closer</small>';
     if (h.kind === 'tower') { var t = h.tower; html = '<strong>' + esc(t.label) + '</strong>' + plural(t.pv, 'pageview', 'pageviews') + ' ' + when() + ' · ' + (t.loads ? pct(t.engaged, t.loads) + '% used · ' : '') + plural(t.events, 'event', 'events') +
-      '<small>' + plural(t.total, 'pageview', 'pageviews') + ' ' + month() + ' · warm windows: used</small>'; }
+      '<small>' + plural(t.total, 'pageview', 'pageviews') + ' ' + week() + ' · warm windows: used</small>'; }
     if (h.kind === 'lane') { var l = h.lane; html = '<strong>' + esc(l.label) + '</strong>' + plural(l.count, 'arrival', 'arrivals') + ' ' + when() +
       (l.key === 'direct' ? '<small>No referrer, or a link from the site itself</small>' : ''); }
     if (h.kind === 'view') {
       var v = h.view, from = Object.keys(v.by).sort(function (a, b) { return v.by[b] - v.by[a]; }).slice(0, 3);
       html = '<strong>' + esc(v.label) + '</strong>opened ' + plural(v.n, 'time', 'times') + ' ' + when() + (from.length ? ' · from ' + from.map(function (k) { return esc(k) + ' ' + fmt(v.by[k]); }).join(', ') : '') +
-        '<small>A view opened inside a page · ' + plural(v.total, 'time', 'times') + ' ' + month() + '</small>';
+        '<small>A view opened inside a page · ' + plural(v.total, 'time', 'times') + ' ' + week() + '</small>';
+    }
+    if (h.kind === 'event') {
+      var ev = h.ev, by = Object.keys(ev.by).sort(function (a, b) { return ev.by[b] - ev.by[a]; }).slice(0, 3);
+      html = '<strong>' + esc(ev.label) + '</strong>done ' + plural(ev.n, 'time', 'times') + ' ' + when() + (by.length ? ' · from ' + by.map(function (k) { return esc(k) + ' ' + fmt(ev.by[k]); }).join(', ') : '') +
+        '<small>An event of the site · ' + plural(ev.total, 'time', 'times') + ' ' + week() + '</small>';
     }
     tip.innerHTML = html; tip.hidden = false;
     var r = tip.getBoundingClientRect();
@@ -1139,22 +1282,20 @@
       s.stalls.forEach(function (st) {
         if (st.flash > 0) { busy = true; st.flash = Math.max(0, st.flash - dt * .8); W.addGlow(W.glow, [st.pos[0], 1.7, st.pos[2]], T.view, st.flash, 6.5); }
       });
-      if (s.walkers.length || s.sparks.length) busy = true;
+      s.workshops.forEach(function (w) {
+        if (w.flash > 0) { busy = true; w.flash = Math.max(0, w.flash - dt * .8); W.addGlow(W.glow, [w.front[0], 1.4, w.front[2]], w.e.col, w.flash, 6); }
+      });
+      if (s.walkers.length) busy = true;
       s.walkers = s.walkers.filter(function (w) {
         w.d += dt * w.speed; var a = G.along(w.path, w.d);
+        if (a.done && w.shop) {   // at the workshop: a moment's work, then the crate
+          w.work += dt; if (w.work < WORK_S) { working(M, s, w, dt); return true; }
+          worked(s, w.shop); return false;
+        }
         if (a.done) { (w.stall || w.h).flash = 1; cue(w.stall ? 'stall' : 'door', s, w.cue); return false; }
         villager(M, a.p, a.dir, w.col, Math.abs(Math.sin(w.d * 5)) * .05, w.seed, w.d);
         if (!reduced && Math.floor(w.d / .42) !== w.step) { w.step = Math.floor(w.d / .42); s.steps.push({ p: a.p, dir: a.dir, side: w.step % 2 ? 1 : -1, t: t }); }
         return true;
-      });
-      s.sparks = s.sparks.filter(function (sp) {
-        sp.t += dt; var h = sp.h, c = [h.pos[0], h.top + 3, h.pos[2]];
-        if (reduced) { W.addGlow(W.glow, c, sp.col, Math.max(0, 1 - sp.t / 1.9), 6); return sp.t < 1.9; }
-        for (var k = 0; k < 22; k++) {
-          var a = k / 22 * TAU, el = Math.sin(k * 2.3) * .8, r = .5 + sp.t * 2.4, y = c[1] + Math.sin(el) * r - sp.t * sp.t * .9;
-          W.addGlow(W.glow, [c[0] + Math.cos(a) * Math.cos(el) * r, y, c[2] + Math.sin(a) * Math.cos(el) * r], k % 3 ? sp.col : T.window, Math.max(0, 1 - sp.t / 1.9) * Math.min(1, sp.t * 4) / 2, 1.3);   // fades in as it opens, or 22 sparks in one point burn white
-        }
-        return sp.t < 1.9;
       });
     }); });
     smoke = smoke.filter(function (sm) {
@@ -1278,7 +1419,7 @@
         var L = W.labels.filter(function (x) { return x.el === el; })[0];
         if (L && L.what) showTip(L.what, e.clientX, e.clientY);
       });
-      overlay.addEventListener('pointerout', function (e) { if (tip && e.target.closest('.lbl.v-house, .lbl.v-gate, .lbl.v-view')) tip.hidden = true; });
+      overlay.addEventListener('pointerout', function (e) { if (tip && e.target.closest('.lbl.v-house, .lbl.v-gate, .lbl.v-view, .lbl.v-event')) tip.hidden = true; });
       window.addEventListener('resize', function () { resized(); if (!view.free) frameView(true); });
       /* The counts are looked at twice a second, not in the frame: the villages that are due, the
          turn of the hour, the numbers on the labels. */

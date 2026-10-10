@@ -44,7 +44,7 @@
 ## What you see
 
 **A village, up close.** Click a village (or its sign) and the camera flies in. Round the clock
-square, a house per page (every page of the last 30 days, the busiest at twelve o'clock):
+square, a house per page (every page of the last 7 days, the busiest at twelve o'clock):
 its storeys are today's pageviews, on one scale for every site, and its windows (on every side)
 are lit warm from the ground up for the share of loads where the page was *used* (a tap, a key
 or 10 s in view); the label over the roof gives both. A brass band on its front marks
@@ -53,30 +53,37 @@ to its door is as wide and worn as today's visits, with their footprints. A page
 today is shuttered, its lamp out. Round the square, 24 street lamps, one per UTC hour
 clockwise from midnight at the top: each as tall as that hour's pageviews, with a brass ring at
 yesterday's, the current one glowing. In the wall, a gate per referrer (every one of the
-last 30 days, then *direct*), as wide as today's arrivals, its lanterns in the referrer's colour. The clock on the tower tells the UTC time on a
+last 7 days, then *direct*), as wide as today's arrivals, its lanterns in the referrer's colour. The clock on the tower tells the UTC time on a
 24-hour dial, like the ring of lamps: midnight at the top.
 Between the lamps and the tower, a market: a stall per view opened inside a page (a `screen`
-event with a `view`; every one of the last 30 days), with a pole beside it whose
+event with a `view`; every one of the last 7 days), with a pole beside it whose
 green lanterns light up from the ground with today's opens, on one scale for every site; a stall
-nobody opened today is boarded up. Nothing is grouped. Ten stalls
+nobody opened today is boarded up. Behind the houses, a workshop per other event of the site
+(every one of the last 7 days that is no view; in the calculators, `lang`): a woodshed, a
+well, a forge, a windmill, a bread oven or a granary, picked by the event's name so it never
+turns into another, its lantern in the event's colour and lit when it was done today, and a
+crate in front for today's (on one scale for every site). Nothing is grouped. Ten stalls
 stand round the tower, the next sixteen in a row behind them, and so on; the houses stand on
-one ring while they fit, then on rings behind it (the month's busiest pages inside), and a
-page, referrer or view first seen today builds its house, gate or stall there and then.
+one ring while they fit, then on rings behind it (the week's busiest pages inside), the
+workshops behind them, and a page, referrer, view or event first seen today builds its house,
+gate, stall or workshop there and then.
 A village is as big as its site's visits: its wall opens a step for every three times as many
-pageviews and views in the last 30 days (from 10 a month up to 30 000), and a site with more
-of them than another always has the wider village, whatever its pages; what is left between
-the last houses and the wall is fields, fences, haystacks and pines, with no count in them.
+pageviews and views in the last 7 days (from 3 a week up to 10 000), and a site with more
+of them than another always has the wider village, whatever its pages; what is left before
+the wall is snow and stands of pine, with no count in them.
 Every pageview is a villager with a scarf in that colour who walks in through the gate, across
 the square and into the house, leaving steps in the snow that fade in a minute; every view opened, one in a green scarf who leaves that page's
-house for the stall; every other event, fireworks over the roof. Drag to turn, wheel or
-pinch to come closer; hover, or tap, a house, a gate or a stall for its numbers. At UTC midnight
+house for the stall; every other event, one in a scarf of the workshop's colour who walks from
+that page's house to its workshop, works there a moment (sparks at the forge, steam at the well)
+and leaves a crate. Drag to turn, wheel or
+pinch to come closer; hover, or tap, a house, a gate, a stall or a workshop for its numbers. At UTC midnight
 (the day's cut) the windows go dark from the top down and the day starts again.
 
 **Sound**, off until its button in the dock asks for it, says the same for the ear, for a
 dashboard left on a second screen: two steps in the snow when a villager comes through a gate
 (each gate has its own, darker or brighter), a hand bell when they reach the house (the page is
 the pitch, the top page the lowest; a new visitor's bell is answered an octave up), a wind chime
-at the stall, the fireworks far off, and one stroke of the tower at UTC midnight. Each village
+at the stall, three knocks of work at a workshop, and one stroke of the tower at UTC midnight. Each village
 sounds from its side of the valley. All of it is synthesised in the browser (Web Audio, no
 files); nothing plays between visits, and the audio goes to sleep a few seconds after the last
 one. With sound on, point at the button, or reach it with Tab, and its volume slider comes up.
@@ -104,7 +111,7 @@ rows, so a view is never hung under a visit), and gone at UTC midnight.
 **Another day.** *History* in the dock brings up a strip of the last 60 days over it, a bar per
 day as tall as its visitors (today's hollow: still being counted). Press a bar, step with `‹ ›`
 or the arrow keys, or type any day in the date field, and the village is turned back to that
-day as it ended: its houses, gates and stalls are those of the 30 days up to it, its storeys,
+day as it ended: its houses, gates, stalls and workshops are those of the 7 days up to it, its storeys,
 windows, lanterns and totals that day's, every lamp lit with the day before as the brass ring,
 and nobody walks in. Over the valley the bars add every site up. A past day is counts only: the
 panel of visits says so and opens that day in the ledger. `Today` (or putting the strip away)
@@ -291,7 +298,7 @@ the width, no id), live and as the day's history; earlier days are only counts. 
 | `POST /api/icon?site=` | an image body (`Content-Type: image/…`, 40 KB at most, its bytes must say PNG, ICO or JPEG) is kept as the icon; any other body (`{ page? }`, JSON) has the Worker fetch it from that page or the site's first origin, as `site:icon` does; `422` when none is usable |
 | `DELETE /api/icon?site=` | forgets the icon: the pennant again |
 | `POST /api/look` | `{ page, palette? }` (JSON): the site's page read for a look, stored nowhere: `{ hints: { title, description, lang, themeColor, scheme, ogImage }, icon: { type, data (base64), url } \| null, ai: { look: { style, hue, shade, tint, pieces }, why } \| null, aiError? }`; `ai` only with an `ANTHROPIC_API_KEY` and the dashboard's `palette` (`{ tints: [8 × #rrggbb], roofs: { kit: #rrggbb } }`) |
-| `GET /api/scene?site=` | what the village draws, all counts: `pages`, `refs` and `views` (every one of the last 30 days, busiest first, each list cut at 200, `[{ value, hits }]`), `today: { hits, visitors, events, viewsTotal, loads, engaged, pages: [{ path, hits, loads, engaged, events }], refs: [{ ref, hits }], views: [{ view, hits }], viewPages: [{ path, view, hits }] }` (the used rate is `engaged / loads`, as in `/api/stats`; a view is a `screen` event with a `view`, so `viewsTotal` is inside `events`), `yesterday: { visitors, pages: [{ path, hits }] }` up to this time of day, and `hours: [{ hour, today, yesterday }]`, pageviews by UTC hour. With `&day=` before today (`past: true` in the answer) it is the village as that day ended: `today` is that day, the 30 days end on it, `yesterday` is the whole day before |
+| `GET /api/scene?site=` | what the village draws, all counts: `pages`, `refs` and `views` (every one of the last 7 days, busiest first, each list cut at 200, `[{ value, hits }]`), `events` (every other event of the 7 days, by name, `[{ value, hits }]`), `week: { hits, views }` (the 7 days' pageviews and views opened: the village's size), `today: { hits, visitors, events, viewsTotal, loads, engaged, pages: [{ path, hits, loads, engaged, events }], refs: [{ ref, hits }], views: [{ view, hits }], viewPages: [{ path, view, hits }], byEvent: [{ event, hits }], eventPages: [{ path, event, hits }] }` (the used rate is `engaged / loads`, as in `/api/stats`; a view is a `screen` event with a `view`, so `viewsTotal` is inside `events`), `yesterday: { visitors, pages: [{ path, hits }] }` up to this time of day, and `hours: [{ hour, today, yesterday }]`, pageviews by UTC hour. With `&day=` before today (`past: true` in the answer) it is the village as that day ended: `today` is that day, the 7 days end on it, `yesterday` is the whole day before |
 | `GET /api/days?site=&from=&to=` | `{ days: [{ day, visitors, hits }] }`, visitors and pageviews per day (a day with none has no row): the bars of the history strip |
 | `GET /api/visits?site=` | today's visits (UTC), newest first, at most 2000, rounded: `{ day, now, visits: [{ minute, path, ref, device, browser, os, lang, country, first, event, props }] }`. Never the width, the second or an id |
 | `GET /api/live-ticket` | `{ ticket }`, good for 60 s, to open the live socket |

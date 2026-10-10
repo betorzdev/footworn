@@ -3,7 +3,7 @@
    visits one by one, rounded so that a row is not a fingerprint (docs/privacy.md). */
 
 const TOP = 30;
-const SCENE = 200;   // the village draws every page, referrer and view, of the month and of today: each list is cut here for safety
+const SCENE = 200;   // the village draws every page, referrer, view and event, of the week and of today: each list is cut here for safety
 
 /* The sites, each with its allowed origins and its look: the kit its village is built in (null:
    alpine), its colour (`tint`, 1..8; null: by its place in the list), how the kit's palette is
@@ -120,33 +120,37 @@ export async function eventStats(db, { site, name, from, to }) {
 }
 
 /* What the village draws for one site, all of it counts:
-   - `pages`, `refs`: every page of the last 30 days (its houses, in a fixed order: the busiest
+   - `pages`, `refs`: every page of the last 7 days (its houses, in a fixed order: the busiest
      first) and every referrer (its gates, plus direct), each list cut at 200;
-   - `views`: every view opened inside a page in the last 30 days (a `screen` event with a
+   - `views`: every view opened inside a page in the last 7 days (a `screen` event with a
      `view`), the stalls of its market, in a fixed order, cut at 200;
+   - `events`: every other event of the 7 days (one of the site's own that is no view), its
+     workshops, by name, cut at 200;
    - `today`: totals (`viewsTotal` is every view opened: they are events too, and inside `events`), and per page its pageviews, `loads` and used loads (`engaged`, the used
      rate is engaged / loads, as in `stats`) and events, pageviews per referrer, `views`: how
      many times each view was opened, and `viewPages`: from which pages (the top 200 pairs, for
-     the stall's tooltip; the counts are the ones in `views`);
+     the stall's tooltip; the counts are the ones in `views`), and the same for the other
+     events: `byEvent` and `eventPages`;
    - `yesterday`: visitors yesterday up to this time of day, for the change on the sign, and
      the pageviews of each page up to then (`pages`, cut at 200), for the mark on its house;
    - `hours`: pageviews by UTC hour, today and yesterday, for the day's rhythm;
-   - `month`: the pageviews (`hits`) and views opened (`views`) of the 30 days, uncut: the
+   - `week`: the pageviews (`hits`) and views opened (`views`) of the 7 days, uncut: the
      village is as big as they are.
    With a `day` before today (`past` in the answer) it is the village as that day ended: "today"
-   is that day, the 30 days are the ones that end on it, and "yesterday" the whole day before. */
+   is that day, the 7 days are the ones that end on it, and "yesterday" the whole day before. */
 export async function scene(db, { site, day, now = Date.now() }) {
   const utc = new Date(now).toISOString().slice(0, 10), past = !!day && realDay(day) && day < utc;   // a day that is no date is today
-  const today = past ? day : utc, from = addDays(today, -29), yesterday = addDays(today, -1);
+  const today = past ? day : utc, from = addDays(today, -6), yesterday = addDays(today, -1);
   const secs = Math.floor(now / 1000), LOADS = await loadsSince(db, site);
   const until = past ? Date.parse(today) / 1000 - 1 : secs - 86400;   // yesterday's last second, or this time yesterday
-  const month = 'site = ?1 AND day BETWEEN ?2 AND ?3 AND event IS NULL';
+  const week = 'site = ?1 AND day BETWEEN ?2 AND ?3 AND event IS NULL';
   const VIEW = "event = 'screen' AND json_type(props, '$.view') = 'text'";  // a `view` that is not text is no view
+  const OTHER = `${USER} AND NOT COALESCE(${VIEW}, 0)`;   // a `screen` with no props is an event, not a view
   const m = sql => db.prepare(sql).bind(site, from, today);
   const d = sql => db.prepare(sql).bind(site, today);
   const rows = await db.batch([
-    m(`SELECT path AS value, COUNT(*) AS hits FROM hits WHERE ${month} GROUP BY path ORDER BY hits DESC LIMIT ${SCENE}`),
-    m(`SELECT ref AS value, COUNT(*) AS hits FROM hits WHERE ${month} AND ref IS NOT NULL GROUP BY ref ORDER BY hits DESC LIMIT ${SCENE}`),
+    m(`SELECT path AS value, COUNT(*) AS hits FROM hits WHERE ${week} GROUP BY path ORDER BY hits DESC LIMIT ${SCENE}`),
+    m(`SELECT ref AS value, COUNT(*) AS hits FROM hits WHERE ${week} AND ref IS NOT NULL GROUP BY ref ORDER BY hits DESC LIMIT ${SCENE}`),
     d(`SELECT SUM(event IS NULL) AS hits, SUM(first) AS visitors, SUM(${USER}) AS events, SUM(${VIEW}) AS views, SUM(${LOADS}) AS loads, SUM(${ENGAGED}) AS engaged FROM hits
        WHERE site = ?1 AND day = ?2`),
     d(`SELECT path, SUM(event IS NULL) AS hits, SUM(${LOADS}) AS loads, SUM(${ENGAGED}) AS engaged, SUM(${USER}) AS events FROM hits
@@ -164,18 +168,24 @@ export async function scene(db, { site, day, now = Date.now() }) {
     db.prepare(`SELECT path, COUNT(*) AS hits FROM hits WHERE site = ?1 AND day = ?2 AND ts <= ?3 AND event IS NULL
                 GROUP BY path ORDER BY hits DESC, path LIMIT ${SCENE}`).bind(site, yesterday, until),
     m(`SELECT SUM(event IS NULL) AS hits, SUM(${VIEW}) AS views FROM hits WHERE site = ?1 AND day BETWEEN ?2 AND ?3`),
+    m(`SELECT value, hits FROM (SELECT event AS value, COUNT(*) AS hits FROM hits WHERE site = ?1 AND day BETWEEN ?2 AND ?3 AND ${OTHER}
+       GROUP BY event ORDER BY hits DESC, event LIMIT ${SCENE}) ORDER BY value`),   // the busiest 200, by name
+    d(`SELECT event, COUNT(*) AS hits FROM hits WHERE site = ?1 AND day = ?2 AND ${OTHER} GROUP BY event ORDER BY hits DESC, event LIMIT ${SCENE}`),
+    d(`SELECT path, event, COUNT(*) AS hits FROM hits WHERE site = ?1 AND day = ?2 AND ${OTHER}
+       GROUP BY path, event ORDER BY hits DESC, path, event LIMIT ${SCENE}`),
   ]);
   const res = rows.map(r => r.results || []);
-  const t = res[2][0] || {}, mo = res[11][0] || {};
+  const t = res[2][0] || {}, wk = res[11][0] || {};
   const hours = Array.from({ length: 24 }, (_, hour) => ({ hour, today: 0, yesterday: 0 }));
   for (const r of res[6]) if (r.hour >= 0 && r.hour < 24) hours[r.hour][r.day === today ? 'today' : 'yesterday'] = r.hits;
   return {
     site, day: today, now: secs, past,
-    pages: res[0], refs: res[1], views: res[7],
-    today: { hits: t.hits || 0, visitors: t.visitors || 0, events: t.events || 0, viewsTotal: t.views || 0, loads: t.loads || 0, engaged: t.engaged || 0, pages: res[3], refs: res[4], views: res[8], viewPages: res[9] },
+    pages: res[0], refs: res[1], views: res[7], events: res[12],
+    today: { hits: t.hits || 0, visitors: t.visitors || 0, events: t.events || 0, viewsTotal: t.views || 0, loads: t.loads || 0, engaged: t.engaged || 0, pages: res[3], refs: res[4], views: res[8], viewPages: res[9],
+      byEvent: res[13], eventPages: res[14] },
     yesterday: { visitors: (res[5][0] && res[5][0].visitors) || 0, pages: res[10] },
     hours,
-    month: { hits: mo.hits || 0, views: mo.views || 0 },
+    week: { hits: wk.hits || 0, views: wk.views || 0 },
   };
 }
 

@@ -122,7 +122,9 @@ try {
   assert.deepEqual(sc.views, [{ value: 'combat', hits: 1 }, { value: 'map', hits: 1 }], 'scene stalls: the views, ties by name');
   assert.deepEqual(sc.today.views, [{ view: 'combat', hits: 1 }, { view: 'map', hits: 1 }], 'scene views today');
   assert.deepEqual(sc.yesterday.pages, [], 'scene: nothing yesterday');
-  assert.deepEqual(sc.month, { hits: 4, views: 2 }, 'scene month: every pageview and view of the 30 days, the village\'s size');
+  assert.deepEqual(sc.week, { hits: 4, views: 2 }, 'scene week: every pageview and view of the 7 days, the village\'s size');
+  assert.deepEqual(sc.events, [{ value: 'share', hits: 1 }], 'scene workshops: the events that are no view');
+  assert.deepEqual([sc.today.byEvent, sc.today.eventPages], [[{ event: 'share', hits: 1 }], [{ path: '/', event: 'share', hits: 1 }]], 'scene events today, by name and page');
   /* a site's look: its kit, and its icon behind the token */
   assert.deepEqual((await api('/api/sites')).map(s => [s.id, s.style, s.icon]), [['one', 'umbra', false], ['two', null, false]], 'sites: style and icon');
   sh(['d1', 'execute', 'DB', '--local', '--command', `UPDATE sites SET icon = X'${PNG}', icon_type = 'image/png' WHERE id = 'one'`]);
