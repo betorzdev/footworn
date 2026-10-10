@@ -65,12 +65,18 @@
   var REBUILD_MS = 2000;   // a village that keeps changing is drawn again this often at most
   var NOW_LOW = .5;        // the lamp of the hour breathes between this and 1
   var FLOOR = .95;            // a storey
-  var R_STALL = 4.3, ROW = 2.7, PITCH = { stall: 2.7, house: 5.5, gate: 5.5, shop: 6.5 };   // the first row of stalls, the next ones, how close things stand
+  var R_STALL = 5.6, ROW = 3.8, PITCH = { stall: 3.5, house: 5.5, gate: 5.5, shop: 6.5 };   // the first row of stalls, the next ones, how close things stand
+  /* The room a villager walks in, past the last row of stalls: to the ring of lamps, the walk
+     round it, where the ways to the doors start, the first ring of houses (and its least radius);
+     from the last houses to the workshops and back to their street; from the last of them to the
+     edge. Wide on purpose: the walks are what the eye follows. */
+  var GAP = { post: 3.2, walk: 3.6, inner: 4.6, first: 8, firstMin: 15, shop: 9, shopSt: 4.2, outS: 5.5, outH: 6 };
   var GARLAND = 6;            // the lanterns of a stall's pole
-  var RING = 6.5, LANE = 3.4; // between two rings of houses; how far a house stands from a gate's lane, past one ring
+  var RING = 10, LANE = 4.4;  // between two rings of houses; how far a house stands from a gate's lane, past one ring
   /* The wall a village's visits ask for (the 7 days' pageviews and views opened): a step every
      three times as many, so a site of a handful of visits a week already grows. */
-  var STEPS = [[3, 16], [10, 19], [30, 22], [100, 25], [300, 28], [1000, 31], [3000, 34], [10000, 37], [Infinity, 40]];
+  var STEPS = [[3, 23], [10, 26], [30, 29], [100, 32], [300, 35], [1000, 38], [3000, 41], [10000, 44], [Infinity, 47]];
+  var LEAST = STEPS[0][1];    // the smallest a village is: as wide as the least of its layouts (no event) needs
   /* A workshop per event: its kind by its name, so it never turns into another when the ranking
      moves. How long a villager works there, and the crates of a day at most. */
   var SHOPS = ['woodshed', 'well', 'forge', 'mill', 'oven', 'granary'];
@@ -307,7 +313,7 @@
   }
   /* A village's size is its visits' (`s.week`: the 7 days' pageviews and views opened), in
      `STEPS`; what it is made of only pushes its wall further out when it does not fit. The stalls
-     in rows round the tower (ten in the first, then sixteen, then twenty-two), the lamps just
+     in rows round the tower (ten in the first, then sixteen, then twenty-three), the lamps just
      outside the last row, the houses round them: on one ring as long as they fit there (the
      gates in the gaps between them), else on rings behind it, the week's busiest inside, every
      ring leaving the gates' lanes free and each staggered half a house from the one inside it.
@@ -320,7 +326,7 @@
   function radii(s) {
     var rows = [], left = Math.max(s.views.length, 1), r = R_STALL;
     while (left > 0) { var cap = Math.floor(TAU * r / PITCH.stall); rows.push({ r: r, cap: cap }); left -= cap; if (left > 0) r += ROW; }
-    var post = r + 2.1, walk = post + 2.3, inner = post + 3, first = Math.max(11.2, post + 4.8);
+    var post = r + GAP.post, walk = post + GAP.walk, inner = post + GAP.inner, first = Math.max(GAP.firstMin, post + GAP.first);
     var arc = s.arc, links = s.links || [], via = s.lanes.map(function (l) { return l.from ? entryOf(s, l.from) : null; });
     var pages = s.towers.length, nl = via.filter(function (v) { return !v; }).length, slots = Math.max(pages, nl, 5), rings = [], shops = [], one = !pages || !arc && !links.length && pages <= Math.floor(TAU * first / PITCH.house);
     var j = 0, gateA = s.lanes.map(function (l, i) {   // a sister's on its avenue; a gate on the stretch facing the valley, between two house slots, or on a lane every ring leaves free
@@ -347,8 +353,8 @@
       rings.push({ r: Math.max(first, slots * PITCH.house / TAU), street: walk, from: inner, slots: slots, angles: at1 });
     } else fill(rings, pages, first, RING, PITCH.house, LANE, true, function (rr, S, angles) { var st = rings.length ? rr - RING / 2 : walk; return { r: rr, street: st, from: rings.length ? st : inner, slots: S, angles: angles }; });
     var house = rings[rings.length - 1].r;
-    fill(shops, s.shops.length, house + 5.5, PITCH.shop, PITCH.shop, LANE + 1.2, false, function (rr, S, angles) { return { r: rr, street: rr - 2.9, slots: S, angles: angles }; });
-    var out = shops.length ? shops[shops.length - 1].r + 4.4 : house + 4.8;
+    fill(shops, s.shops.length, house + GAP.shop, PITCH.shop, PITCH.shop, LANE + 1.2, false, function (rr, S, angles) { return { r: rr, street: rr - GAP.shopSt, slots: S, angles: angles }; });
+    var out = shops.length ? shops[shops.length - 1].r + GAP.outS : house + GAP.outH;
     return { rows: rows, rings: rings, shops: shops, gateA: gateA, via: via, links: links, post: post, pave: post + 1.2, walk: walk, inner: inner, house: house, fields: null,
       wall: Math.max(out, nl * PITCH.gate / (arc ? Math.max(1, arc[1] - arc[0]) : TAU), stepOf(s.week)) };   // room for the gates on the stretch they have
   }
@@ -669,7 +675,7 @@
   }
   function ridged(x, z) { var t = 0, a = 1, f = 1, n; for (var o = 0; o < 5; o++) { n = 1 - Math.abs(vnoise(x * f + o * 31, z * f - o * 17) * 2 - 1); t += n * n * a; a *= .5; f *= 2.07; } return t / 1.94; }
   function hf(x, z) {
-    var d = sites.length ? cityF(x, z) : Math.hypot(x, z) - 16;   // beyond the city's wall
+    var d = sites.length ? cityF(x, z) : Math.hypot(x, z) - LEAST;   // beyond the city's wall
     var dune = Math.sin(x * .21 + Math.cos(z * .17) * 2) * .25 + Math.sin(z * .13 - x * .05) * .3;
     var h = clamp((d - 1.5) / 6, 0, 1) * (dune + .25) + Math.max(0, d - 14) * .05 * (1 + .6 * Math.sin(x * .07 + z * .05)) + Math.max(0, city.back - z) * .08;   // rising to the mountains behind the city
     if (lake) { var k = clamp((lakeR(x, z) - .92) / .3, 0, 1); h = G.lerp(-.55, h, k * k * (3 - 2 * k)); }
@@ -1167,7 +1173,7 @@
     }
     var R = s.R;
     { M.disc(o[0], .03, o[2], R.pave, 48, G.mix(T.stone, T.stoneDark, .22)); for (var cr = 1.9; cr < R.pave - .5; cr += 1.9) M.ring(o[0], .034, o[2], cr, cr + .05, 48, G.mix(T.stone, T.stoneDark, .7)); }
-    M.ring(o[0], .05, o[2], R.pave, R.pave + .3, 48, T.stoneDark); M.ring(o[0], .02, o[2], R.pave + .3, R.pave + 2, 48, T.path);
+    M.ring(o[0], .05, o[2], R.pave, R.pave + .3, 48, T.stoneDark); M.ring(o[0], .02, o[2], R.pave + .3, R.inner + .3, 48, T.path);   // the walk round the square, out to where the ways to the doors and gates start
     // the clock tower
     M.box(o[0], 0, o[2], 2.6, .5, 2.6, T.stoneDark); M.box(o[0], .5, o[2], 2.2, 3.4, 2.2, T.stone);
     M.box(o[0], 3.9, o[2], 2.4, .16, 2.4, T.timber); M.box(o[0], 4.06, o[2], 1.9, 3.3, 1.9, G.mix(T.stone, T.snow, .2));
@@ -1452,9 +1458,9 @@
       var o = view.site.o, pitch = narrow() ? .55 : TILT.site, rw = view.site.R.wall;
       return { target: [o[0], 2, o[2]], yaw: .12, pitch: pitch, dist: clamp(fit(rw + 3, (rw + 3) * Math.sin(pitch) + 6) * 1.02 * (1 - lens(pitch) * .8), 24, 200) };
     }
-    var x0 = Math.min.apply(null, sites.map(function (s) { return s.o[0] - s.R.wall; }).concat([-16])), x1 = Math.max.apply(null, sites.map(function (s) { return s.o[0] + s.R.wall; }).concat([16]));
+    var x0 = Math.min.apply(null, sites.map(function (s) { return s.o[0] - s.R.wall; }).concat([-LEAST])), x1 = Math.max.apply(null, sites.map(function (s) { return s.o[0] + s.R.wall; }).concat([LEAST]));
     var zs = sites.map(function (s) { return s.o[2]; }), cz = sites.length ? (Math.min.apply(null, zs) + Math.max.apply(null, zs)) / 2 : 0;
-    var big = Math.max.apply(null, sites.map(function (s) { return s.R.wall; }).concat([16]));
+    var big = Math.max.apply(null, sites.map(function (s) { return s.R.wall; }).concat([LEAST]));
     if (sites.length) {   // the city is deep as well as wide
       var z0 = Math.min.apply(null, sites.map(function (s) { return s.o[2] - s.R.wall; })), z1 = Math.max.apply(null, sites.map(function (s) { return s.o[2] + s.R.wall; }));
       cz = (z0 + z1) / 2; big = Math.max(big, (z1 - z0) / 2);
