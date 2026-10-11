@@ -73,9 +73,9 @@ export function validPalette(p) {
 
 /* What each piece's options look like, for Claude: one line each, every option of PIECES (a test checks). */
 export const PIECE_TEXT = {
-  spire: { pyramid: 'pyramid (alpine)', needle: 'needle (stone)', belfry: 'belfry (citadel)', iron: 'iron (umbra)' },
-  wall: { palisade: 'palisade (alpine)', rampart: 'rampart (stone)', battlement: 'battlement (citadel)', iron: 'iron (umbra)' },
-  roofs: { gentle: 'gentle (alpine)', steep: 'steep (stone)', low: 'low (citadel, no snow)', tall: 'tall (umbra: narrow houses, no snow)' },
+  spire: { pyramid: 'pyramid (alpine)', needle: 'needle (stone)', belfry: 'belfry (citadel)', iron: 'iron (umbra)', bell: 'bell (gilded: an open belfry with its bell, banners)' },
+  wall: { palisade: 'palisade (alpine)', rampart: 'rampart (stone)', battlement: 'battlement (citadel)', iron: 'iron (umbra)', silk: 'silk (gilded: posts strung with silk, pennants)' },
+  roofs: { gentle: 'gentle (alpine)', steep: 'steep (stone)', low: 'low (citadel, no snow)', tall: 'tall (umbra: narrow houses, no snow)', spired: 'spired (gilded: a four-sided spire on every house, gold trim, no snow)' },
   shade: { none: 'none', half: 'half', deep: "deep (the village's own shade)" },
   motes: { none: 'none', some: 'some (drifting motes of light)' },
 };
@@ -90,6 +90,7 @@ The kits (the starting point):
 - stone: pale stone houses, steep slate roofs, a needle spire, a rampart with round towers, cold blue lamps. Austere, northern, scholarly.
 - citadel: light walls, low red-tiled roofs, a belfry, battlements, warm lamps. Warm, sunny, lively.
 - umbra: near-black slate, tall narrow houses, an iron spire and iron fence, pale light, drifting motes of light, a village sitting in its own shade. Dark, gothic, mysterious.
+- gilded: ivory stone, crimson spired roofs with gold trim, an open belfry with its bell, a fence strung with crimson silk and pennants, warm lamps, drifting motes of light. Gilded, ceremonial, storybook.
 
 The pieces, each either "kit" (the kit's own) or one option, to mix kits when the site calls for it:
 ${PIECES_TEXT}

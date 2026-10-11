@@ -77,7 +77,9 @@ URL is a bookmark to a site, the open ledger, its range and an open event.
   palisade with towers), stone (pale stone, slate spires, a rampart with round towers, cold lamps),
   citadel (red roofs, a belfry, battlements) and umbra (asked for a dark mood: near-black slate,
   an iron fence, pale light, motes, and a village that casts its own shade, so it sits in
-  half-light even at noon); the walls about three times the old low wall, as the owner found it
+  half-light even at noon) and gilded (since 2026-10-11, for a site after Silksong's Pharloom:
+  ivory stone, crimson spired roofs with gold trim, an open belfry with its bell, a fence strung
+  with crimson silk; the owner wanted the red); the walls about three times the old low wall, as the owner found it
   too small; the counts read the same in every kit. The site's own icon flies on a long banner (since the same evening: the first, a square
   of the site's colour, put Pharloom's black icon on orange; now the cloth is the icon's own
   ground, or a dark one, the icon trimmed to its mark, the site's colour a thin band) over

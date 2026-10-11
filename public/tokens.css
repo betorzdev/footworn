@@ -108,6 +108,8 @@
   --village-awning: #a8473f; --village-awning-2: #e4d9c4; --village-awning-3: #3f6a8a; --village-awning-4: #c9a24a;   /* the canvas of the market stalls, in turn */
   --village-shutter-1: #3d5a45; --village-shutter-2: #7a3a32; --village-shutter-3: #34466e;   /* doors and shutters, a house's own */
   --village-mote: #cfeaff;         /* the motes of light that drift over a village of the umbra kit */
+  --village-gold: #c99a3e;         /* gilding: the trim of spired roofs, the bells, the finials of a silk fence */
+  --village-silk: #f1ebe0;         /* the threads, pennants and banners of a silk fence and a bell spire */
   /* The kits a site can be built in (village.js, KIT): each colour here, with the kit's name after
      it, takes the place of alpine's (the names above) in that kit's villages. Stone: pale stone and
      slate, cold lamps. */
@@ -126,6 +128,12 @@
   --village-wall-1-umbra: #3a3e4c; --village-wall-2-umbra: #33374a; --village-wall-3-umbra: #424656; --village-wall-4-umbra: #2f3342;
   --village-shutter-1-umbra: #1a1d26; --village-shutter-2-umbra: #232736; --village-shutter-3-umbra: #2a2e3c;
   --village-awning-1-umbra: #3a3e52; --village-awning-2-umbra: #5a6278; --village-awning-3-umbra: #2c3040; --village-awning-4-umbra: #6d7590;
+  /* Gilded: ivory stone, crimson spired roofs, gold trim, crimson silk. */
+  --village-roof-gilded: #a8232a; --village-timber-gilded: #4e3424; --village-stone-gilded: #ece2cc; --village-stone-dark-gilded: #a89170;
+  --village-lamp-gilded: #ffd47e; --village-window-gilded: #ffe3a6; --village-mote-gilded: #ffe7b0; --village-silk-gilded: #a8232a;
+  --village-wall-1-gilded: #f1e8d4; --village-wall-2-gilded: #e7dcc3; --village-wall-3-gilded: #f5eddd; --village-wall-4-gilded: #ddcfb2;
+  --village-shutter-1-gilded: #a8232a; --village-shutter-2-gilded: #8a1c22; --village-shutter-3-gilded: #b8322e;
+  --village-awning-1-gilded: #a8232a; --village-awning-2-gilded: #efe2c4; --village-awning-3-gilded: #8a1c22; --village-awning-4-gilded: #c99a3e;
   /* One plaster per house, in turn: */
   --village-wall-1: #c9b49a; --village-wall-2: #b9a58e; --village-wall-3: #d2c2a8; --village-wall-4: #a99484;
   --village-wall-5: #c4ae9c; --village-wall-6: #bfae94; --village-wall-7: #cbb8a2; --village-wall-8: #b3a08c;

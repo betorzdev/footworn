@@ -2,7 +2,7 @@
 /* Adds (or updates) a site in D1. Local by default; --remote for the deployed database.
      npm run site:add -- hallownest "Hallownest Calculator" https://betorzdev.github.io
      npm run site:add -- hallownest "Hallownest Calculator" "https://a.example https://b.example" --remote
-   --style <kit> builds its village in that kit (alpine, stone, citadel, umbra); without it, a site
+   --style <kit> builds its village in that kit (alpine, stone, citadel, umbra, gilded); without it, a site
    keeps the one it has (a new one is alpine). */
 import { spawnSync } from 'node:child_process';
 import { STYLES } from '../src/icon.js';

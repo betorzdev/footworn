@@ -6,7 +6,7 @@ import { readHints, aiRequest, aiAnswer, aiLook, validPalette, schema, MODEL } f
 import { STYLES, PIECES, imageType } from '../src/icon.js';
 
 const palette = { tints: ['#8fb8ff', '#ff8d6b', '#b9a8ff', '#7fe0b0', '#ffd36b', '#ff9ed0', '#a6e36f', '#9ad6ff'],
-  roofs: { alpine: '#6a3f2a', stone: '#3b4356', citadel: '#a33a2a', umbra: '#1c2030' } };
+  roofs: { alpine: '#6a3f2a', stone: '#3b4356', citadel: '#a33a2a', umbra: '#1c2030', gilded: '#a8232a' } };
 
 test('a page head says how it looks', () => {
   const html = `<!doctype html><html lang="es" style="color-scheme: dark"><head>

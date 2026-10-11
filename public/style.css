@@ -45,8 +45,9 @@ input {
 /* The scene takes every gesture itself: a drag turns the village, the wheel or a pinch comes closer. */
 #scene { position: fixed; inset: 0; width: 100vw; height: 100vh; height: 100dvh; display: block; touch-action: none; cursor: grab; }
 #scene:active { cursor: grabbing; }
-/* Labels pinned to the 3D scene: gl.js moves each one to its point when the camera moves. */
-.scene-labels { position: fixed; inset: 0; z-index: 0; isolation: isolate; pointer-events: none; overflow: hidden; }
+/* Labels pinned to the 3D scene: gl.js moves each one to its point when the camera moves. Never
+   selectable: a drag across them turns the village, it does not pick up text. */
+.scene-labels { position: fixed; inset: 0; z-index: 0; isolation: isolate; pointer-events: none; overflow: hidden; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
 .scene-labels .lbl { position: absolute; left: 0; top: 0; white-space: nowrap; will-change: transform; }
 .scene-labels .lbl > div, .vsign { position: relative; transform: translate(-50%, -100%); display: block; padding: var(--s-1) var(--s-2); border-radius: var(--radius);
   background: var(--village-sign); border: 1px solid var(--village-sign-line); color: var(--village-ink); text-align: center;
@@ -348,7 +349,7 @@ td.n { text-align: right; padding-left: var(--s-3); font-family: var(--font-num)
 .site-form .link { font: inherit; color: var(--accent); background: none; border: 0; padding: 0; cursor: pointer; text-decoration: underline; text-underline-offset: 3px; }
 .site-form .ok { margin: 0; font-size: var(--fs-s); color: var(--ok); }
 .site-form .actions { display: flex; gap: var(--s-2); justify-content: flex-end; flex-wrap: wrap; }
-.kits { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--s-2); }
+.kits { display: grid; grid-template-columns: repeat(5, 1fr); gap: var(--s-2); }
 .kit { font: inherit; color: var(--text); text-align: left; background: var(--surface); border: 1px solid var(--glass-line); border-radius: var(--radius); padding: var(--s-2); cursor: pointer; min-width: 0; }
 .kit[aria-checked="true"] { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
 .kit i { display: block; height: var(--s-6); border-radius: var(--s-1); margin-bottom: var(--s-1); background: linear-gradient(100deg, var(--k-roof) 0 40%, var(--k-wall) 40% 75%, var(--k-lamp) 75%); }
@@ -358,6 +359,7 @@ td.n { text-align: right; padding-left: var(--s-3); font-family: var(--font-num)
 .kit-stone { --k-roof: var(--village-roof-stone); --k-wall: var(--village-wall-1-stone); --k-lamp: var(--village-lamp-stone); }
 .kit-citadel { --k-roof: var(--village-roof-citadel); --k-wall: var(--village-wall-1-citadel); --k-lamp: var(--village-lamp-citadel); }
 .kit-umbra { --k-roof: var(--village-roof-umbra); --k-wall: var(--village-wall-1-umbra); --k-lamp: var(--village-lamp-umbra); }
+.kit-gilded { --k-roof: var(--village-roof-gilded); --k-wall: var(--village-wall-1-gilded); --k-lamp: var(--village-lamp-gilded); }
 /* The two sliders: the hue wheel as the track of one, black to white as the other's. */
 .site-form input[type="range"] { -webkit-appearance: none; appearance: none; width: 100%; height: var(--s-5); margin: 0; padding: 0; border: 0; background: transparent; min-height: 0; cursor: pointer; }
 .site-form .hue::-webkit-slider-runnable-track { height: var(--s-3); border-radius: 999px; background: var(--hue-wheel); }

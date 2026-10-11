@@ -19,6 +19,9 @@ test('a site is checked before it is saved', () => {
   assert.deepEqual(validateSite(good), { site: { id: 'sheos-forge', name: 'Sheo’s Forge', origins: 'https://sheosforge.com http://localhost:8787', style: 'umbra', tint: 3, hue: 40, shade: -10, pieces: { wall: 'rampart', shade: 'half' } } });
   /* pieces: "kit" or null is the kit's own; none left is null */
   assert.equal(validateSite({ ...good, pieces: { roofs: 'kit', motes: null } }).site.pieces, null);
+  /* the gilded kit and its pieces, mixed into another kit */
+  assert.equal(validateSite({ ...good, style: 'gilded' }).site.style, 'gilded');
+  assert.deepEqual(validateSite({ ...good, style: 'stone', pieces: { roofs: 'spired', spire: 'bell', wall: 'silk' } }).site.pieces, { roofs: 'spired', spire: 'bell', wall: 'silk' });
   /* origins as the shell gives them: one string; repeated ones once */
   assert.equal(validateSite({ ...good, origins: 'https://a.example  https://b.example https://a.example' }).site.origins, 'https://a.example https://b.example');
   /* the look may be empty: the kit as it is, the colour by position */

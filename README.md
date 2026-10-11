@@ -183,8 +183,9 @@ the dashboard's dock does it: *Add a site*, a name (the id follows it, fixed onc
 origins its pages are served from, and its village's look, which stands in the valley as a draft
 village while you choose it. The kit: `alpine` (the default: timber, a palisade), `stone` (pale
 stone, slate spires, a rampart with round towers, cold lamps), `citadel` (red roofs, a belfry,
-battlements) or `umbra` (near-black slate, an iron fence, pale light, motes drifting over it, and
-a village that casts its own shade). Each piece of it can be set apart from the kit, to mix kits:
+battlements), `umbra` (near-black slate, an iron fence, pale light, motes drifting over it, and
+a village that casts its own shade) or `gilded` (ivory stone, crimson spired roofs with gold trim,
+an open belfry with its bell, a fence strung with crimson silk). Each piece of it can be set apart from the kit, to mix kits:
 the spire, the wall, the roofs, the village's shade and its motes (a stone village with an iron
 fence, say). Its palette can be turned round the hue wheel and made lighter or darker (roofs,
 walls, shutters; never the lamps and windows, which are counts), and the site gets one of eight

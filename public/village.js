@@ -106,24 +106,26 @@
   /* The kits a village can be built in. A kit changes shapes and colours, never what a count
      looks like. Its colours are tokens with its name after them (`--village-roof-stone`); one it
      does not name is alpine's. `hip`: the share of hip roofs; `frame`: timber framing; `roofH`:
-     the height of a roof; `roofSnow`: snow on the roofs; `narrow`: narrow houses; `spire`: the top
-     of the tower; `wall`: the wall round it; `gloom`: the village's own shade, as dark as that;
-     `motes`: so many motes of light drifting over it. A kit added here goes into STYLES too
+     the height of a roof; `roofSnow`: snow on the roofs; `narrow`: narrow houses; `roofs:
+     'spired'`: a tall four-sided spire on every house, gilded at its eaves and point; `spire`: the top of the tower; `wall`: the wall round it; `gloom`: the village's own shade, as
+     dark as that; `motes`: so many motes of light drifting over it. A kit added here goes into STYLES too
      (src/icon.js), the list `site:add --style` accepts. */
   var KIT = {
     alpine: { hip: .35, frame: true, roofH: 1.6, spire: 'pyramid', wall: 'palisade' },
     stone: { hip: 0, frame: false, roofH: 2.5, spire: 'needle', wall: 'rampart' },
     citadel: { hip: .85, frame: false, roofH: 1.25, roofSnow: false, spire: 'belfry', wall: 'battlement' },
     umbra: { hip: 0, frame: false, roofH: 3.1, roofSnow: false, narrow: true, spire: 'iron', wall: 'iron', gloom: .9, motes: 14 },
+    gilded: { hip: 0, frame: false, roofH: 1.6, roofs: 'spired', roofSnow: false, spire: 'bell', wall: 'silk', motes: 10 },
   };
-  var KIT_COLORS = ['roof', 'timber', 'stone', 'stone-dark', 'lamp', 'window', 'clock', 'mote'];
+  var KIT_COLORS = ['roof', 'timber', 'stone', 'stone-dark', 'lamp', 'window', 'clock', 'mote', 'gold', 'silk'];
   /* The pieces a site can set apart from its kit (PIECES in src/icon.js), each by name: the fields
      of KIT it lays over the kit's own. The kit's colours stay the kit's. */
   var PIECES = {
-    spire: { pyramid: { spire: 'pyramid' }, needle: { spire: 'needle' }, belfry: { spire: 'belfry' }, iron: { spire: 'iron' } },
-    wall: { palisade: { wall: 'palisade' }, rampart: { wall: 'rampart' }, battlement: { wall: 'battlement' }, iron: { wall: 'iron' } },
-    roofs: { gentle: { hip: .35, roofH: 1.6, roofSnow: true, narrow: false }, steep: { hip: 0, roofH: 2.5, roofSnow: true, narrow: false },
-      low: { hip: .85, roofH: 1.25, roofSnow: false, narrow: false }, tall: { hip: 0, roofH: 3.1, roofSnow: false, narrow: true } },
+    spire: { pyramid: { spire: 'pyramid' }, needle: { spire: 'needle' }, belfry: { spire: 'belfry' }, iron: { spire: 'iron' }, bell: { spire: 'bell' } },
+    wall: { palisade: { wall: 'palisade' }, rampart: { wall: 'rampart' }, battlement: { wall: 'battlement' }, iron: { wall: 'iron' }, silk: { wall: 'silk' } },
+    roofs: { gentle: { hip: .35, roofH: 1.6, roofSnow: true, narrow: false, roofs: null }, steep: { hip: 0, roofH: 2.5, roofSnow: true, narrow: false, roofs: null },
+      low: { hip: .85, roofH: 1.25, roofSnow: false, narrow: false, roofs: null }, tall: { hip: 0, roofH: 3.1, roofSnow: false, narrow: true, roofs: null },
+      spired: { hip: 0, roofH: 1.6, roofSnow: false, narrow: false, roofs: 'spired' } },
     shade: { none: { gloom: 0 }, half: { gloom: .45 }, deep: { gloom: .9 } },
     motes: { none: { motes: 0 }, some: { motes: 14 } },
   };
@@ -146,7 +148,7 @@
      shutters, the awnings) by `hue` degrees and lightened or darkened by `shade` (−40..40, a
      share of the way to white or black); never the lights (lamp, window, clock, mote), which are
      counts. Every colour is still a token of tokens.css, turned. */
-  var MATERIAL = ['roof', 'timber', 'stone', 'stoneDark'], MATERIAL_SETS = ['walls', 'shutters', 'awnings'];
+  var MATERIAL = ['roof', 'timber', 'stone', 'stoneDark', 'silk'], MATERIAL_SETS = ['walls', 'shutters', 'awnings'];
   function paletteOf(s) {
     var base = s.kit.T || {}, out = {}, k, hue = s.look.hue || 0, shade = s.look.shade || 0;
     for (k in base) out[k] = base[k];
@@ -166,7 +168,7 @@
     var C = (1 - Math.abs(2 * l - 1)) * sat, X = C * (1 - Math.abs((h / 60) % 2 - 1)), m = l - C / 2, q = h < 60 ? [C, X, 0] : h < 120 ? [X, C, 0] : h < 180 ? [0, C, X] : h < 240 ? [0, X, C] : h < 300 ? [X, 0, C] : [C, 0, X];
     return [q[0] + m, q[1] + m, q[2] + m];
   }
-  var SPIRE = { pyramid: 10.7, needle: 14.1, belfry: 10.6, iron: 14.3 };   // the top of each kit's tower
+  var SPIRE = { pyramid: 10.7, needle: 14.1, belfry: 10.6, iron: 14.3, bell: 11.5 };   // the top of each kit's tower
   /* Where a village's sign hangs: over its tower, and over its banner when it flies one. */
   function signAt(s) { return [s.o[0], Math.max(14, SPIRE[s.kit.spire] + (icons[s.id] ? 5.8 : 2.3)), s.o[2]]; }
   /* The sites' icons, as loaded images (app.js fetches them with the token: `setIcon`). */
@@ -267,7 +269,7 @@
     }
     ['edge', 'snow', 'snow-2', 'path', 'stone',
       'stone-dark', 'rock', 'timber', 'trunk', 'pine', 'roof', 'iron', 'brass', 'straw', 'clock', 'window', 'window-dark', 'lamp', 'coat', 'skin',
-      'smoke', 'flake', 'star', 'view', 'aurora', 'aurora-2'].forEach(function (k) { T[camel(k)] = col(k); });
+      'smoke', 'flake', 'star', 'view', 'aurora', 'aurora-2', 'gold', 'silk'].forEach(function (k) { T[camel(k)] = col(k); });
     T.sky = {};
     Object.keys(LIGHTS).forEach(function (k) { var o = T.sky[k] = {}; SKY.forEach(function (n) { o[camel(n)] = col(n + (k === 'night' ? '' : '-' + k)); }); });
     T.awnings = [1, 2, 3, 4].map(function (i) { return col('awning' + (i > 1 ? '-' + i : '')); });
@@ -938,12 +940,40 @@
     M.tri(P(x, y0, z), P(x, y0, -z), P(r, y1, 0), col, em);
     M.tri(P(-x, y0, -z), P(-x, y0, z), P(-r, y1, 0), col, em);
   }
+  /* A bell, its lip at y and its mouth r wide, open below: stacked frustums with smooth normals.
+     Gives back the height of its crown. */
+  var BELL = [[1, .97, .08], [.97, .78, .25], [.78, .68, .35], [.68, .55, .3], [.55, .3, .17], [.3, 0, .1]];
+  function bell(M, x, y, z, r, col, em) {
+    BELL.forEach(function (b) { M.cyl(x, y, z, r * b[0], r * b[2], 14, col, em || 0, r * b[1], true); y += r * b[2]; });
+    return y;
+  }
+  /* A thread of silk from a to b, sagging by `sag` at its middle: a thin ribbon seen from above and from the side. */
+  function thread(M, a, b, sag, col, em) {
+    var n = 10, dx = b[0] - a[0], dz = b[2] - a[2], L = Math.hypot(dx, dz) || 1, sx = -dz / L * .03, sz = dx / L * .03, w = .035;
+    function on(t) { return [a[0] + dx * t, a[1] + (b[1] - a[1]) * t - sag * 4 * t * (1 - t), a[2] + dz * t]; }
+    for (var i = 0; i < n; i++) {
+      var p = on(i / n), q = on((i + 1) / n);
+      M.quad([p[0] - sx, p[1], p[2] - sz], [q[0] - sx, q[1], q[2] - sz], [q[0] + sx, q[1], q[2] + sz], [p[0] + sx, p[1], p[2] + sz], col, em);
+      M.quad([p[0], p[1] - w, p[2]], [q[0], q[1] - w, q[2]], [q[0], q[1] + w, q[2]], [p[0], p[1] + w, p[2]], col, em);
+      M.quad([p[0], p[1] + w, p[2]], [q[0], q[1] + w, q[2]], [q[0], q[1] - w, q[2]], [p[0], p[1] - w, p[2]], col, em);
+    }
+  }
+  /* A banner hung from (x, y, z), its face to (fx, fz), w wide and L long, its tail cut in two. */
+  function banner(M, x, y, z, fx, fz, w, L, col) {
+    var sx = -fz * w / 2, sz = fx * w / 2;
+    M.quad([x - sx, y - L, z - sz], [x + sx, y - L, z + sz], [x + sx, y, z + sz], [x - sx, y, z - sz], col);
+    M.quad([x + sx, y - L, z + sz], [x - sx, y - L, z - sz], [x - sx, y, z - sz], [x + sx, y, z + sz], col);
+    [[-1, 0], [0, 1]].forEach(function (e) {
+      var a = [x + sx * e[0], y - L, z + sz * e[0]], b = [x + sx * e[1], y - L, z + sz * e[1]], c = [(a[0] + b[0]) / 2, y - L - w * .45, (a[2] + b[2]) / 2];
+      M.tri(a, b, c, col); M.tri(b, a, c, col);
+    });
+  }
   /* A timber-framed house: a stone ground floor, each storey above on its beam and a little wider,
      a steep roof, and windows on every side, so the used share reads from wherever the camera
      is. The storeys are today's pageviews; a brass band round the front is yesterday's, up to
      this time (on a rod over the roof when yesterday was taller). A page nobody opened today is
      one storey, shuttered, its lamp out. What is not a count varies by the page's seed, so no
-     two houses are alike: the width, the roof (gable or hip), the colour of door and shutters,
+     two houses are alike: the width, the roof (gable or hip; a spire in a kit with spired roofs), the colour of door and shutters,
      and one thing by the door (a balcony, a woodpile, a bench). */
   function house(M, s, h, dark) {
     var t = h.t, k = s.kit, awake = t.pv > 0, f = awake ? floors(t) : 1, rot = -h.a - Math.PI / 2, P = G.frame(h.pos[0], h.pos[2], rot), x0 = h.pos[0], z0 = h.pos[2];
@@ -991,15 +1021,21 @@
     }
     /* the roof, its ridge from front to back */
     var rl = dd + .14, rs = ww + .14, rh = (hipped ? .82 : 1) * k.roofH, r2 = rot + Math.PI / 2;
-    if (hipped) {
+    if (k.roofs === 'spired') {   // a four-sided spire, gilded at its eaves and on its point
+      var sw = Math.max(rl, rs) + .1; rh = sw * 1.55;   // yesterday's rod rises from its point
+      hip(M, x0, y, z0, sw, sw, rh, T.roof, rot, .12);
+      M.box(x0, y - .06, z0, sw + .3, .12, sw + .3, T.gold, .2, rot);
+      M.cyl(x0, y + rh - .1, z0, .05, .9, 5, T.gold, .25); M.cyl(x0, y + rh + .45, z0, .13, .14, 8, T.gold, .3, .02, true);
+    } else if (hipped) {
       hip(M, x0, y, z0, rl, rs, rh, T.roof, r2, .3); if (k.roofSnow !== false) hip(M, x0, y + .11, z0, rl - .06, rs, rh + .02, T.snow, r2, .22, G.SNOW);
     } else {
       M.roof(x0, y, z0, rl, rh, rs, T.roof, r2, .3, h.wall);
       if (k.roofSnow !== false) M.roof(x0, y + .11, z0, rl - .06, rh + .02, rs, T.snow, r2, .22, null, G.SNOW);
       [1, -1].forEach(function (e) { var a = P(0, 0, e * (dd / 2 + .02)); M.box(a[0], y + .28, a[2], .34, .4, .04, awake && lit > 0 && warm > 0 ? T.window : T.windowDark, awake && lit > 0 && warm > 0 ? 1 : .3, rot); });
     }
-    [-1, 1].forEach(function (e) { var p = P(e * (rs / 2 + .26), 0, 0); M.box(p[0], y - .03, p[2], .2, .15, rl + .5, T.snow, G.SNOW, rot); });
-    var ch = P(w * .29, 0, -.3); M.box(ch[0], y + .3, ch[2], .36, 1.5, .36, T.stoneDark, 0, rot); M.box(ch[0], y + 1.8, ch[2], .44, .1, .44, T.snow, G.SNOW, rot);
+    if (k.roofs !== 'spired') [-1, 1].forEach(function (e) { var p = P(e * (rs / 2 + .26), 0, 0); M.box(p[0], y - .03, p[2], .2, .15, rl + .5, T.snow, G.SNOW, rot); });
+    var ch = P(w * .29, 0, -.3), chimney = k.roofs !== 'spired';   // a spire has no chimney through it
+    if (chimney) { M.box(ch[0], y + .3, ch[2], .36, 1.5, .36, T.stoneDark, 0, rot); M.box(ch[0], y + 1.8, ch[2], .44, .1, .44, T.snow, G.SNOW, rot); }
     /* yesterday: a brass band at the top of its storeys, or over the roof on a rod */
     var yf = t.ypv ? Math.max(1, Math.ceil(t.ypv / scale.unit)) : 0;
     if (yf && yf <= f) M.box(x0, yf * FLOOR - .05, z0, w + Math.min(yf - 1, 2) * .12 + .2, .08, d + Math.min(yf - 1, 2) * .12 + .2, T.brass, .3, rot);
@@ -1007,7 +1043,7 @@
       var top = y + rh, my = yf * FLOOR + rh, rp = P(-w * .3, 0, 0);
       M.cyl(rp[0], top - .3, rp[2], .025, my - top + .3, 5, T.brass, .2); M.cyl(rp[0], my, rp[2], .2, .06, 10, T.brass, .3);
     }
-    h.chimney = awake ? [ch[0], y + 1.9, ch[2]] : null; h.top = y + .4; h.door = P(-wx, 0, d / 2 + .9);
+    h.chimney = awake && chimney ? [ch[0], y + 1.9, ch[2]] : null; h.top = y + .4; h.door = P(-wx, 0, d / 2 + .9);
     s.occ.push([x0, z0, w + 1.3, d + 1.3, rot, .6]);
     var a0 = at(s.o, h.a, h.ring.from), b0 = at(s.o, h.a, h.ring.r - 1.3);
     track(M, a0, b0, t.pv / (scale.unit * 6), t.pv, sd);
@@ -1040,13 +1076,14 @@
   /* The city's wall, each quarter's stretch in its kit's kind: tall enough to read as a wall from
      the valley, with towers along it; the gates stand in its gaps. */
   function wallKind(s) { return s.kit.wall; }
-  function wallH(s) { return { rampart: 2.3, battlement: 2.3, palisade: 2.6, iron: 2.4 }[wallKind(s)]; }
+  function wallH(s) { return { rampart: 2.3, battlement: 2.3, palisade: 2.6, iron: 2.4, silk: 2.5 }[wallKind(s)]; }
   function wallStep(s) { var kind = wallKind(s); return kind === 'palisade' ? .42 : kind === 'iron' ? .5 : 1.1; }
   function stoneOf(k) { return G.mix(T.stone, T.stoneDark, rand(k, 6) * .7); }
   /* The quarter's stretch of the city's wall: the outline's points it owns, a piece every step
      of its kind, a tower every 11, none across a gate's road or an avenue. */
   function hullWall(M, s) {
     var P = city.pts, n = P.length, step = wallStep(s), acc = step, accT = 6, k = 0;
+    s.lastPost = null;   // a silk wall strings each post to the one before it
     function gap(p, room) { return sites.some(function (u) { return u.gates.some(function (g) { return segD(p, g.pos, g.end) < g.w / 2 + room; }); }); }
     for (var i = 0; i < n; i++) {
       var p = P[i], q = P[(i + 1) % n], L = Math.hypot(q.x - p.x, q.z - p.z);
@@ -1067,6 +1104,13 @@
     } else if (kind === 'palisade') {
       var ph = H + rand(k, 2) * .45; M.cyl(p[0], 0, p[2], .21, ph, 6, T.timber); M.cone(p[0], ph, p[2], .21, .42, 6, T.timber);
       if (k % 3 === 0) M.box(p[0] - Math.cos(a) * .25, H * .55, p[2] - Math.sin(a) * .25, .12, .18, len * 3.1, T.trunk, 0, -a);   // the rail behind
+    } else if (kind === 'silk') {   // a stone post on a plinth, a gilded finial, two threads of silk to the post before, a pennant every third
+      var q = s.lastPost, near = q && Math.hypot(q[0] - p[0], q[2] - p[2]) < len * 2.5, nx = near ? q[0] : p[0], nz = near ? q[2] : p[2];
+      s.lastPost = p;
+      M.box(p[0], 0, p[2], .5, .4, len + .04, T.stoneDark, 0, -a); M.box(p[0], .4, p[2], .56, .07, len + .05, T.snow, G.SNOW, -a);
+      M.cyl(p[0], .4, p[2], .1, H - .4, 8, T.stone, 0, .08, true); M.cyl(p[0], H, p[2], .16, .2, 8, T.gold, .2, .12, true); M.cone(p[0], H + .2, p[2], .12, .45, 8, T.gold, .2, true);
+      if (near) { thread(M, [p[0], H - .2, p[2]], [nx, H - .2, nz], .35, T.silk, .25); thread(M, [p[0], H * .6, p[2]], [nx, H * .6, nz], .2, T.silk, .25); }
+      if (near && k % 3 === 0) { var mx = (p[0] + nx) / 2, mz = (p[2] + nz) / 2, l = [mx - sn * .25, H - .55, mz + c * .25], r = [mx + sn * .25, H - .55, mz - c * .25], tip = [mx, H - 1.25, mz]; M.tri(l, r, tip, T.silk); M.tri(r, l, tip, T.silk); }
     } else if (kind === 'iron') {
       M.box(p[0], 0, p[2], .5, .35, len + .04, T.stoneDark, 0, -a); M.box(p[0], .35, p[2], .56, .07, len + .05, T.snow, G.SNOW, -a);
       M.cyl(p[0], .35, p[2], .03, H - .35, 4, T.iron); M.cone(p[0], H, p[2], .07, .3, 4, T.iron);
@@ -1076,6 +1120,12 @@
   function wallTower(M, s, tp, ta, t) {
     var kind = wallKind(s), H = wallH(s), stone = stoneOf;
     if (kind === 'palisade') { M.box(tp[0], 0, tp[2], 1.5, H + 1.7, 1.5, T.timber, 0, -ta); M.cone(tp[0], H + 1.7, tp[2], 1.3, 1.1, 4, T.roof); M.cone(tp[0], H + 2, tp[2], .9, .8, 4, T.snow, G.SNOW); }
+    else if (kind === 'silk') {   // a slender stone tower under a gilded bell, a lamp in its mouth, a banner down its face
+      M.cyl(tp[0], 0, tp[2], .8, .5, 10, T.stoneDark, 0, .75, true); M.cyl(tp[0], .5, tp[2], .62, H + 1.6, 10, T.stone, 0, .55, true);
+      banner(M, tp[0] + Math.cos(ta) * .66, H + 1.9, tp[2] + Math.sin(ta) * .66, Math.cos(ta), Math.sin(ta), .7, 2.2, T.silk);
+      var bt = bell(M, tp[0], H + 2.05, tp[2], .85, T.gold, .05); M.cyl(tp[0], bt - .2, tp[2], .3, .22, 8, T.snow, G.SNOW, .02, true);
+      M.box(tp[0], H + 2.1, tp[2], .26, .3, .26, T.lamp, 1); W.addGlow(s.glow, [tp[0], H + 2.25, tp[2]], T.lamp, .6, 2.4); s.pools.push([tp[0], tp[2], 3, T.lamp, .4]);
+    }
     else if (kind === 'iron') { M.box(tp[0], 0, tp[2], .7, H + .6, .7, T.stoneDark, 0, -ta); M.cone(tp[0], H + .6, tp[2], .45, .7, 4, T.iron); var lp = [tp[0], H + 1.45, tp[2]]; M.box(lp[0], lp[1] - .2, lp[2], .2, .26, .2, T.lamp, 1); W.addGlow(s.glow, lp, T.lamp, .6, 2.4); s.pools.push([tp[0], tp[2], 3, T.lamp, .4]); }
     else {
       M.cyl(tp[0], 0, tp[2], 1.15, H + 1.3, 10, stone(t), 0, null, true); M.cyl(tp[0], H + 1.3, tp[2], 1.2, .1, 10, T.snow, G.SNOW);
@@ -1193,6 +1243,13 @@
       M.box(o[0], 7.5, o[2], 1.5, 1.6, 1.5, T.stoneDark); [[1, 1], [1, -1], [-1, 1], [-1, -1]].forEach(function (f) { M.cone(o[0] + f[0] * .75, 7.5, o[2] + f[1] * .75, .14, 2.4, 5, T.iron); });
       M.cyl(o[0], 8.1, o[2], .4, .7, 10, T.brass, .15, .2, true);
       M.cone(o[0], 9.1, o[2], 1, 5.2, 6, T.roof); M.cyl(o[0], 14.3, o[2], .05, 1.4, 4, T.iron); s.spireTop = 14.3;
+    }
+    else if (K.spire === 'bell') {   // an open belfry, its great bell hung in it, a gilded dome over, banners from its corners down to the clock
+      [[1, 1], [1, -1], [-1, 1], [-1, -1]].forEach(function (f) { M.cyl(o[0] + f[0] * .85, 7.5, o[2] + f[1] * .85, .17, 2.4, 8, T.stone, 0, .14, true); M.cone(o[0] + f[0] * .85, 9.9, o[2] + f[1] * .85, .2, .4, 8, T.gold, .2, true); });
+      var crown = bell(M, o[0], 7.95, o[2], .78, T.gold, .25); M.cyl(o[0], crown, o[2], .04, 9.9 - crown, 4, T.iron); W.addGlow(s.glow, [o[0], 8.4, o[2]], T.lamp, .45, 2.6);
+      M.box(o[0], 9.9, o[2], 2.3, .18, 2.3, T.stoneDark);
+      [[1, 1], [1, -1], [-1, 1], [-1, -1]].forEach(function (f) { banner(M, o[0] + f[0] * 1.08, 9.9, o[2] + f[1] * 1.08, f[0] * Math.SQRT1_2, f[1] * Math.SQRT1_2, .5, 3.1, T.silk); });
+      var dome = bell(M, o[0], 10.08, o[2], 1.15, T.gold, .05); M.cyl(o[0], dome - .3, o[2], .4, .32, 10, T.snow, G.SNOW, .02, true); s.spireTop = dome;
     }
     else if (K.spire === 'belfry') {
       [[1, 1], [1, -1], [-1, 1], [-1, -1]].forEach(function (f) { M.box(o[0] + f[0] * .8, 7.5, o[2] + f[1] * .8, .3, 1.7, .3, T.stone); });

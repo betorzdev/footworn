@@ -1,13 +1,13 @@
 /* The kits a village can be built in: the keys of KIT in public/village.js, which draws one it
    does not know as alpine. `site:add --style` takes only these. */
-export const STYLES = ['alpine', 'stone', 'citadel', 'umbra'];
+export const STYLES = ['alpine', 'stone', 'citadel', 'umbra', 'gilded'];
 
 /* The pieces of a village that can be set apart from its kit, each by name: PIECES in
    public/village.js says what each name builds. A site keeps only those it sets (`pieces`). */
 export const PIECES = {
-  spire: ['pyramid', 'needle', 'belfry', 'iron'],
-  wall: ['palisade', 'rampart', 'battlement', 'iron'],
-  roofs: ['gentle', 'steep', 'low', 'tall'],
+  spire: ['pyramid', 'needle', 'belfry', 'iron', 'bell'],
+  wall: ['palisade', 'rampart', 'battlement', 'iron', 'silk'],
+  roofs: ['gentle', 'steep', 'low', 'tall', 'spired'],
   shade: ['none', 'half', 'deep'],
   motes: ['none', 'some'],
 };
