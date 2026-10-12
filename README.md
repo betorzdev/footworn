@@ -337,6 +337,7 @@ src/body.js       a request or response body read with a cap
 src/look.js       a site's page read for a suggested look: its hints, and Claude's reading when there is a key
 public/           footworn.js, the dashboard (index.html, app.js, gl.js, village.js, sound.js, live.js, ledger.js, history.js, visits.js, sites.js, wire.js, look.js, theme.js, style.css, tokens.css), privacy, demo,
                   _headers (nosniff and no-referrer everywhere; the dashboard's CSP: no inline code, no framing)
+                  fonts/TwemojiCountryFlags.woff2 (country flags where the system has none, Windows; Twemoji graphics © Twitter, CC-BY 4.0)
 migrations/       the D1 schema
 test/             node --test
 tools/            dev.js, site-add.js, site-icon.js, smoke.js
