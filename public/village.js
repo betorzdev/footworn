@@ -80,6 +80,7 @@
      three times as many, so a site of a handful of visits a week already grows. */
   var STEPS = [[3, 23], [10, 26], [30, 29], [100, 32], [300, 35], [1000, 38], [3000, 41], [10000, 44], [Infinity, 47]];
   var LEAST = STEPS[0][1];    // the smallest a village is: as wide as the least of its layouts (no event) needs
+  var PAN_ROOM = 20;          // how far past the city's walls the camera's centre may be dragged
   /* A workshop per event: its kind by its name, so it never turns into another when the ranking
      moves. How long a villager works there, and the crates of a day at most. */
   var SHOPS = ['woodshed', 'well', 'forge', 'mill', 'oven', 'granary'];
@@ -1536,22 +1537,26 @@
     var B = frameBox(), t = Math.tan(W.cam.fov / 2);
     return Math.max(X * B.h / (t * Math.max(120, B.right - B.left)), Y * B.h / (t * Math.max(120, B.bottom - B.top)));
   }
+  /* The city's walls, all of them: [x0, z0, x1, z1], at least LEAST either side of the middle across, and in depth while there is no village. */
+  function bounds() {
+    function edge(f, k, d) { return f.apply(null, sites.map(function (s) { return s.o[k] + d * s.R.wall; }).concat(k === 0 || !sites.length ? [d * LEAST] : [])); }
+    return [edge(Math.min, 0, -1), edge(Math.min, 2, -1), edge(Math.max, 0, 1), edge(Math.max, 2, 1)];
+  }
+  /* How far the camera's centre may be dragged: the city and a little snow round it. */
+  function panBox() { var B = bounds(); return [B[0] - PAN_ROOM, B[1] - PAN_ROOM, B[2] + PAN_ROOM, B[3] + PAN_ROOM]; }
   function goal() {
     if (view.mode === 'site' && view.site) {
       var o = view.site.o, pitch = narrow() ? .55 : TILT.site, rw = view.site.R.wall;
       return { target: [o[0], 2, o[2]], yaw: .12, pitch: pitch, dist: clamp(fit(rw + 3, (rw + 3) * Math.sin(pitch) + 6) * 1.02 * (1 - lens(pitch) * .8), 24, 200) };
     }
-    var x0 = Math.min.apply(null, sites.map(function (s) { return s.o[0] - s.R.wall; }).concat([-LEAST])), x1 = Math.max.apply(null, sites.map(function (s) { return s.o[0] + s.R.wall; }).concat([LEAST]));
-    var zs = sites.map(function (s) { return s.o[2]; }), cz = sites.length ? (Math.min.apply(null, zs) + Math.max.apply(null, zs)) / 2 : 0;
-    var big = Math.max.apply(null, sites.map(function (s) { return s.R.wall; }).concat([LEAST]));
-    if (sites.length) {   // the city is deep as well as wide
-      var z0 = Math.min.apply(null, sites.map(function (s) { return s.o[2] - s.R.wall; })), z1 = Math.max.apply(null, sites.map(function (s) { return s.o[2] + s.R.wall; }));
-      cz = (z0 + z1) / 2; big = Math.max(big, (z1 - z0) / 2);
-    }
+    var B = bounds(), x0 = B[0], x1 = B[2], cz = (B[1] + B[3]) / 2;
+    var big = Math.max.apply(null, sites.map(function (s) { return s.R.wall; }).concat([LEAST, (B[3] - B[1]) / 2]));   // the city is deep as well as wide
     var pb = narrow() ? .4 : TILT.bay;
     return { target: [(x0 + x1) / 2, 2, cz], yaw: .08, pitch: pb, dist: clamp(fit((x1 - x0) / 2 + 1, (big + 4) * Math.sin(pb) + 9) * .95 * (1 - lens(pb) * .5) * 1.12, 40, 300) };
   }
-  function frameView(instant) { if (W) { view.free = false; W.flyTo(goal(), instant || reduced ? 0 : 1600); } }
+  function frameView(instant) { if (W) { free(false); W.flyTo(goal(), instant || reduced ? 0 : 1600); } }
+  /* Dragged away from the frame, or back in it: the dock's Recenter shows while it is away. */
+  function free(on) { if (view.free !== on) { view.free = on; if (opts.onFree) opts.onFree(on); } }
 
   /* ---------- the frame ---------- */
   /* What moves over the kept scene, given to the world again every frame it draws. Answers
@@ -1673,7 +1678,7 @@
   }
 
   window.FootwornCity = {
-    /* canvas, { tip, insets() -> {top, bottom, right}, onEnter(id), onLeave(), onCue(name, cue) } */
+    /* canvas, { tip, insets() -> {top, bottom, right}, onEnter(id), onLeave(), onCue(name, cue), onFree(on) } */
     init: function (canvas, o) {
       cv = canvas; opts = o || {}; tip = opts.tip || null;
       readTokens();
@@ -1683,7 +1688,7 @@
         var s0 = skyAt(clockHour());
         W = G.world(canvas, overlay, {
           moonDir: s0.sun, moon: s0.moonlight, skyAmb: s0.skyLight, gndAmb: s0.groundLight, skyTop: s0.skyTop, skyMid: s0.skyMid, skyLow: s0.skyLow, fog: s0.skyLow, fogD: .0062, fogFrom: .85, fogH: 25,
-          edge: .3, edgeCol: T.edge, sat: 1, con: .28, vig: .6, grain: .014, poolK: 1.9, minDist: 6, maxDist: 220, box: [-60, -60, 120], ground: T.snow, star: T.star,
+          edge: .3, edgeCol: T.edge, sat: 1, con: .28, vig: .6, grain: .014, poolK: 1.9, minDist: 6, maxDist: 220, panBox: panBox, coast: !reduced, box: [-60, -60, 120], ground: T.snow, star: T.star,
           snowCol: T.snow, snowK: .45, sparkK: 1, ao: .6, aoR: .9, bloom: 1, bloomThr: .8, dof: 7, skyTick: 4, auroraA: T.aurora, auroraB: T.aurora2,
         });
       } catch (e) { W = null; fallback(canvas); return; }
@@ -1697,7 +1702,11 @@
         W.setSnow(flakes, { area: 70, height: 26, size: .14, col: T.flake });
       }
       W.onFrame = frame;
-      W.onDrag = function () { view.free = true; if (tip) tip.hidden = true; };
+      W.onDrag = function () { free(true); if (tip) tip.hidden = true; };
+      W.onHome = function (x, y) {   // a double click on the snow, not on something a click opens
+        var s = siteAt(x, y); if (labelNear(x, y) || s && (view.mode === 'bay' || view.site !== s)) return;
+        frameView();
+      };
       W.onRestore = function () { location.reload(); };   // the view lives in the URL, the token in storage
       W.onPick = function (x, y) {
         var L = labelNear(x, y), r = cv.getBoundingClientRect();
@@ -1789,6 +1798,8 @@
     },
     /* The panels moved: the view re-centres in the gap they leave, unless it was dragged away. */
     refit: function (instant) { resized(); if (!view.free) frameView(instant); },
+    /* Back to the frame, flying (the dock's Recenter). */
+    home: function () { frameView(); },
     /* A panel changed size on its own: the scene keeps its centre in the gap. */
     resized: resized,
     wantsRelayout: function () { return false; },

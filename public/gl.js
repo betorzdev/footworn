@@ -8,9 +8,9 @@
    brighter than the screen (after Jimenez, SIGGRAPH 2014); a lens that blurs what is off the
    plane in focus, as a close-up of a model does; ink outlines from depth and normal edges (the
    Townscaper look), a grade and a vignette. Soft sprites (smoke, snow) and additive ones
-   (lanterns), pictures laid on the scene (a site's icon on its banner: `setDecals`), an orbit
-   camera that flies, whose centre follows the gap the panels leave
-   (`shift`), and HTML labels pinned to 3D points.
+   (lanterns), pictures laid on the scene (a site's icon on its banner: `setDecals`), a camera
+   that flies, is dragged over the snow as a map is, turns, and coasts when let go, whose centre
+   follows the gap the panels leave (`shift`), and HTML labels pinned to 3D points.
    It is made to be left open: the picture is drawn once and kept, and drawn again only when the
    camera, a layer, a map or the size changes; while the weather moves, the picture's own passes
    run again every `skyTick` seconds over the scene as it was drawn, into a second kept frame the
@@ -49,6 +49,22 @@
     var o = new Array(16);
     for (var c = 0; c < 4; c++) for (var r = 0; r < 4; r++) o[c * 4 + r] = a[r] * b[c * 4] + a[4 + r] * b[c * 4 + 1] + a[8 + r] * b[c * 4 + 2] + a[12 + r] * b[c * 4 + 3];
     return o;
+  }
+  /* The inverse of a 4×4 (column-major, as above), or null if it has none. */
+  function inv4(m) {
+    var a00 = m[0], a01 = m[1], a02 = m[2], a03 = m[3], a10 = m[4], a11 = m[5], a12 = m[6], a13 = m[7];
+    var a20 = m[8], a21 = m[9], a22 = m[10], a23 = m[11], a30 = m[12], a31 = m[13], a32 = m[14], a33 = m[15];
+    var b00 = a00 * a11 - a01 * a10, b01 = a00 * a12 - a02 * a10, b02 = a00 * a13 - a03 * a10, b03 = a01 * a12 - a02 * a11;
+    var b04 = a01 * a13 - a03 * a11, b05 = a02 * a13 - a03 * a12, b06 = a20 * a31 - a21 * a30, b07 = a20 * a32 - a22 * a30;
+    var b08 = a20 * a33 - a23 * a30, b09 = a21 * a32 - a22 * a31, b10 = a21 * a33 - a23 * a31, b11 = a22 * a33 - a23 * a32;
+    var det = b00 * b11 - b01 * b10 + b02 * b09 + b03 * b08 - b04 * b07 + b05 * b06;
+    if (!det) return null; det = 1 / det;
+    return [
+      (a11 * b11 - a12 * b10 + a13 * b09) * det, (a02 * b10 - a01 * b11 - a03 * b09) * det, (a31 * b05 - a32 * b04 + a33 * b03) * det, (a22 * b04 - a21 * b05 - a23 * b03) * det,
+      (a12 * b08 - a10 * b11 - a13 * b07) * det, (a00 * b11 - a02 * b08 + a03 * b07) * det, (a32 * b02 - a30 * b05 - a33 * b01) * det, (a20 * b05 - a22 * b02 + a23 * b01) * det,
+      (a10 * b10 - a11 * b08 + a13 * b06) * det, (a01 * b08 - a00 * b10 - a03 * b06) * det, (a30 * b04 - a31 * b02 + a33 * b00) * det, (a21 * b02 - a20 * b04 - a23 * b00) * det,
+      (a11 * b07 - a10 * b09 - a12 * b06) * det, (a00 * b09 - a01 * b07 + a02 * b06) * det, (a31 * b01 - a30 * b03 - a32 * b00) * det, (a20 * b03 - a21 * b01 + a22 * b00) * det,
+    ];
   }
 
   /* ---------- meshes: position, normal, colour, emission ---------- */
@@ -531,34 +547,127 @@
       while (dy > Math.PI) dy -= TAU; while (dy < -Math.PI) dy += TAU;
       W.goal = { from: { target: c.target.slice(), yaw: c.yaw, pitch: c.pitch, dist: c.dist }, to: { target: g.target || c.target, yaw: c.yaw + dy, pitch: g.pitch == null ? c.pitch : g.pitch, dist: g.dist || c.dist }, t: 0, ms: ms == null ? 1500 : ms };
       if (!W.goal.ms) { W.goal.t = 1; W.goal.ms = 1; }
-      kick();
+      coast = null; kick();
     };
+    /* The eye and the view-projection of the camera as it stands: the frame draws with them, the
+       pointer reads the snow through them. */
+    function camera() {
+      var c = W.cam, eye = [c.target[0] + Math.sin(c.yaw) * Math.cos(c.pitch) * c.dist, c.target[1] + Math.sin(c.pitch) * c.dist, c.target[2] + Math.cos(c.yaw) * Math.cos(c.pitch) * c.dist];
+      var PR = persp(c.fov, W.W / W.H, NEAR, FAR), sf = W.shift ? W.shift() : [0, 0];
+      PR[8] -= sf[0]; PR[9] -= sf[1];
+      return { eye: eye, sf: sf, vp: mul(PR, lookAt(eye, c.target, [0, 1, 0])) };
+    }
+    /* The point of the snow (y 0) under a pixel of the canvas, or null where there is only sky (or
+       snow further than GRAB times the camera's distance from its centre). */
+    var GRAB = 3;
+    function snowAt(x, y, vp) {
+      var m = inv4(vp); if (!m) return null;
+      var nx = x / W.W * 2 - 1, ny = 1 - y / W.H * 2;
+      function at(z) {
+        var o = [0, 1, 2, 3].map(function (r) { return m[r] * nx + m[4 + r] * ny + m[8 + r] * z + m[12 + r]; });
+        return [o[0] / o[3], o[1] / o[3], o[2] / o[3]];
+      }
+      var a = at(-1), b = at(1), dy = b[1] - a[1];
+      if (dy > -1e-6 || a[1] < 0) return null;   // looking level or up, or from under the snow
+      var t = -a[1] / dy, p = [a[0] + (b[0] - a[0]) * t, 0, a[2] + (b[2] - a[2]) * t], c = W.cam;
+      return Math.hypot(p[0] - c.target[0], p[2] - c.target[2]) > GRAB * c.dist ? null : p;   // near the horizon a pixel is miles of snow: too far to take along
+    }
+    /* The camera's centre moved over the snow, no further out than `panBox` [x0, z0, x1, z1] lets
+       it (a centre the box shrank away from is not pulled in): what it did move. */
+    function panBy(dx, dz) {
+      var t = W.cam.target, b = env.panBox ? env.panBox() : null, x = t[0] + dx, z = t[2] + dz;
+      if (b) { x = clamp(x, Math.min(b[0], t[0]), Math.max(b[2], t[0])); z = clamp(z, Math.min(b[1], t[2]), Math.max(b[3], t[2])); }
+      W.cam.target = [x, t[1], z]; return [x - t[0], z - t[2]];
+    }
+    function tilt(dp) { var c = W.cam, p = clamp(c.pitch + dp, .1, 1.3), did = p - c.pitch; c.pitch = p; return did; }
+    function zoom(k) { W.cam.dist = clamp(W.cam.dist * k, env.minDist || 6, env.maxDist || 120); }
+    /* A zoom that keeps the snow under a pixel where it is (the wheel's pointer, the fingers' middle). */
+    function zoomAt(k, x, y) {
+      var a = snowAt(x, y, camera().vp); zoom(k);
+      var b = a && snowAt(x, y, camera().vp); if (b) panBy(a[0] - b[0], a[2] - b[2]);
+    }
 
-    var drag = null, pts = {};
+    /* The pointer, as on a map: a left button or a finger takes the snow under it along (where
+       there is only sky, it turns instead); a right button, or the left with Ctrl, Shift, Alt or
+       Meta, turns and tilts; two fingers pinch, turn and, moved up or down together, tilt; the
+       wheel comes closer to what is under the pointer. Let go moving and the camera coasts a
+       moment (`coast`: x and z a second, yaw and pitch a second), unless motion is reduced. */
+    var drag = null, pts = {}, coast = null, COAST = .3, lastTwo = [0, 0];   // how far the last two presses moved
+    function grip(x, y, turn) {
+      var p = turn ? null : snowAt(x - rect.left, y - rect.top, camera().vp);
+      drag.grab = p; drag.turn = !p;
+    }
+    /* Past 6 px it is a drag, not a click: the view is the user's from then on (onDrag). */
+    function moved(n) { var was = drag.moved; drag.moved = n; if (was < 6 && n >= 6 && W.onDrag) W.onDrag(); }
+    /* A pointer gone without a pointerup (cancelled, its capture lost, the window left): the
+       finger that stays takes the snow from where it is; with none left, the drag is over. */
+    function gone(id) {
+      delete pts[id]; if (!drag) return;
+      var left = Object.keys(pts);
+      if (left.length) { var q = pts[left[0]]; grip(q[0], q[1], false); drag.v = [0, 0, 0, 0]; drag.dy = {}; }
+      else drag = null;
+    }
+    canvas.addEventListener('contextmenu', function (e) { e.preventDefault(); });
     canvas.addEventListener('pointerdown', function (e) {
-      if (e.pointerType === 'mouse' && e.button !== 0) return;   // a right click's pointerup may never come
-      try { canvas.setPointerCapture(e.pointerId); } catch (err) { /* not capturable */ } pts[e.pointerId] = [e.clientX, e.clientY]; drag = { moved: 0 }; W.goal = null; W.idle = 0; kick();
+      if (e.pointerType === 'mouse' && e.button > 2) return;
+      try { canvas.setPointerCapture(e.pointerId); } catch (err) { /* not capturable */ }
+      pts[e.pointerId] = [e.clientX, e.clientY]; W.goal = null; coast = null; W.idle = 0;
+      if (!drag || Object.keys(pts).length === 1) {
+        var turn = e.pointerType === 'mouse' && (e.button !== 0 || e.ctrlKey || e.shiftKey || e.altKey || e.metaKey);
+        drag = { moved: 0, t: e.timeStamp, v: [0, 0, 0, 0], dy: {}, click: !turn };   // only a plain left click or a tap picks
+        grip(e.clientX, e.clientY, turn);
+      } else moved(99);
+      kick();
     });
     canvas.addEventListener('pointermove', function (e) {
-      if (pts[e.pointerId] && e.pointerType === 'mouse' && !(e.buttons & 1)) { delete pts[e.pointerId]; drag = null; }   // let go where no pointerup reached
-      if (!pts[e.pointerId]) { if (W.onHover && e.pointerType === 'mouse') { var rb = canvas.getBoundingClientRect(); W.onHover(e.clientX - rb.left, e.clientY - rb.top); } return; }
-      var ids = Object.keys(pts);
+      if (pts[e.pointerId] && e.pointerType === 'mouse' && !(e.buttons & 7)) { delete pts[e.pointerId]; drag = null; }   // let go where no pointerup reached
+      if (!pts[e.pointerId]) { if (W.onHover && e.pointerType === 'mouse') W.onHover(e.clientX - rect.left, e.clientY - rect.top); return; }
+      var ids = Object.keys(pts), old = pts[e.pointerId], now = [e.clientX, e.clientY], c = W.cam, v = [0, 0, 0, 0];   // what this move did, as `coast` counts it
+      pts[e.pointerId] = now;
+      if (!drag) return;
+      var dt = Math.max(1 / 240, (e.timeStamp - drag.t) / 1000); drag.t = e.timeStamp;
       if (ids.length === 2) {
-        var o = ids[0] == e.pointerId ? pts[ids[1]] : pts[ids[0]], old = pts[e.pointerId];
-        var d0 = Math.hypot(old[0] - o[0], old[1] - o[1]), d1 = Math.hypot(e.clientX - o[0], e.clientY - o[1]);
-        if (d0 > 0 && d1 > 0) W.cam.dist = clamp(W.cam.dist * d0 / d1, env.minDist || 6, env.maxDist || 120);
-        pts[e.pointerId] = [e.clientX, e.clientY]; if (drag) drag.moved = 99; kick(); return;
+        var o = ids[0] == e.pointerId ? pts[ids[1]] : pts[ids[0]];
+        var d0 = Math.hypot(old[0] - o[0], old[1] - o[1]), d1 = Math.hypot(now[0] - o[0], now[1] - o[1]);
+        var da = Math.atan2(now[1] - o[1], now[0] - o[0]) - Math.atan2(old[1] - o[1], old[0] - o[0]);
+        while (da > Math.PI) da -= TAU; while (da < -Math.PI) da += TAU;
+        /* Both fingers moving up, or both down (the other's last move, under 0.1 s ago): a tilt;
+           otherwise their middle takes the snow along, as one finger does. */
+        var dy = now[1] - old[1], dx = now[0] - old[0], od = drag.dy[ids[0] == e.pointerId ? ids[1] : ids[0]], m = [0, 0], dp = 0;
+        drag.dy[e.pointerId] = { d: dy, t: e.timeStamp };
+        if (od && e.timeStamp - od.t < 100 && dy * od.d > 0 && Math.abs(dy) > Math.abs(dx)) dp = tilt(dy / 2 * .004);
+        else {
+          var vp0 = camera().vp, a = snowAt((old[0] + o[0]) / 2 - rect.left, (old[1] + o[1]) / 2 - rect.top, vp0), b = a && snowAt((now[0] + o[0]) / 2 - rect.left, (now[1] + o[1]) / 2 - rect.top, vp0);
+          if (b) m = panBy(a[0] - b[0], a[2] - b[2]);
+        }
+        if (d0 > 0 && d1 > 0) zoomAt(d0 / d1, (now[0] + o[0]) / 2 - rect.left, (now[1] + o[1]) / 2 - rect.top);
+        c.yaw += da; v = [m[0], m[1], da, dp];
+        moved(99);
+      } else {
+        var dx = now[0] - old[0], dy = now[1] - old[1], p = !drag.turn && snowAt(now[0] - rect.left, now[1] - rect.top, camera().vp);
+        if (drag.turn) { c.yaw -= dx * .006; v = [0, 0, -dx * .006, tilt(dy * .004)]; }
+        else if (p) { var m = panBy(drag.grab[0] - p[0], drag.grab[2] - p[2]); v = [m[0], m[1], 0, 0]; }
+        moved(drag.moved + Math.abs(dx) + Math.abs(dy));
       }
-      var dx = e.clientX - pts[e.pointerId][0], dy = e.clientY - pts[e.pointerId][1]; pts[e.pointerId] = [e.clientX, e.clientY];
-      W.cam.yaw -= dx * .006; W.cam.pitch = clamp(W.cam.pitch + dy * .004, .1, 1.3); if (drag) drag.moved += Math.abs(dx) + Math.abs(dy);
+      for (var i = 0; i < 4; i++) drag.v[i] = drag.v[i] * .5 + v[i] / dt * .5;
       kick();
     });
     canvas.addEventListener('pointerup', function (e) {
-      delete pts[e.pointerId]; var r = canvas.getBoundingClientRect();
-      if (drag && drag.moved < 6 && W.onPick) W.onPick(e.clientX - r.left, e.clientY - r.top); if (drag && drag.moved >= 6 && W.onDrag) W.onDrag(); drag = null;
+      if (!pts[e.pointerId]) return;
+      if (!drag || Object.keys(pts).length > 1) { gone(e.pointerId); return; }
+      delete pts[e.pointerId];
+      var r = canvas.getBoundingClientRect(), v = drag.v, fast = Math.hypot(v[0], v[1]) > .02 * W.cam.dist || Math.hypot(v[2], v[3]) > .02;
+      if (drag.moved < 6 && drag.click && W.onPick) W.onPick(e.clientX - r.left, e.clientY - r.top);
+      if (drag.moved >= 6 && env.coast !== false && fast && e.timeStamp - drag.t < 80) coast = v.slice();
+      lastTwo = [lastTwo[1], drag.moved]; drag = null; kick();
     });
-    canvas.addEventListener('pointercancel', function (e) { delete pts[e.pointerId]; drag = null; });
-    canvas.addEventListener('wheel', function (e) { e.preventDefault(); W.goal = null; W.idle = 0; if (W.onDrag) W.onDrag(); W.cam.dist = clamp(W.cam.dist * Math.exp(e.deltaY * .0012), env.minDist || 6, env.maxDist || 120); kick(); }, { passive: false });
+    ['pointercancel', 'lostpointercapture'].forEach(function (name) { canvas.addEventListener(name, function (e) { if (pts[e.pointerId]) gone(e.pointerId); }); });
+    window.addEventListener('blur', function () { pts = {}; drag = null; });
+    canvas.addEventListener('wheel', function (e) {
+      e.preventDefault(); W.goal = null; coast = null; W.idle = 0; if (W.onDrag) W.onDrag();
+      zoomAt(Math.exp(e.deltaY * .0012), e.clientX - rect.left, e.clientY - rect.top); kick();
+    }, { passive: false });
+    canvas.addEventListener('dblclick', function (e) { if (W.onHome && Math.max(lastTwo[0], lastTwo[1]) < 6) W.onHome(e.clientX - rect.left, e.clientY - rect.top); });   // two clicks, not two drags
 
     /* A lost context (a GPU reset, a reclaimed background tab) takes every buffer and texture
        with it: stop drawing, and when it comes back let the caller start again (onRestore). */
@@ -727,7 +836,7 @@
     function frameFn(now) {
       raf = 0;
       if (document.hidden || gl.isContextLost()) { last = 0; return; }
-      if (last && now - last < (W.goal || drag || dirty ? 13 : 30)) { kick(); return; }
+      if (last && now - last < (W.goal || drag || coast || dirty ? 13 : 30)) { kick(); return; }
       var dt = last ? Math.min(.05, (now - last) / 1000) : 0; last = now; W.t += dt; W.idle += dt;
       var dpr = Math.min(window.devicePixelRatio || 1, 2), w = Math.max(1, rect.width), h = Math.max(1, rect.height);
       if (w * h * dpr * dpr > MAX_PX) dpr = Math.sqrt(MAX_PX / (w * h));
@@ -740,12 +849,16 @@
         c.target = [0, 1, 2].map(function (i) { return g.from.target[i] + (g.to.target[i] - g.from.target[i]) * k; });
         c.yaw = g.from.yaw + (g.to.yaw - g.from.yaw) * k; c.pitch = g.from.pitch + (g.to.pitch - g.from.pitch) * k; c.dist = g.from.dist + (g.to.dist - g.from.dist) * k;
         if (g.t >= g.ms) W.goal = null;
+      } else if (coast) {   // let go moving: it slows to a stop, and stops short at an edge
+        var f = Math.exp(-dt / COAST), m = panBy(coast[0] * dt, coast[1] * dt), dp = tilt(coast[3] * dt);
+        c.yaw += coast[2] * dt;
+        if (Math.abs(m[0] - coast[0] * dt) > 1e-6) coast[0] = 0; if (Math.abs(m[1] - coast[1] * dt) > 1e-6) coast[1] = 0; if (Math.abs(dp - coast[3] * dt) > 1e-6) coast[3] = 0;
+        coast = coast.map(function (k) { return k * f; });
+        if (Math.hypot(coast[0], coast[1]) < .01 * c.dist && Math.hypot(coast[2], coast[3]) < .01) coast = null;
       } else if (W.idle > 8 && env.drift) c.yaw += dt * env.drift;
-      var eye = [c.target[0] + Math.sin(c.yaw) * Math.cos(c.pitch) * c.dist, c.target[1] + Math.sin(c.pitch) * c.dist, c.target[2] + Math.cos(c.yaw) * Math.cos(c.pitch) * c.dist];
-      W.eye = eye;
-      var PR = persp(c.fov, W.W / W.H, NEAR, FAR), sf = W.shift ? W.shift() : [0, 0]; W.sh = sf;
-      PR[8] -= sf[0]; PR[9] -= sf[1];
-      var vp = mul(PR, lookAt(eye, c.target, [0, 1, 0])), same = !!kept && vp.every(function (v, i) { return v === kept[i]; }), rest = same && !W.goal && !drag;
+      var cam = camera(), eye = cam.eye, vp = cam.vp;
+      W.eye = eye; W.sh = cam.sf;
+      var same = !!kept && vp.every(function (v, i) { return v === kept[i]; }), rest = same && !W.goal && !drag;
       W.vp = vp; still = rest ? still + dt : 0;
       W.dyn.clear(); spots.clear(); moving.length = 0; W.glow.length = 0; W.puffs.length = 0;
       var busy = W.onFrame ? W.onFrame(W.t, dt) : false;
@@ -790,7 +903,7 @@
           L.el.hidden = false; L.el.style.transform = 'translate(' + L.sx.toFixed(1) + 'px,' + L.sy.toFixed(1) + 'px)'; if (z !== L.z) { L.z = z; L.el.style.zIndex = String(z); }
         });
       }
-      if (busy || W.goal || drag || dirty || keptQ < 2 || (env.drift && W.idle > 8)) kick();
+      if (busy || W.goal || drag || coast || dirty || keptQ < 2 || (env.drift && W.idle > 8)) kick();
     }
     kick();
     /* A label over a point of the scene, shown while `show(distance, W)` says so. One given a

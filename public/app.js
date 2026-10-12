@@ -145,7 +145,7 @@
       $('gate').hidden = true; $('ui').hidden = false; paintPanel();
       if (!state.started) {
         state.started = true;
-        scene.init($('scene'), { tip: $('tip'), insets: insets, onEnter: go, onLeave: leave, onCue: sound.cue });
+        scene.init($('scene'), { tip: $('tip'), insets: insets, onEnter: go, onLeave: leave, onCue: sound.cue, onFree: function (on) { $('recenter').hidden = !on; } });
         /* The scene measures the panels' room when it is told it changed, not in every frame. */
         if (window.ResizeObserver) {
           var ro = new ResizeObserver(function () {
@@ -304,7 +304,7 @@
     $('title').textContent = inSite ? siteName(state.site) : 'Your sites';
     var past = state.viewDay;
     $('sub').textContent = past ? strip.name(past) + ' · ' + past + ' UTC · a past day, as it ended'
-      : 'Today · ' + (state.day || utcDay()) + ' UTC · ' + (inSite ? (touch ? 'tap' : 'hover') + ' the houses, gates and stalls · drag to turn' : 'pick a quarter');
+      : 'Today · ' + (state.day || utcDay()) + ' UTC · ' + (inSite ? (touch ? 'tap' : 'hover') + ' the houses, gates and stalls · drag to look round' : 'pick a quarter');
     $('ui').classList.toggle('past', !!past);
     $('s-when').textContent = past ? ' that day' : ' today';
     $('stats').setAttribute('aria-label', past ? strip.name(past) : 'Today');
@@ -391,6 +391,7 @@
     });
   }
   else $('sound-box').hidden = true;
+  $('recenter').addEventListener('click', function () { scene.home(); });
   $('open-ledger').addEventListener('click', function () { openLedger(); });
   $('close-ledger').addEventListener('click', closeLedger);
   document.addEventListener('keydown', function (e) {

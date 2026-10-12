@@ -88,8 +88,10 @@ from another of your sites, from that quarter's square along the avenues: someon
 who follows its link to Pharloom is seen crossing the city), across the square and into the house, leaving steps in the snow that fade in a minute; every view opened, one in a green scarf who leaves that page's
 house for the stall; every other event, one in a scarf of the workshop's colour who walks from
 that page's house to its workshop, works there a moment (sparks at the forge, steam at the well)
-and leaves a crate. Drag to turn, wheel or
-pinch to come closer; hover, or tap, a house, a gate, a stall or a workshop for its numbers. At UTC midnight
+and leaves a crate. Drag the snow to move over it, as on a map; right-drag (or Ctrl-drag) to
+turn and tilt; the wheel comes closer to what is under the pointer; let go moving and the camera
+coasts a moment. Recenter in the dock, or a double click on the snow, flies back to the whole
+view. Hover, or tap, a house, a gate, a stall or a workshop for its numbers. At UTC midnight
 (the day's cut) the windows go dark from the top down and the day starts again.
 
 **Sound**, off until its button in the dock asks for it, says the same for the ear, for a
@@ -140,7 +142,7 @@ which makes the ledger the scene's text alternative too. The view lives in the U
 
 ![The ledger open beside the village: a week's totals, pageviews as bars and visitors as a red line by day, pageviews by weekday and by screen width.](docs/screenshots/ledger.png)
 
-**On a phone.** Drag to turn the valley, pinch to come closer, tap for the numbers. The panels and the ledger follow the system's light or dark scheme, and the Dark/Light
+**On a phone.** One finger moves over the valley; two pinch to come closer, twist to turn it and, moved up or down together, tilt it; tap for the numbers. The panels and the ledger follow the system's light or dark scheme, and the Dark/Light
 button overrides it.
 
 <p align="center">
