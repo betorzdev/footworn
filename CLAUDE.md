@@ -32,5 +32,5 @@ and why that is exempt from consent; these are the rules for working on it.
   as two sites and a bot would, runs the cron, and checks the API's numbers end to end.
 - To look at it: `npm run dev` (prepares the local D1, the demo site and `.dev.vars` itself,
   and prints the dashboard link with the token); `http://localhost:8787/demo` fires hits.
-- Deploys, commits and pushes are the user's (a hook blocks them); propose the command instead.
+- Commits, pushes and deploys may be run when the user asks; every commit, tag, PR and release carries the user's name only: no `Co-Authored-By`, no Claude attribution (a hook blocks them).
 - `docs/backlog.md` lists what is agreed but not done yet; add to it rather than doing it unasked.
