@@ -1554,7 +1554,7 @@
     var pb = narrow() ? .4 : TILT.bay;
     return { target: [(x0 + x1) / 2, 2, cz], yaw: .08, pitch: pb, dist: clamp(fit((x1 - x0) / 2 + 1, (big + 4) * Math.sin(pb) + 9) * .95 * (1 - lens(pb) * .5) * 1.12, 40, 300) };
   }
-  function frameView(instant) { if (W) { free(false); W.flyTo(goal(), instant || reduced ? 0 : 1600); } }
+  function frameView(instant) { if (W) { free(false); W.flyTo(goal(), instant || reduced ? 0 : 2000); } }
   /* Dragged away from the frame, or back in it: the dock's Recenter shows while it is away. */
   function free(on) { if (view.free !== on) { view.free = on; if (opts.onFree) opts.onFree(on); } }
 
