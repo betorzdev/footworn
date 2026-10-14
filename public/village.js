@@ -433,7 +433,7 @@
     s.crossOut = {}; (data.today.crossings || []).forEach(function (c) { s.crossOut[c.to] = c.hits; });
     s.hours = data.hours || [];
     s.week = data.week ? (data.week.hits || 0) + (data.week.views || 0) : 0;
-    s.walkers.forEach(function (w) { if (w.shop) cue('work', s, { shop: w.shop.k }); else if (!w.cross) cue(w.stall ? 'stall' : 'door', s, w.cue); });   // whoever was on the way is not drawn again: their bell rings now (a crate is in the counts just loaded)
+    s.walkers.forEach(function (w) { if (w.shop) cue('work', s, { shop: w.shop.k }); else if (w.cross) crossed(s, w.cross); else cue(w.stall ? 'stall' : 'door', s, w.cue); });   // whoever was on the way is not drawn again: their bell rings now (a crate is in the counts just loaded)
     s.walkers = []; s.steps = [];
     s.loaded = true; resize();
     rebuild(s, true);   // new towers and lanes: its houses and gates are made again
@@ -532,8 +532,8 @@
   function skiSpeed(path) { return clamp(pathLen(path) / SKI_S, 4, 18); }
   function toSister(s, h, u) {
     s.crossOut[u.id] = (s.crossOut[u.id] || 0) + 1;
-    var own = archOwner(s, u); rebuild(s); if (own !== s) rebuild(own);   // the lanterns are on the arch, which one of the two builds
-    var r = route(s, u);
+    var r = route(s, u), own = r && r.length > 1 ? archOwner(s, r[1]) : s;
+    rebuild(s); if (own !== s) rebuild(own);   // the lanterns are on the arch, which one of the two builds
     if (!r || !h || !W || reduced) { crossed(s, u); return; }
     var a = angTo(s, r[1]), side = (Math.random() - .5) * 1.2, b = at(s.o, a, s.R.wall + .4), path = [h.door.slice()];
     walkRound(path, s, h.a, a, h.ring.street);
@@ -543,8 +543,13 @@
   /* The arch between two quarters is built by the first of them in the list; a "+1" rises on it
      when a crossing gets there. */
   function archOwner(s, u) { return s.idx < u.idx ? s : u; }
-  function archOf(s, u) { var own = archOwner(s, u), o = own === s ? u : s; for (var i = 0; i < own.arches.length; i++) if (own.arches[i].u === o) return own.arches[i]; return null; }
-  function crossed(s, u) { var m = archOf(s, u); if (m) { m.flash = 1; pop(m.label); } }
+  function archOf(s, n) { var own = archOwner(s, n), o = own === s ? n : s; for (var i = 0; i < own.arches.length; i++) if (own.arches[i].u === o) return own.arches[i]; return null; }
+  /* The quarter next to `s` on the way to `u`: a crossing to a site further off passes the arch
+     between `s` and that one, and is counted there. */
+  function nextOn(s, u) { var r = route(s, u); return r && r.length > 1 ? r[1] : null; }
+  /* Today's crossings out of `s` that pass its arch with `n`, wherever they go. */
+  function outVia(s, n) { var c = 0; for (var k in s.crossOut) { var u = byId[k]; if (u && u !== s && nextOn(s, u) === n) c += s.crossOut[k]; } return c; }
+  function crossed(s, u) { var n = nextOn(s, u), m = n && archOf(s, n); if (m) { m.flash = 1; m.col = s.tint; pop(m.label); } }   // the flash in the colour of the site it left
   /* Onto a walker's path: round the square at radius `r`, the short way from angle `a0` to `a1`. */
   function walkRound(path, s, a0, a1, r) {
     var da = Math.atan2(Math.sin(a1 - a0), Math.cos(a1 - a0)), steps = Math.max(1, Math.ceil(Math.abs(da) / .25));
@@ -805,7 +810,7 @@
       s.views.forEach(function (v) { vm = Math.max(vm, v.n); });
       s.shops.forEach(function (e) { em = Math.max(em, e.n); });
     });
-    var cm = 1; sites.forEach(function (s) { for (var k in s.crossOut) cm = Math.max(cm, s.crossOut[k]); });
+    var cm = 1; sites.forEach(function (s) { (s.next || []).forEach(function (n) { cm = Math.max(cm, outVia(s, n.u)); }); });
     scale.cross = Math.max(1, Math.ceil(cm / 6));   // the arches' lanterns: six a face
     scale.unit = Math.max(1, Math.ceil(gm / 6)); scale.hour = hm; scale.view = Math.max(1, Math.ceil(vm / GARLAND)); scale.event = Math.max(1, Math.ceil(em / CRATES));
   }
@@ -860,6 +865,7 @@
     list.map(function (x, i) { return [count(x), i]; }).sort(function (a, b) { return b[0] - a[0] || a[1] - b[1]; }).forEach(function (p, r) { list[p[1]].rank = r; });
   }
 
+  function litOf(n) { return n ? Math.min(6, Math.ceil(n / scale.cross)) : 0; }   // an arch face's lanterns lit
   function warmOf(t) { return Math.round(floors(t) * (t.loads ? clamp(t.engaged / t.loads, 0, 1) : 0)); }
   function lampPost(M, s, x, z, ht, on, now) {
     M.cyl(x, 0, z, .16, .25, 8, T.stoneDark);
@@ -1344,8 +1350,8 @@
       g.label.what = { kind: 'lane', lane: g.l, s: s }; vie(g.label, 'gate', function () { return g.l.count; });
       g.label.el.style.setProperty('--lane', css(g.col));   // CSSOM: the CSP refuses style attributes
     });
-    s.arches = [];
-    (s.next || []).forEach(function (n) { if (archOwner(s, n.u) === s) arch(M, s, n.u, n.a); });
+    var was = s.arches; s.arches = [];   // a glow under way goes on across a rebuild
+    (s.next || []).forEach(function (n) { if (archOwner(s, n.u) === s) arch(M, s, n.u, n.a, was.filter(function (m) { return m.u === n.u; })[0]); });
     pines.forEach(function (c) { s.occ.push([c[0], c[1], c[2], c[2], 0, .35]); });
     Object.keys(old).forEach(function (k) { W.unlabel(old[k]); });
     W.upload(s.layer);
@@ -1353,7 +1359,7 @@
        pillar in each one's stone, and under the lintel six lanterns on each face, lit for today's
        crossings out of the quarter it faces (in that site's colour, on one scale for the city),
        the rest dark. Its label: both counts, this way first. */
-    function arch(M, s, u, a) {
+    function arch(M, s, u, a, prev) {
       var pa = at(s.o, a, s.R.wall), pb = at(u.o, a + Math.PI, u.R.wall), p = [(pa[0] + pb[0]) / 2, 0, (pa[2] + pb[2]) / 2];
       var tan = [-Math.sin(a), 0, Math.cos(a)], rad = [Math.cos(a), 0, Math.sin(a)], H = 3.6, half = 2.2, N = 6;
       [[-1, s], [1, u]].forEach(function (e) {
@@ -1364,7 +1370,7 @@
       M.box(p[0], H - .55, p[2], .8, .6, half * 2 + 1, G.mix(T.stone, T.stoneDark, .45), 0, -a);
       M.box(p[0], H + .05, p[2], .9, .16, half * 2 + 1.2, T.snow, G.SNOW, -a);
       [[-1, s, u], [1, u, s]].forEach(function (f) {   // the face towards s, then the face towards u
-        var n = f[1].crossOut[f[2].id] || 0, lit = n ? Math.min(N, Math.ceil(n / scale.cross)) : 0;
+        var lit = litOf(outVia(f[1], f[2]));
         for (var i = 0; i < N; i++) {
           var off = (i - (N - 1) / 2) * .62, q = [p[0] + tan[0] * off + rad[0] * f[0] * .48, 0, p[2] + tan[2] * off + rad[2] * f[0] * .48], on = i < lit;
           M.cyl(q[0], H - .72, q[2], .01, .17, 3, T.iron);
@@ -1372,10 +1378,10 @@
           if (on) { W.addGlow(s.glow, [q[0], H - .88, q[2]], f[1].tint, .7, 2); s.pools.push([q[0], q[2], 2.2, f[1].tint, .35]); }
         }
       });
-      var mk = { u: u, flash: 0, col: s.tint, glowAt: [p[0], H - .9, p[2]] };
+      var mk = { u: u, flash: prev ? prev.flash : 0, col: prev ? prev.col : s.tint, glowAt: [p[0], H - .9, p[2]] };
       mk.label = labelAt('x' + u.id, [p[0], H + 1.4, p[2]], 'v-gate', function () { return !narrow() && (view.mode === 'bay' || view.site === s || view.site === u); });
       mk.label.what = { kind: 'cross', s: s, u: u };
-      vie(mk.label, 'gate', function () { return (s.crossOut[u.id] || 0) + (u.crossOut[s.id] || 0); });
+      vie(mk.label, 'gate', function () { return outVia(s, u) + outVia(u, s); });
       mk.label.el.style.setProperty('--lane', css(s.tint));   // CSSOM: the CSP refuses style attributes
       s.arches.push(mk);
     }
@@ -1454,7 +1460,7 @@
     s.hours.forEach(function (h) { a.push(Math.round(92 * h.today / scale.hour), Math.round(92 * h.yesterday / scale.hour)); });
     s.views.forEach(function (v) { a.push(v.label, lit(v)); });
     s.shops.forEach(function (e) { a.push(e.name, crates(e)); });
-    (s.next || []).forEach(function (n) { a.push('x' + n.u.id, s.crossOut[n.u.id] || 0, n.u.crossOut[s.id] || 0, scale.cross); });   // the arch's lanterns, both faces
+    (s.next || []).forEach(function (n) { if (archOwner(s, n.u) === s) a.push('x' + n.u.id, litOf(outVia(s, n.u)), litOf(outVia(n.u, s))); });   // the lanterns lit on the arches it builds
     return a.join('|');
   }
   /* Draws again the villages that are due and no longer match their counts (all that changed,
@@ -1549,7 +1555,7 @@
         if (w.label) write(w.label, '<div><span class="p">' + esc(w.e.label) + '</span> <b class="num">' + fmt(w.e.n) + '</b></div>');
       });
       s.arches.forEach(function (m) {
-        if (m.label) write(m.label, '<div><span class="p">' + esc(s.name) + ' ⇄ ' + esc(m.u.name) + '</span> <b class="num">' + fmt(s.crossOut[m.u.id] || 0) + '</b> · <b class="num">' + fmt(m.u.crossOut[s.id] || 0) + '</b></div>');
+        if (m.label) write(m.label, '<div><span class="p">' + esc(s.name) + ' ⇄ ' + esc(m.u.name) + '</span> <b class="num">' + fmt(outVia(s, m.u)) + '</b> · <b class="num">' + fmt(outVia(m.u, s)) + '</b></div>');
       });
     });
   }
@@ -1563,9 +1569,9 @@
     if (h.kind === 'lane') { var l = h.lane; html = '<strong>' + esc(l.label) + '</strong>' + plural(l.count, 'arrival', 'arrivals') + ' ' + when() +
       (l.key === 'direct' ? '<small>No referrer, or a link from the site itself</small>' : (gateOf(h.s, l) || {}).from ? '<small>From ' + esc(l.from.name) + ', along the avenue</small>' : ''); }
     if (h.kind === 'cross') {
-      var co = h.s.crossOut[h.u.id] || 0, cb = h.u.crossOut[h.s.id] || 0;
-      html = '<strong>' + esc(h.s.name) + ' ⇄ ' + esc(h.u.name) + '</strong>' + plural(co, 'crossing', 'crossings') + ' to ' + esc(h.u.name) + ' · ' + fmt(cb) + ' to ' + esc(h.s.name) + ' ' + when() +
-        '<small>Clicks on a link to the other site · its arrivals are the lanterns at its end of the avenue</small>';
+      var co = outVia(h.s, h.u), cb = outVia(h.u, h.s);
+      html = '<strong>' + esc(h.s.name) + ' ⇄ ' + esc(h.u.name) + '</strong>' + plural(co, 'crossing', 'crossings') + ' from ' + esc(h.s.name) + ' · ' + fmt(cb) + ' from ' + esc(h.u.name) + ' ' + when() +
+        '<small>Clicks on a link to another site, through this arch · the arrivals are the lanterns at each end of the avenue</small>';
     }
     if (h.kind === 'view') {
       var v = h.view, from = Object.keys(v.by).sort(function (a, b) { return v.by[b] - v.by[a]; }).slice(0, 3);
