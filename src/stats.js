@@ -127,13 +127,15 @@ export async function eventStats(db, { site, name, from, to }) {
      first) and every referrer (its gates, plus direct), each list cut at 200;
    - `views`: every view opened inside a page in the last 7 days (a `screen` event with a
      `view`), the stalls of its market, in a fixed order, cut at 200;
-   - `events`: every other event of the 7 days (one of the site's own that is no view), its
-     workshops, by name, cut at 200;
+   - `events`: every other event of the 7 days (one of the site's own that is no view and no
+     crossing), its workshops, by name, cut at 200;
    - `today`: totals (`viewsTotal` is every view opened: they are events too, and inside `events`), and per page its pageviews, `loads` and used loads (`engaged`, the used
      rate is engaged / loads, as in `stats`) and events, pageviews per referrer, `views`: how
      many times each view was opened, and `viewPages`: from which pages (the top 200 pairs, for
      the stall's tooltip; the counts are the ones in `views`), and the same for the other
-     events: `byEvent` and `eventPages`;
+     events: `byEvent` and `eventPages`; `crossings`: today's events whose `to` is the id of
+     another of the sites (a click on a link to it), per site they go to, for the arch between
+     the two quarters (inside `events` too);
    - `yesterday`: visitors yesterday up to this time of day, for the change on the sign, and
      the pageviews of each page up to then (`pages`, cut at 200), for the mark on its house;
    - `hours`: pageviews by UTC hour, today and yesterday, for the day's rhythm;
@@ -148,7 +150,10 @@ export async function scene(db, { site, day, now = Date.now() }) {
   const until = past ? Date.parse(today) / 1000 - 1 : secs - 86400;   // yesterday's last second, or this time yesterday
   const week = 'site = ?1 AND day BETWEEN ?2 AND ?3 AND event IS NULL';
   const VIEW = "event = 'screen' AND json_type(props, '$.view') = 'text'";  // a `view` that is not text is no view
-  const OTHER = `${USER} AND NOT COALESCE(${VIEW}, 0)`;   // a `screen` with no props is an event, not a view
+  /* A crossing: an event (no view) whose `to` is the id of another of the sites, whatever it is called. */
+  const TO = "json_type(props, '$.to') = 'text' AND json_extract(props, '$.to') IN (SELECT id FROM sites WHERE id <> ?1)";
+  const CROSS = `${USER} AND NOT COALESCE(${VIEW}, 0) AND ${TO}`;
+  const OTHER = `${USER} AND NOT COALESCE(${VIEW}, 0) AND NOT COALESCE(${TO}, 0)`;   // a `screen` with no props is an event, not a view
   const m = sql => db.prepare(sql).bind(site, from, today);
   const d = sql => db.prepare(sql).bind(site, today);
   const rows = await db.batch([
@@ -176,6 +181,8 @@ export async function scene(db, { site, day, now = Date.now() }) {
     d(`SELECT event, COUNT(*) AS hits FROM hits WHERE site = ?1 AND day = ?2 AND ${OTHER} GROUP BY event ORDER BY hits DESC, event LIMIT ${SCENE}`),
     d(`SELECT path, event, COUNT(*) AS hits FROM hits WHERE site = ?1 AND day = ?2 AND ${OTHER}
        GROUP BY path, event ORDER BY hits DESC, path, event LIMIT ${SCENE}`),
+    d(`SELECT json_extract(props, '$.to') AS "to", COUNT(*) AS hits FROM hits WHERE site = ?1 AND day = ?2 AND ${CROSS}
+       GROUP BY "to" ORDER BY hits DESC, "to" LIMIT ${SCENE}`),
   ]);
   const res = rows.map(r => r.results || []);
   const t = res[2][0] || {}, wk = res[11][0] || {};
@@ -185,7 +192,7 @@ export async function scene(db, { site, day, now = Date.now() }) {
     site, day: today, now: secs, past,
     pages: res[0], refs: res[1], views: res[7], events: res[12],
     today: { hits: t.hits || 0, visitors: t.visitors || 0, events: t.events || 0, viewsTotal: t.views || 0, loads: t.loads || 0, engaged: t.engaged || 0, pages: res[3], refs: res[4], views: res[8], viewPages: res[9],
-      byEvent: res[13], eventPages: res[14] },
+      byEvent: res[13], eventPages: res[14], crossings: res[15] },
     yesterday: { visitors: (res[5][0] && res[5][0].visitors) || 0, pages: res[10] },
     hours,
     week: { hits: wk.hits || 0, views: wk.views || 0 },

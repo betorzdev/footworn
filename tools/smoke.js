@@ -85,6 +85,10 @@ try {
   await post({ s: 'one', p: '/', props: 'x'.repeat(9000) });
   // Site two: one pageview, must not leak into one.
   await post({ s: 'two', p: '/' }, { origin: 'https://two.example' });
+  // Two links to one: a crossing (`to` is another site's id). To no site, or to itself, it is a plain event.
+  await post({ s: 'two', p: '/', e: 'sister', props: { to: 'one' } }, { origin: 'https://two.example' });
+  await post({ s: 'two', p: '/', e: 'sister', props: { to: 'nope' } }, { origin: 'https://two.example' });
+  await post({ s: 'two', p: '/', e: 'sister', props: { to: 'two' } }, { origin: 'https://two.example' });
 
   const sites = await api('/api/sites');
   assert.deepEqual(sites.map(s => s.id), ['one', 'two']);
@@ -112,6 +116,11 @@ try {
 
   const two = await api(`/api/stats?site=two`);
   assert.equal(two.totals.hits, 1, 'site two is separate');
+  const sc2 = await api('/api/scene?site=two');
+  assert.deepEqual(sc2.today.crossings, [{ to: 'one', hits: 1 }], 'scene crossings: an event whose `to` is another site');
+  assert.deepEqual([sc2.events, sc2.today.byEvent], [[{ value: 'sister', hits: 2 }], [{ event: 'sister', hits: 2 }]], 'scene workshops: no crossing in them');
+  assert.equal(sc2.today.events, 3, 'a crossing is still an event');
+  assert.deepEqual((await api('/api/scene?site=one')).today.crossings, [], 'scene crossings of a site with none');
 
   // The snowfield's read: counts only, no list of hits.
   const sc = await api('/api/scene?site=one');

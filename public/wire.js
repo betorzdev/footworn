@@ -28,6 +28,7 @@
           TRACK.replace(/^/gm, '     ') + '\n' +
           "   - A view inside a page (tabs, screens, an app route without a page load):\n     track('screen', { view: '<short name>' })\n" +
           "   - Other actions worth counting (a save, an import, a share): track('<name>', { ... }).\n" +
+          "   - A link to another site counted by this Footworn: track('<name>', { to: '<its site id>' }),\n     drawn as a villager crossing to that site's quarter.\n" +
           '   - Client-side navigation that should count as a new page: window.footworn && footworn.count(\'/the/path/\')\n' +
           '   Limits: names up to ' + LIMITS.event + ' characters, never starting with "$"; at most ' + LIMITS.props + ' properties,\n' +
           '   keys up to ' + LIMITS.key + ' and values up to ' + LIMITS.value + ' characters. Never anything about the person: no\n' +

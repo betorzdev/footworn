@@ -70,7 +70,15 @@ URL is a bookmark to a site, the open ledger, its range and an open event.
   ring of lamps (midnight at the top), under a pennant in the village's colour; every live pageview a villager (a scarf and a hat in its gate's colour) walking from its
   gate to its house and leaving steps that fade in a minute, every
   view opened one walking from that house to the stall, every other event one walking from
-  that house to its workshop, working there 2.5 s (sparks, steam or dust) and leaving a crate; a sign per village (visitors, change against
+  that house to its workshop, working there 2.5 s (sparks, steam or dust) and leaving a crate; a crossing to another
+  of the sites (since 2026-10-14; the owner asked that a click on the link from one calculator to the other show
+  the villager crossing, and picked of four decisions drawn running in `design/crossing`: each half on its own
+  side, skis, the scarf of the site it leaves, an arch): an event whose `to` is another site's id, whatever its
+  name, is no workshop; its villager skis from the page's door along the avenue to the border in its site's
+  colour, about three seconds, and the arrival on the other site (its referrer, as before) skis in from the
+  border to its house in the same colour, so most crossings read as one trip though nothing pairs them; over the
+  avenue where two quarters meet, an arch with six lanterns a face lit for each side's crossings today and
+  a label with both counts; a sign per village (visitors, change against
   yesterday, views, other events, used). Clicking a village flies the camera in; drag turns, wheel or pinch
   zooms. Each village is built in its site's kit (since 2026-10-06; the owner wanted the villages
   to differ and to carry each site's look, set by them, never guessed): alpine (timber, a
