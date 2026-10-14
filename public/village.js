@@ -16,6 +16,9 @@
      footprints of who came through it; a referrer that is another of the sites (one of its
      origins' hosts) is no gate: it is the avenue from that quarter, with lanterns in its colour
      where it comes in;
+   - where two quarters meet, an arch over their avenue: under its lintel six lanterns on each
+     face, lit for today's crossings out of that quarter (an event whose `to` names the other
+     site: a click on a link to it), in that site's colour;
    - every hour of the day (UTC) is a street lamp round the square, clockwise from midnight at the
      top: its height is that hour's pageviews, the brass ring yesterday's, the bright one now;
    - every view opened inside a page (a `screen` event with a `view`) is a stall in the market
@@ -36,8 +39,11 @@
    houses, low, pale and shuttered: no count.
    - every live visit is a villager with a lantern and a scarf in its gate's colour, in through
      the gate, across the square, home, leaving steps in the snow that fade in a minute; one from
-     another of the sites walks from that quarter's square along the avenues (round the squares
-     of the quarters on the way), since the referrer names a site, not the page or the person;
+     another of the sites comes in on skis from the border, under the arch, in that site's colour;
+     a crossing to another site is one in this site's colour who skis from the page's door along
+     the avenue to the border, about three seconds, about as long as the other site takes to
+     count the arrival. Each quarter draws only its own site's hits: nothing pairs a crossing
+     with an arrival, though most of the time one picks up where the other left;
      every view opened live one who leaves that page's house for the stall, in a scarf of the
      lanterns' colour; every other event one who leaves that page's house for its workshop,
      works there a moment and leaves a crate. Each of those moments is also
@@ -304,7 +310,7 @@
     var o = { id: s.id, name: s.name, idx: i, draft: !!s.draft, look: lookOf(s), towers: [], towerBy: {}, lanes: [], laneBy: {},
       views: [], viewBy: {}, stalls: [], shops: [], shopBy: {}, workshops: [], R: null, kit: kitOf(s.style, s.pieces), steps: [], decals: [],
       visitors: 0, pageviews: 0, viewsToday: 0, events: 0, loads: 0, engaged: 0, yesterday: 0, week: 0, hours: [], loaded: false,
-      o: [0, 0, 0], hosts: s.hosts || [], houses: [], gates: [], walkers: [], sign: null,
+      o: [0, 0, 0], hosts: s.hosts || [], houses: [], gates: [], walkers: [], sign: null, crossOut: {}, arches: [],
       layer: null, sig: null, pending: false, builtAt: 0, labels: {}, pools: [], occ: [], glow: [] };
     o.tint = tintOf(o); o.palette = paletteOf(o);
     o.R = radii(o); return o;
@@ -395,7 +401,7 @@
     place();
     if (!landSoon) landSoon = setTimeout(function () { landSoon = null; if (W) { buildLand(); share(); W.wake(); } }, 0);
     sites.forEach(function (x) {   // the ground moved under whoever was on the way: their bell rings now, as on a load
-      x.sig = null; x.walkers.forEach(function (w) { if (w.shop) worked(x, w.shop); else cue(w.stall ? 'stall' : 'door', x, w.cue); }); x.walkers = []; x.steps = [];   // a workshop's still leaves its crate
+      x.sig = null; x.walkers.forEach(function (w) { if (w.shop) worked(x, w.shop); else if (w.cross) crossed(x, w.cross); else cue(w.stall ? 'stall' : 'door', x, w.cue); }); x.walkers = []; x.steps = [];   // a workshop's still leaves its crate
     });
     if (!view.free) frameView();
   }
@@ -424,9 +430,10 @@
     byName(s.shops);   // the API cuts the busiest 200 and lists them by name; one only today goes in its place
     s.visitors = data.today.visitors; s.pageviews = data.today.hits; s.viewsToday = data.today.viewsTotal || 0; s.events = data.today.events; s.loads = data.today.loads || 0; s.engaged = data.today.engaged || 0;
     s.yesterday = data.yesterday.visitors;
+    s.crossOut = {}; (data.today.crossings || []).forEach(function (c) { s.crossOut[c.to] = c.hits; });
     s.hours = data.hours || [];
     s.week = data.week ? (data.week.hits || 0) + (data.week.views || 0) : 0;
-    s.walkers.forEach(function (w) { if (w.shop) cue('work', s, { shop: w.shop.k }); else cue(w.stall ? 'stall' : 'door', s, w.cue); });   // whoever was on the way is not drawn again: their bell rings now (a crate is in the counts just loaded)
+    s.walkers.forEach(function (w) { if (w.shop) cue('work', s, { shop: w.shop.k }); else if (!w.cross) cue(w.stall ? 'stall' : 'door', s, w.cue); });   // whoever was on the way is not drawn again: their bell rings now (a crate is in the counts just loaded)
     s.walkers = []; s.steps = [];
     s.loaded = true; resize();
     rebuild(s, true);   // new towers and lanes: its houses and gates are made again
@@ -439,6 +446,13 @@
   /* Another of the sites, when a referrer is one of its hosts (`hosts`, from /api/sites, read as
      the referrer filter reads them): its visits come from that quarter, along the avenues. */
   function sisterOf(s, ref) { if (ref == null) return null; for (var i = 0; i < sites.length; i++) if (sites[i] !== s && sites[i].hosts.indexOf(ref) >= 0) return sites[i]; return null; }
+  /* An event whose `to` names another of the sites (its id) is a crossing to it, whatever the
+     event is called (the calculators: `sister`, a click on the link to the other one): no
+     workshop, a villager out along the avenue. A view stays a view. */
+  function crossTo(s, msg) {
+    if (!msg.event || !msg.props || typeof msg.props.to !== 'string') return null;
+    var u = byId[msg.props.to]; return u && u !== s && !u.draft ? u : null;
+  }
   function addView(s, name, total) { var v = { name: name, label: name, total: total, n: 0, by: {} }; s.views.push(v); s.viewBy['v:' + name] = v; return v; }
   function addShop(s, name, total) {
     var h = 0; for (var i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) | 0;
@@ -461,13 +475,14 @@
   function isView(msg) { return msg.event === 'screen' && !!msg.props && typeof msg.props.view === 'string'; }
   /* `n` opens of a view came from a page: kept for its tooltip. */
   function cameFrom(v, t, n) { v.by[t.label] = (v.by[t.label] || 0) + n; }
-  /* Today's events that are not views: a view is stored as an event, and is counted as a view. */
-  function otherEvents(s) { return Math.max(0, s.events - s.viewsToday); }
+  /* Today's events that are not views or crossings: those are stored as events, and counted as what they are. */
+  function crossings(s) { var n = 0; for (var k in s.crossOut) n += s.crossOut[k]; return n; }
+  function otherEvents(s) { return Math.max(0, s.events - s.viewsToday - crossings(s)); }
 
   /* One hit from the live socket. */
   function live(msg) {
     var s = byId[msg.site]; if (!s || !s.loaded || s.draft || state.blackout || state.past) return;   // a past day is over: nobody walks in
-    var t = towerFor(s, msg.path), v = isView(msg) ? viewFor(s, msg.props.view) : null, e = msg.event && !v ? shopFor(s, msg.event) : null;
+    var t = towerFor(s, msg.path), v = isView(msg) ? viewFor(s, msg.props.view) : null, u = !v && crossTo(s, msg), e = msg.event && !v && !u ? shopFor(s, msg.event) : null;
     if (v) { v.n++; s.viewsToday++; v.total++; cameFrom(v, t, 1); }   // before the village is drawn: a stall that is new opens lit
     if (e) { e.total++; cameFrom(e, t, 1); }   // its crate waits for the villager
     if (v || !msg.event) { var step = stepOf(s.week); if (stepOf(++s.week) !== step) resize(); }   // a step crossed: it grows before anyone walks in (passing another village waits for the next load)
@@ -477,6 +492,7 @@
     if (msg.event) {
       t.events++; s.events++;
       if (v) { rebuild(s); toStall(s, h, stallOf(s, v)); }
+      else if (u) toSister(s, h, u);
       else if (e) toShop(s, h, e);
       return;
     }
@@ -492,11 +508,12 @@
     pop(g.label);
     if (reduced) { reached(h); cue('door', s, { house: c.house, first: c.first, delay: .8 }); return; }   // nobody walks: the bell follows the steps
     var side = (Math.random() - .5) * g.w * .5, tan = [-Math.sin(g.a) * side, 0, Math.cos(g.a) * side];
-    var path = (g.from && across(g.from, s)) || [[g.end[0] + tan[0], 0, g.end[2] + tan[2]]];   // no way across yet (the city just changed): from the avenue's mouth
+    var path = [[g.end[0] + tan[0], 0, g.end[2] + tan[2]]];   // from the valley, or from the border under the arch
     path.push([g.pos[0] + tan[0], 0, g.pos[2] + tan[2]]);
     walkRound(path, s, g.a, h.a, h.ring.street);
     path.push(h.door);
-    s.walkers.push({ path: path, d: 0, speed: (g.from ? 3.2 : 2.3) + Math.random() * .7, col: g.col, h: h, seed: Math.random(), cue: c });
+    if (g.from) s.walkers.push({ path: path, d: 0, speed: skiSpeed(path), ski: true, col: g.from.tint, h: h, seed: Math.random(), cue: c });   // the other site's half of a crossing
+    else s.walkers.push({ path: path, d: 0, speed: 2.3 + Math.random() * .7, col: g.col, h: h, seed: Math.random(), cue: c });
   }
   /* What just happened, for the ear: the quarter's place in the city, from the left, goes with it. */
   function cue(name, s, c) {
@@ -505,15 +522,29 @@
     for (k in c) o[k] = c[k];
     opts.onCue(name, o);
   }
-  /* From another quarter's square along the avenues (round the squares of the quarters on the way)
-     to where the last one comes into `s`: the referrer is a host, not a page, so the walk starts
-     at the square, not at a door. */
-  function across(from, s) {
-    var r = route(from, s); if (!r) return null;
-    var path = [at(from.o, angTo(from, r[1]), from.R.walk)];
-    for (var i = 1; i < r.length - 1; i++) walkRound(path, r[i], angTo(r[i], r[i - 1]), angTo(r[i], r[i + 1]), r[i].R.walk);
-    return path;
+  /* A crossing to another site: out of the page's door, round its street to the avenue that
+     leads there and along it, on skis, to the border, where the other site's half (its arrival,
+     if it counts one) starts. In this site's colour; the lanterns of the arch light as it gets
+     there. Half of a crossing takes about `SKI_S`: about as long as the other site takes to count
+     the arrival, so the other half usually starts as this one ends. Nothing ties them. */
+  var SKI_S = 3;
+  function pathLen(path) { var L = 0; for (var i = 1; i < path.length; i++) L += Math.hypot(path[i][0] - path[i - 1][0], path[i][2] - path[i - 1][2]); return L; }
+  function skiSpeed(path) { return clamp(pathLen(path) / SKI_S, 4, 18); }
+  function toSister(s, h, u) {
+    s.crossOut[u.id] = (s.crossOut[u.id] || 0) + 1;
+    var own = archOwner(s, u); rebuild(s); if (own !== s) rebuild(own);   // the lanterns are on the arch, which one of the two builds
+    var r = route(s, u);
+    if (!r || !h || !W || reduced) { crossed(s, u); return; }
+    var a = angTo(s, r[1]), side = (Math.random() - .5) * 1.2, b = at(s.o, a, s.R.wall + .4), path = [h.door.slice()];
+    walkRound(path, s, h.a, a, h.ring.street);
+    path.push([b[0] - Math.sin(a) * side, 0, b[2] + Math.cos(a) * side]);
+    s.walkers.push({ path: path, d: 0, speed: skiSpeed(path), ski: true, col: s.tint, cross: u, seed: Math.random() });
   }
+  /* The arch between two quarters is built by the first of them in the list; a "+1" rises on it
+     when a crossing gets there. */
+  function archOwner(s, u) { return s.idx < u.idx ? s : u; }
+  function archOf(s, u) { var own = archOwner(s, u), o = own === s ? u : s; for (var i = 0; i < own.arches.length; i++) if (own.arches[i].u === o) return own.arches[i]; return null; }
+  function crossed(s, u) { var m = archOf(s, u); if (m) { m.flash = 1; pop(m.label); } }
   /* Onto a walker's path: round the square at radius `r`, the short way from angle `a0` to `a1`. */
   function walkRound(path, s, a0, a1, r) {
     var da = Math.atan2(Math.sin(a1 - a0), Math.cos(a1 - a0)), steps = Math.max(1, Math.ceil(Math.abs(da) / .25));
@@ -764,7 +795,7 @@
   }
 
   /* ---------- the villages ---------- */
-  var scale = { unit: 1, hour: 1, view: 1, event: 1 };
+  var scale = { unit: 1, hour: 1, view: 1, event: 1, cross: 1 };
   function floors(t) { return Math.max(1, Math.ceil(t.pv / scale.unit)); }
   function measure() {
     var gm = 1, hm = 1, vm = 1, em = 1;
@@ -774,6 +805,8 @@
       s.views.forEach(function (v) { vm = Math.max(vm, v.n); });
       s.shops.forEach(function (e) { em = Math.max(em, e.n); });
     });
+    var cm = 1; sites.forEach(function (s) { for (var k in s.crossOut) cm = Math.max(cm, s.crossOut[k]); });
+    scale.cross = Math.max(1, Math.ceil(cm / 6));   // the arches' lanterns: six a face
     scale.unit = Math.max(1, Math.ceil(gm / 6)); scale.hour = hm; scale.view = Math.max(1, Math.ceil(vm / GARLAND)); scale.event = Math.max(1, Math.ceil(em / CRATES));
   }
   /* Houses round the ring, gates in the gaps between them, so nobody walks through a wall; the
@@ -1201,14 +1234,18 @@
     });
   }
   /* A villager with legs, a coat, a scarf in the colour of the gate they came through, and a hat. */
-  function villager(M, p, dir, col, bob, seed, d) {
+  function villager(M, p, dir, col, bob, seed, d, ski) {
     var P = G.frame(p[0], p[2], dir), sw = Math.sin((d || 0) * 5) * .07, l = P(-.07, 0, sw), r = P(.07, 0, -sw);
+    if (ski) {   // crossing: on skis, their tips in the scarf's colour, the poles out behind
+      [-1, 1].forEach(function (sd) { var k = P(sd * .09, 0, .12), tip = P(sd * .09, 0, .68); M.box(k[0], 0, k[2], .06, .03, 1.15, T.timber, 0, dir); M.box(tip[0], .03, tip[2], .06, .05, .08, col, .3, dir); });
+      [-1, 1].forEach(function (sd) { var q = P(sd * .26, 0, -.18); M.cyl(q[0], 0, q[2], .012, .62, 3, T.iron); });
+    }
     M.box(l[0], 0, l[2], .08, .24, .09, T.coat, 0, dir); M.box(r[0], 0, r[2], .08, .24, .09, T.coat, 0, dir);
     M.cyl(p[0], .2 + bob, p[2], .19, .42, 7, G.mix(T.coat, col, .2), 0, .13, true);
     M.cyl(p[0], .6 + bob, p[2], .15, .09, 7, col, .35);
     M.cyl(p[0], .68 + bob, p[2], .11, .19, 7, T.skin, 0, .1, true);
     M.cyl(p[0], .85 + bob, p[2], .15, .03, 7, seed > .5 ? col : T.coat); M.cone(p[0], .87 + bob, p[2], .12, .17, 7, seed > .5 ? col : T.coat, 0, true);
-    var lh = P(.24, 0, .14);
+    var lh = ski ? P(.05, 0, .3) : P(.24, 0, .14);
     M.cyl(lh[0], .34 + bob, lh[2], .01, .14, 3, T.iron); M.box(lh[0], .24 + bob, lh[2], .1, .12, .1, T.lamp, 1);
     W.addGlow(W.glow, [lh[0], .3 + bob, lh[2]], T.lamp, .9, 1.5);
     W.spot([lh[0], Math.max(.07, hf(lh[0], lh[2]) + .06), lh[2]], .5, 2.6, G.scale(T.lamp, .9));
@@ -1307,9 +1344,41 @@
       g.label.what = { kind: 'lane', lane: g.l, s: s }; vie(g.label, 'gate', function () { return g.l.count; });
       g.label.el.style.setProperty('--lane', css(g.col));   // CSSOM: the CSP refuses style attributes
     });
+    s.arches = [];
+    (s.next || []).forEach(function (n) { if (archOwner(s, n.u) === s) arch(M, s, n.u, n.a); });
     pines.forEach(function (c) { s.occ.push([c[0], c[1], c[2], c[2], 0, .35]); });
     Object.keys(old).forEach(function (k) { W.unlabel(old[k]); });
     W.upload(s.layer);
+    /* The arch over the avenue where this quarter meets `u` (this one builds it: `archOwner`): a
+       pillar in each one's stone, and under the lintel six lanterns on each face, lit for today's
+       crossings out of the quarter it faces (in that site's colour, on one scale for the city),
+       the rest dark. Its label: both counts, this way first. */
+    function arch(M, s, u, a) {
+      var pa = at(s.o, a, s.R.wall), pb = at(u.o, a + Math.PI, u.R.wall), p = [(pa[0] + pb[0]) / 2, 0, (pa[2] + pb[2]) / 2];
+      var tan = [-Math.sin(a), 0, Math.cos(a)], rad = [Math.cos(a), 0, Math.sin(a)], H = 3.6, half = 2.2, N = 6;
+      [[-1, s], [1, u]].forEach(function (e) {
+        var q = [p[0] + tan[0] * e[0] * half, 0, p[2] + tan[2] * e[0] * half], k = e[1].palette || e[1].kit.T || {}, st = k.stone || T.stone, sd = k.stoneDark || T.stoneDark;
+        M.box(q[0], 0, q[2], .95, H, .95, G.mix(st, sd, .3), 0, -a);
+        M.box(q[0], 0, q[2], 1.15, .35, 1.15, sd, 0, -a);
+      });
+      M.box(p[0], H - .55, p[2], .8, .6, half * 2 + 1, G.mix(T.stone, T.stoneDark, .45), 0, -a);
+      M.box(p[0], H + .05, p[2], .9, .16, half * 2 + 1.2, T.snow, G.SNOW, -a);
+      [[-1, s, u], [1, u, s]].forEach(function (f) {   // the face towards s, then the face towards u
+        var n = f[1].crossOut[f[2].id] || 0, lit = n ? Math.min(N, Math.ceil(n / scale.cross)) : 0;
+        for (var i = 0; i < N; i++) {
+          var off = (i - (N - 1) / 2) * .62, q = [p[0] + tan[0] * off + rad[0] * f[0] * .48, 0, p[2] + tan[2] * off + rad[2] * f[0] * .48], on = i < lit;
+          M.cyl(q[0], H - .72, q[2], .01, .17, 3, T.iron);
+          M.box(q[0], H - 1, q[2], .17, .24, .17, on ? f[1].tint : T.iron, on ? 1 : 0, -a);
+          if (on) { W.addGlow(s.glow, [q[0], H - .88, q[2]], f[1].tint, .7, 2); s.pools.push([q[0], q[2], 2.2, f[1].tint, .35]); }
+        }
+      });
+      var mk = { u: u, flash: 0, col: s.tint, glowAt: [p[0], H - .9, p[2]] };
+      mk.label = labelAt('x' + u.id, [p[0], H + 1.4, p[2]], 'v-gate', function () { return !narrow() && (view.mode === 'bay' || view.site === s || view.site === u); });
+      mk.label.what = { kind: 'cross', s: s, u: u };
+      vie(mk.label, 'gate', function () { return (s.crossOut[u.id] || 0) + (u.crossOut[s.id] || 0); });
+      mk.label.el.style.setProperty('--lane', css(s.tint));   // CSSOM: the CSP refuses style attributes
+      s.arches.push(mk);
+    }
     /* A gate in the city's wall: two towers with lanterns in the lane's colour, a lintel, the road
        out into the valley and the way in, worn as wide as today's arrivals. */
     function gate(M, s, g, tan, busiest) {
@@ -1385,6 +1454,7 @@
     s.hours.forEach(function (h) { a.push(Math.round(92 * h.today / scale.hour), Math.round(92 * h.yesterday / scale.hour)); });
     s.views.forEach(function (v) { a.push(v.label, lit(v)); });
     s.shops.forEach(function (e) { a.push(e.name, crates(e)); });
+    (s.next || []).forEach(function (n) { a.push('x' + n.u.id, s.crossOut[n.u.id] || 0, n.u.crossOut[s.id] || 0, scale.cross); });   // the arch's lanterns, both faces
     return a.join('|');
   }
   /* Draws again the villages that are due and no longer match their counts (all that changed,
@@ -1478,6 +1548,9 @@
       s.workshops.forEach(function (w) {
         if (w.label) write(w.label, '<div><span class="p">' + esc(w.e.label) + '</span> <b class="num">' + fmt(w.e.n) + '</b></div>');
       });
+      s.arches.forEach(function (m) {
+        if (m.label) write(m.label, '<div><span class="p">' + esc(s.name) + ' ⇄ ' + esc(m.u.name) + '</span> <b class="num">' + fmt(s.crossOut[m.u.id] || 0) + '</b> · <b class="num">' + fmt(m.u.crossOut[s.id] || 0) + '</b></div>');
+      });
     });
   }
   function showTip(h, x, y) {
@@ -1489,6 +1562,11 @@
       '<small>' + plural(t.total, 'pageview', 'pageviews') + ' ' + week() + ' · warm windows: used</small>'; }
     if (h.kind === 'lane') { var l = h.lane; html = '<strong>' + esc(l.label) + '</strong>' + plural(l.count, 'arrival', 'arrivals') + ' ' + when() +
       (l.key === 'direct' ? '<small>No referrer, or a link from the site itself</small>' : (gateOf(h.s, l) || {}).from ? '<small>From ' + esc(l.from.name) + ', along the avenue</small>' : ''); }
+    if (h.kind === 'cross') {
+      var co = h.s.crossOut[h.u.id] || 0, cb = h.u.crossOut[h.s.id] || 0;
+      html = '<strong>' + esc(h.s.name) + ' ⇄ ' + esc(h.u.name) + '</strong>' + plural(co, 'crossing', 'crossings') + ' to ' + esc(h.u.name) + ' · ' + fmt(cb) + ' to ' + esc(h.s.name) + ' ' + when() +
+        '<small>Clicks on a link to the other site · its arrivals are the lanterns at its end of the avenue</small>';
+    }
     if (h.kind === 'view') {
       var v = h.view, from = Object.keys(v.by).sort(function (a, b) { return v.by[b] - v.by[a]; }).slice(0, 3);
       html = '<strong>' + esc(v.label) + '</strong>opened ' + plural(v.n, 'time', 'times') + ' ' + when() + (from.length ? ' · from ' + from.map(function (k) { return esc(k) + ' ' + fmt(v.by[k]); }).join(', ') : '') +
@@ -1584,6 +1662,7 @@
       s.workshops.forEach(function (w) {
         if (w.flash > 0) { busy = true; w.flash = Math.max(0, w.flash - dt * .8); W.addGlow(W.glow, [w.front[0], 1.4, w.front[2]], w.e.col, w.flash, 6); }
       });
+      s.arches.forEach(function (m) { if (m.flash > 0) { busy = true; m.flash = Math.max(0, m.flash - dt * .8); W.addGlow(W.glow, m.glowAt, m.col, m.flash * 1.4, 6); } });
       if (s.walkers.length) busy = true;
       s.walkers = s.walkers.filter(function (w) {
         w.d += dt * w.speed; var a = G.along(w.path, w.d);
@@ -1591,9 +1670,10 @@
           w.work += dt; if (w.work < WORK_S) { working(M, s, w, dt); return true; }
           worked(s, w.shop); return false;
         }
+        if (a.done && w.cross) { crossed(s, w.cross); return false; }
         if (a.done) { reached(w.stall || w.h); cue(w.stall ? 'stall' : 'door', s, w.cue); return false; }
-        villager(M, a.p, a.dir, w.col, Math.abs(Math.sin(w.d * 5)) * .05, w.seed, w.d);
-        if (!reduced && Math.floor(w.d / .42) !== w.step) { w.step = Math.floor(w.d / .42); s.steps.push({ p: a.p, dir: a.dir, side: w.step % 2 ? 1 : -1, t: t }); }
+        villager(M, a.p, a.dir, w.col, w.ski ? 0 : Math.abs(Math.sin(w.d * 5)) * .05, w.seed, w.ski ? 0 : w.d, w.ski);
+        if (!reduced && Math.floor(w.d / .42) !== w.step) { w.step = Math.floor(w.d / .42); s.steps.push({ p: a.p, dir: a.dir, side: w.step % 2 ? 1 : -1, t: t, ski: w.ski }); }
         return true;
       });
     }); });
@@ -1609,6 +1689,7 @@
       if (s.steps.length > 600) s.steps.splice(0, s.steps.length - 600);
       s.steps.forEach(function (st) {
         var k = 1 - (t - st.t) / STEPS_S, P = G.frame(st.p[0], st.p[2], st.dir), q = P(st.side * .08, 0, 0);
+        if (st.ski) { [-1, 1].forEach(function (sd) { var q2 = P(sd * .09, 0, 0); M.flat(q2[0], .045, q2[2], .05, .46, G.mix(T.snow, foot, k), 0, st.dir); }); return; }   // skis: two tracks
         M.flat(q[0], .045, q[2], .11, .22, G.mix(T.snow, foot, k), 0, st.dir);
       });
     });

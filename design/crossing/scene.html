@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Crossing scene</title>
+<link rel="stylesheet" href="../../public/tokens.css">
+<link rel="stylesheet" href="../../public/style.css">
+<style>
+  .ctl { position: fixed; left: var(--s-3); right: var(--s-3); bottom: var(--s-3); z-index: 6; display: flex; flex-wrap: wrap; gap: var(--s-2); align-items: center; padding: var(--s-2); }
+  .ctl .sep { width: 1px; align-self: stretch; background: var(--glass-line); }
+  #log { position: fixed; right: var(--s-3); top: var(--s-3); z-index: 6; margin: 0; padding: var(--s-2) var(--s-3); list-style: none; font: var(--fs-xs)/1.5 var(--font-num); max-width: min(460px, calc(100vw - 32px)); }
+  #log:empty { display: none; }
+  @media (max-width: 600px) { #log { display: none; } .ctl { gap: var(--s-1); padding: var(--s-1); } .ctl .btn { padding: var(--s-1) var(--s-2); font-size: var(--fs-xs); min-height: 32px; } .ctl .sep { display: none; } }
+</style>
+</head>
+<body>
+<canvas id="scene" role="img" aria-label="Two quarters of the city, Pharloom and Hallownest, with villagers crossing between them"></canvas>
+<div id="tip" class="tip glass" role="tooltip" hidden></div>
+<ol id="log" class="glass" aria-label="Hits just sent"></ol>
+<div class="ctl glass">
+  <button class="btn" type="button" data-cross="pharloom">Cross: Pharloom → Hallownest</button>
+  <button class="btn" type="button" data-cross="hallownest">Cross: Hallownest → Pharloom</button>
+  <button class="btn" type="button" data-cross="pharloom" data-arrives="0">A click with no arrival</button>
+  <span class="sep"></span>
+  <button class="btn" type="button" data-look="avenue" aria-pressed="true">The avenue</button>
+  <button class="btn" type="button" data-look="" aria-pressed="false">Valley</button>
+  <button class="btn" type="button" data-look="pharloom" aria-pressed="false">Pharloom</button>
+  <button class="btn" type="button" data-look="hallownest" aria-pressed="false">Hallownest</button>
+  <span class="sep"></span>
+  <button class="btn" type="button" id="auto" aria-pressed="true">Crossing every 9 s</button>
+  <button class="btn" type="button" id="quiet" aria-pressed="false">Only crossings</button>
+</div>
+<script src="../../public/gl.js"></script>
+<script src="village.js"></script>
+<script src="drive.js"></script>
+</body>
+</html>

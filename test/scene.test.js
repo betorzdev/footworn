@@ -167,3 +167,22 @@ test('yesterday by page: the pageviews of each page up to this time yesterday', 
   await scene(past, { site: 'one', day: '2026-09-20', now: NOW });
   assert.deepEqual(yesterdayPages(past).args, ['one', '2026-09-19', Date.parse('2026-09-20') / 1000 - 1]);
 });
+
+test('the crossings: today, per other site its `to` names, out of the workshops', async () => {
+  const answers = [];
+  answers[15] = [{ to: 'two', hits: 3 }];
+  const db = fakeDb(answers);
+  const out = await scene(db, { site: 'one', now: NOW });
+  assert.deepEqual(out.today.crossings, answers[15]);
+  const st = db.seen.find(s => s.sql.includes('GROUP BY "to"'));
+  assert.deepEqual(st.args, ['one', '2026-10-05']);
+  /* another registered site, by its id, never this one; a view stays a view; counts only */
+  assert.match(st.sql, /json_type\(props, '\$\.to'\) = 'text' AND json_extract\(props, '\$\.to'\) IN \(SELECT id FROM sites WHERE id <> \?1\)/);
+  assert.match(st.sql, /NOT COALESCE\(event = 'screen' AND json_type\(props, '\$\.view'\) = 'text', 0\)/);
+  assert.match(st.sql, /COUNT\(\*\) AS hits/);
+  for (const bad of [' ts', 'first', 'country', 'browser', 'width', 'path']) assert.ok(!st.sql.includes(bad), bad);
+  /* a crossing is no workshop */
+  for (const w of db.seen.filter(s => s.sql.includes('GROUP BY event') || s.sql.includes('GROUP BY path, event')))
+    assert.match(w.sql, /NOT COALESCE\(json_type\(props, '\$\.to'\) = 'text' AND json_extract\(props, '\$\.to'\) IN \(SELECT id FROM sites WHERE id <> \?1\), 0\)/);
+  assert.deepEqual((await scene(fakeDb([]), { site: 'one', now: NOW })).today.crossings, []);
+});

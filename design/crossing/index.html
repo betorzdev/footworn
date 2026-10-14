@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Crossing options</title>
+<link rel="stylesheet" href="../../public/tokens.css">
+<style>
+  html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text); font: var(--fs-s)/1.45 var(--font); }
+  body { display: grid; grid-template-columns: 400px 1fr; }
+  aside { overflow: auto; padding: var(--s-3) var(--s-4); border-right: 1px solid var(--border); }
+  h1 { font-size: var(--fs-l); margin: 0 0 var(--s-2); }
+  h2 { font-size: var(--fs-m); margin: var(--s-4) 0 var(--s-2); }
+  p, li { margin: 0 0 var(--s-2); }
+  .now { color: var(--muted); }
+  .opts { display: flex; flex-wrap: wrap; gap: var(--s-1); margin-bottom: var(--s-2); }
+  .opts button { font: inherit; color: var(--text); background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius); padding: var(--s-1) var(--s-2); cursor: pointer; min-height: 36px; }
+  .opts button[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+  .rec { font-size: var(--fs-xs); font-weight: 700; margin-left: var(--s-1); padding: 0 var(--s-1); border-radius: var(--radius); background: var(--ok); color: var(--bg); }
+  .desc { color: var(--muted); min-height: 4.2em; }
+  .desc b { color: var(--text); }
+  code { font-family: var(--font-num); font-size: .95em; background: var(--surface-2); padding: 0 var(--s-1); border-radius: var(--radius); }
+  .contract { border: 1px solid var(--border); border-radius: var(--radius); padding: var(--s-2) var(--s-3); background: var(--surface); }
+  .row { display: flex; gap: var(--s-2); margin-top: var(--s-3); }
+  .row button { font: inherit; color: var(--text); background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius); padding: var(--s-1) var(--s-3); cursor: pointer; min-height: 36px; }
+  iframe { width: 100%; height: 100%; border: 0; display: block; }
+  @media (max-width: 860px) { html, body { height: auto; } body { grid-template-columns: 1fr; grid-template-rows: auto; } aside { overflow: visible; border-right: 0; border-bottom: 1px solid var(--border); } iframe { height: 80vh; } }
+</style>
+</head>
+<body>
+<aside>
+  <h1>Footworn · the crossing</h1>
+  <p>A visitor who follows the link from one site to the other, seen as a villager going from one quarter to the other. Two made-up sites; a crossing every 9 seconds (and the buttons under the scene). Real code: the dashboard's <code>village.js</code> with these options added.</p>
+  <p class="now"><b>Today</b> (option 1C): the arrival is already walked. A pageview whose referrer is another of the sites comes from that quarter's square along the avenue. The click on the link (<code>sister</code>) is a workshop, like any event.</p>
+
+  <section data-key="contract">
+    <h2>1 · What the sites send, and who walks what</h2>
+    <div class="opts" role="group" aria-label="Decision 1">
+      <button data-v="a">A · Each half on its own side<span class="rec">Recommended</span></button>
+      <button data-v="b">B · The click goes the whole way</button>
+      <button data-v="c">C · As today</button>
+    </div>
+    <p class="desc" data-for="a"><b>Both, each in its own quarter.</b> The sites send <code>track('sister', { to: 'hallownest' })</code>. The click is a villager from the page's door along the avenue to the border. The arrival (its referrer, as now) is a villager from the border to the door it opened. Nothing pairs the two, and each quarter draws only its own site's hits. On skis the first half takes about as long as the other site takes to count the arrival, so most crossings look like one trip.</p>
+    <p class="desc" data-for="b" hidden><b>The click alone.</b> The same event. Its villager goes from the door all the way to the other quarter's square (it can't know the page). An arrival from the other site rings its house, but nobody walks it in, so a crossing is never drawn twice. If the first site's tracker didn't count the click (a blocker), nobody walks at all.</p>
+    <p class="desc" data-for="c" hidden><b>No new property.</b> The arrival walks from the other quarter's square to its house. The click goes to a <code>sister</code> workshop, like any event. Decisions 2 to 4 change nothing here.</p>
+  </section>
+
+  <section data-key="travel">
+    <h2>2 · How they cross</h2>
+    <div class="opts" role="group" aria-label="Decision 2">
+      <button data-v="a">A · On skis<span class="rec">Recommended</span></button>
+      <button data-v="b">B · Walking</button>
+    </div>
+    <p class="desc" data-for="a"><b>Skis and poles, two tracks in the snow.</b> One half in about 3 s (the whole way, in 1B, in about 6 s). That's close to the time between the click and the new tab being counted, so the second half starts about when the first gets there.</p>
+    <p class="desc" data-for="b" hidden><b>On foot</b>, at the pace of today's arrivals from another site, a little quicker than a visitor. The first half takes 6 to 15 s, so the arrival steps out well before the click gets to the border.</p>
+  </section>
+
+  <section data-key="colour">
+    <h2>3 · The scarf</h2>
+    <div class="opts" role="group" aria-label="Decision 3">
+      <button data-v="a">A · The site it comes from<span class="rec">Recommended</span></button>
+      <button data-v="b">B · The site it goes to</button>
+      <button data-v="c">C · As other walkers</button>
+    </div>
+    <p class="desc" data-for="a"><b>The colour of the site it leaves</b>, on both halves. A villager from Pharloom keeps Pharloom's colour inside Hallownest, so the two halves read as the same person.</p>
+    <p class="desc" data-for="b" hidden><b>The colour of the site it goes to</b>, on both halves.</p>
+    <p class="desc" data-for="c" hidden><b>As now:</b> the click in its event's colour (like a workshop's walker), the arrival in its lane's colour. The two halves don't match.</p>
+  </section>
+
+  <section data-key="mark">
+    <h2>4 · What marks the crossings, and their count</h2>
+    <div class="opts" role="group" aria-label="Decision 4">
+      <button data-v="a">A · An arch at the border<span class="rec">Recommended</span></button>
+      <button data-v="b">B · A signpost</button>
+      <button data-v="c">C · The sign only</button>
+    </div>
+    <p class="desc" data-for="a"><b>An arch over the avenue where the quarters meet</b>, with a pillar in each quarter's stone. Under the lintel, six lanterns on each face, lit for that side's crossings today, in its colour. Its label reads "Pharloom ⇄ Hallownest 3 · 2", gets a "+1" when someone passes, and shows the numbers on hover. Arrivals keep their lantern posts and their worn path.</p>
+    <p class="desc" data-for="b" hidden><b>A signpost where the avenue leaves each square</b>, its board in the other site's colour pointing the way, labelled "→ Hallownest 3".</p>
+    <p class="desc" data-for="c" hidden><b>Nothing new in the scene.</b> The village's sign says "3 to Hallownest" in its small row.</p>
+  </section>
+
+  <h2>The contract (recommended: 1A)</h2>
+  <div class="contract">
+    <p>Pharloom: <code>track('sister', { to: 'hallownest' })</code>. Hallownest: <code>track('sister', { to: 'pharloom' })</code>. Same event and property; the value is the other site's id (its <code>data-site</code>).</p>
+    <p>Footworn stays generic: <b>an event whose <code>to</code> names another registered site</b> (its id) is a crossing to it, whatever the event is called. It's stored like any event (a user action, on the AEPD's list). The scene gets today's crossings per destination, the workshops leave them out, and the ledger lists the event and its <code>to</code> as it does now.</p>
+    <p>The arrival needs nothing new: it's the referrer's hostname, as now. Nothing joins a click to an arrival, so no visitor is followed across sites (<code>docs/privacy.md</code>).</p>
+  </div>
+  <div class="row"><button type="button" id="rec">All recommended</button><button type="button" id="today">As today</button></div>
+</aside>
+<iframe id="f" title="The crossing, running"></iframe>
+<script>
+  (function () {
+    var KEYS = ['contract', 'travel', 'colour', 'mark'], q = new URLSearchParams(location.search), sel = {};
+    KEYS.forEach(function (k) { sel[k] = q.get(k) || 'a'; });
+    var f = document.getElementById('f');
+    function paint() {
+      KEYS.forEach(function (k) {
+        var sec = document.querySelector('[data-key="' + k + '"]');
+        sec.querySelectorAll('button').forEach(function (b) { b.setAttribute('aria-pressed', String(b.dataset.v === sel[k])); });
+        sec.querySelectorAll('.desc').forEach(function (d) { d.hidden = d.dataset.for !== sel[k]; });
+      });
+      var p = new URLSearchParams(); KEYS.forEach(function (k) { p.set(k, sel[k]); });
+      if (q.get('hour')) p.set('hour', q.get('hour'));
+      var src = 'scene.html?' + p.toString();
+      if (f.getAttribute('src') !== src) f.setAttribute('src', src);
+      history.replaceState(null, '', '?' + p.toString());
+    }
+    KEYS.forEach(function (k) {
+      document.querySelector('[data-key="' + k + '"]').querySelectorAll('button').forEach(function (b) { b.addEventListener('click', function () { sel[k] = b.dataset.v; paint(); }); });
+    });
+    document.getElementById('rec').addEventListener('click', function () { KEYS.forEach(function (k) { sel[k] = 'a'; }); paint(); });
+    document.getElementById('today').addEventListener('click', function () { sel.contract = 'c'; paint(); });
+    paint();
+  })();
+</script>
+</body>
+</html>

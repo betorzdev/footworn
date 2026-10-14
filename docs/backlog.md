@@ -77,6 +77,14 @@ errors, loading state, URL state, reduced motion, focus rings and press feedback
   from the event's name), and the six kinds repeat from the seventh event on.
   Also, the five gate colours repeat from the sixth referrer on; more `--village-lane-*` tokens
   if a site with many referrers finds that confusing.
+- **Crossings between sites**: done on 2026-10-14 (`design/crossing`, options 1A, 2A, 3A, 4A): an
+  event whose `to` is another site's id is a crossing (`crossings` in `/api/scene`, no workshop), its
+  villager skis to the border, the arrival skis in from it, an arch counts both ways. Seen and left
+  out: the click walking the whole way (the arrival then not walked), the arrival from the other
+  square as before, walking instead of skis, the scarf of the site it goes to, a signpost, a line on
+  the sign only. Still open: no sound of its own (the arrival keeps the gate's steps; the click is
+  silent); `to` takes the site's id only, not one of its hosts; an arch stands on every avenue, with
+  its lanterns dark while nobody crossed.
 - **Sky by the clock**: done on 2026-10-06 ("polar day": `LIGHTS` and `DAY` in `public/village.js`,
   the colours of each light in `tokens.css`; `PRODUCT.md` has the look and what it costs). Seen
   that day and left out: "Storybook", the same world through a brush filter (Kuwahara), whose

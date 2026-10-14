@@ -62,7 +62,9 @@ yesterday's, the current one glowing. In the wall, where the quarter faces the v
 per referrer (every one of the last 7 days, then *direct*), as wide as today's arrivals, its
 lanterns in the referrer's colour. A referrer that is another of your sites (one of its
 origins) is no gate: it is the avenue from that site's quarter, with lanterns in its colour
-where it comes in. The clock on the tower tells the UTC time on a
+where it comes in. Where two quarters meet, an arch stands over their avenue: under its lintel
+six lanterns on each face, lit for today's crossings out of the quarter it faces (in that
+site's colour), and a label with both counts ("Pharloom ⇄ Hallownest 3 · 2"). The clock on the tower tells the UTC time on a
 24-hour dial, like the ring of lamps: midnight at the top.
 Between the lamps and the tower, a market: a stall per view opened inside a page (a `screen`
 event with a `view`; every one of the last 7 days), with a pole beside it whose
@@ -84,11 +86,16 @@ pageviews and views in the last 7 days (from 3 a week up to 10 000), and a site 
 of them than another always has the wider quarter, whatever its pages; what is left before
 its edge is the city's own houses, with no count in them.
 Every pageview is a villager with a scarf in that colour who walks in through the gate (or,
-from another of your sites, from that quarter's square along the avenues: someone on Hallownest
-who follows its link to Pharloom is seen crossing the city), across the square and into the house, leaving steps in the snow that fade in a minute; every view opened, one in a green scarf who leaves that page's
+from another of your sites, skis in from the border under the arch, in that site's colour),
+across the square and into the house, leaving steps in the snow that fade in a minute; every view opened, one in a green scarf who leaves that page's
 house for the stall; every other event, one in a scarf of the workshop's colour who walks from
 that page's house to its workshop, works there a moment (sparks at the forge, steam at the well)
-and leaves a crate. Drag the snow to move over it, as on a map; right-drag (or Ctrl-drag) to
+and leaves a crate; and a crossing to another of your sites (an event whose `to` is its id), one
+in this site's colour who skis from that page's door along the avenue to the border, where the
+arch lights a lantern. Someone on Hallownest who follows its link to Pharloom is seen crossing
+the city in two halves: the click in Hallownest's quarter, the arrival in Pharloom's, each about
+three seconds, about as long as the new tab takes to be counted, so one usually picks up where
+the other left. Nothing pairs them: each quarter draws only its own site's hits. Drag the snow to move over it, as on a map; right-drag (or Ctrl-drag) to
 turn and tilt; the wheel comes closer to what is under the pointer; let go moving and the camera
 coasts a moment. Recenter in the dock, or a double click on the snow, flies back to the whole
 view. Hover, or tap, a house, a gate, a stall or a workshop for its numbers. At UTC midnight
@@ -165,6 +172,10 @@ footworn.count('/other-page/');                              // a pageview by ha
 An app that changes view without loading a page (tabs, screens) can send
 `footworn.event('screen', { view: 'charms' })`: an event named `screen` with a `view` is listed in
 the dashboard's Visits tab as a view opened in a page, between the visits.
+
+A link to another site counted by the same Footworn can say so: `footworn.event('sister', { to:
+'other-site' })`, with that site's id, is a crossing (whatever the event is called). It is no
+workshop: its villager skis out to that site's quarter, and the arch between them counts it.
 
 On its own it also sends `$engaged` once per load (never on a reload), at the first tap or key or after 10 s in view:
 the dashboard's *used* rate. Event names starting with `$` are reserved.

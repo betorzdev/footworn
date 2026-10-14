@@ -45,6 +45,15 @@ referrer still shows its source. Any other value is dropped and the referrer sta
 tag could be a personal referral code (`?ref=jsmith`), an identifier this exemption does not
 cover, and the list makes storing one impossible rather than a matter of good practice.
 
+## A crossing to another site
+
+An event may carry `to`, the id of another site counted by the same Footworn (the calculators send
+`sister` with it when their link to the other one is clicked). It is an ordinary event row, a user
+action on this page; the dashboard counts it as a crossing to that site, per day. The other site
+sees the arrival only as its referrer's hostname, as any link. Nothing joins the click to the
+arrival: they are two rows on two sites, drawn each in its own quarter, so no visitor is followed
+across sites.
+
 ## Used, not just opened
 
 Once per page load, the tracker sends an event named `$engaged` at the first tap or key press, or
