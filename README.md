@@ -60,7 +60,9 @@ today is shuttered, its lamp out. Round the square, 24 street lamps, one per UTC
 clockwise from midnight at the top: each as tall as that hour's pageviews, with a brass ring at
 yesterday's, the current one glowing. In the wall, where the quarter faces the valley, a gate
 per referrer (every one of the last 7 days, then *direct*), as wide as today's arrivals, its
-lanterns in the referrer's colour. A referrer that is another of your sites (one of its
+lanterns in the colour of where it comes from, the same in every village (Google and other
+search engines blue, Reddit orange, YouTube red, Discord blurple, GitHub green, any other web
+sand, direct white: `--village-src-*` in `tokens.css`). A referrer that is another of your sites (one of its
 origins) is no gate: it is the avenue from that site's quarter, with lanterns in its colour
 where it comes in. Where two quarters meet, an arch stands over their avenue: under its lintel
 six lanterns on each face, lit for today's crossings out of the quarter it faces (in that
