@@ -74,7 +74,8 @@ errors, loading state, URL state, reduced motion, focus rings and press feedback
   the busier site always wider) and the scene moved to the last 7 days. The fields first put in
   what is left were replaced the same day by a workshop per event (option B of `design/fields`).
   Still open there: the owner picking each event's workshop in the Sites panel (today it comes
-  from the event's name), and the six kinds repeat from the seventh event on.
+  from the words in the event's name, `design/workshops`, 2026-10-18), and the six old kinds
+  repeat among the events none of those words names.
 - **Crossings between sites**: done on 2026-10-14 (`design/crossing`, options 1A, 2A, 3A, 4A): an
   event whose `to` is another site's id is a crossing (`crossings` in `/api/scene`, no workshop), its
   villager skis to the border, the arrival skis in from it, an arch counts both ways. Seen and left

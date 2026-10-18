@@ -26,9 +26,11 @@
      them): the lanterns lit on the pole beside it, from the ground up, are today's opens, and a
      stall nobody opened today is boarded up;
    - every other event of the 7 days (one of the site's own that is no view) is a workshop
-     behind the houses (by name; its kind, a woodshed, a well, a forge, a windmill, an oven or a
-     granary, by its name too, so it never changes): its lantern lit and a crate in front for
-     today's, dark when nobody did it today;
+     behind the houses (by name; its trade by the words in its name, a broken cart for an error,
+     a hot-drinks cart for a donation, a notice board for a share, flags for a language, a forge, a
+     well, a granary, a windmill, a woodshed or an oven for the rest, and one of the last six by
+     the name itself when no word says, so it never changes): its lantern lit and a crate in
+     front for today's, dark when nobody did it today;
    - the clock tells the time on a dial of 24 hours, like the ring of lamps (UTC, midnight at the
      top; a past day stops at its end), and flies a pennant in the village's colour;
    Nothing is grouped, and a village is as big as its site's visits: its wall opens a step for
@@ -87,8 +89,22 @@
   var STEPS = [[3, 23], [10, 26], [30, 29], [100, 32], [300, 35], [1000, 38], [3000, 41], [10000, 44], [Infinity, 47]];
   var LEAST = STEPS[0][1];    // the smallest a village is: as wide as the least of its layouts (no event) needs
   var PAN_ROOM = 20;          // how far past the city's walls the camera's centre may be dragged
-  /* A workshop per event: its kind by its name, so it never turns into another when the ranking
-     moves. How long a villager works there, and the crates of a day at most. */
+  /* A workshop per event: its trade by the words in its name (`TRADES`, the first that matches,
+     so a failed import is a broken cart, not a well), or, when none does, one of `SHOPS` by
+     the name itself; either way it never turns into another when the ranking moves. How long a
+     villager works there, and the crates of a day at most. */
+  var TRADES = [
+    ['wreck', ['error', 'errors', 'bad', 'fail', 'failed', 'failure', 'crash', 'invalid']],
+    ['cart', ['support', 'donate', 'donation', 'kofi', 'coffee', 'sponsor']],
+    ['board', ['share', 'shared', 'invite', 'tweet']],
+    ['flags', ['lang', 'language', 'locale', 'translate']],
+    ['forge', ['fight', 'run', 'battle', 'duel', 'foe', 'boss']],
+    ['well', ['import', 'read', 'upload']],
+    ['granary', ['save', 'saved', 'sync', 'store', 'bookmark']],
+    ['mill', ['download', 'export', 'print']],
+    ['woodshed', ['search', 'find', 'filter']],
+    ['oven', ['build', 'create', 'generate']],
+  ];
   var SHOPS = ['woodshed', 'well', 'forge', 'mill', 'oven', 'granary'];
   var WORK_S = 2.5, CRATES = 12;
   var ORDER = 3;              // how much wider a village is than every one with fewer visits
@@ -481,10 +497,19 @@
   function addShop(s, name, total) {
     var h = 0; for (var i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) | 0;
     h = Math.abs(h);
-    var e = { name: name, label: name, total: total, n: 0, by: {}, kind: SHOPS[h % SHOPS.length], col: T.awnings[Math.floor(h / SHOPS.length) % T.awnings.length] };
+    var e = { name: name, label: name, total: total, n: 0, by: {}, kind: tradeOf(name) || SHOPS[h % SHOPS.length], col: T.awnings[Math.floor(h / SHOPS.length) % T.awnings.length] };
     s.shops.push(e); s.shopBy['e:' + name] = e;
     if (s.loaded) byName(s.shops);   // one new today takes its place; load() sorts once, at the end
     return e;
+  }
+  /* The trade an event's name asks for: its words split at anything not a letter or a digit and
+     at camelCase (`saveImport`, `save_import`, `save-import`, `JSONImport`), and all of them run together
+     (`ko-fi`), or null. */
+  function tradeOf(name) {
+    var words = name.replace(/([a-z0-9])([A-Z])/g, '$1 $2').replace(/([A-Z])([A-Z][a-z])/g, '$1 $2').toLowerCase().split(/[^a-z0-9]+/);
+    words.push(words.join(''));
+    for (var i = 0; i < TRADES.length; i++) for (var j = 0; j < words.length; j++) if (TRADES[i][1].indexOf(words[j]) >= 0) return TRADES[i][0];
+    return null;
   }
   function byName(list) { list.sort(function (a, b) { return a.name < b.name ? -1 : a.name > b.name ? 1 : 0; }); }
   function grown(s, x) { if (s.loaded) { resize(); rebuild(s, true); } return x; }
@@ -906,14 +931,54 @@
   /* The crates in front of a workshop: one per `scale.event` of today's, on one scale for every
      site, one at least for an event done at all. */
   function crates(e) { return e.n ? Math.min(CRATES, Math.max(1, Math.ceil(e.n / scale.event))) : 0; }
-  /* A workshop, facing the square: its kind (`SHOPS`) by its event's name, a woodshed with its
-     logs, a well, a forge with its anvil, a windmill, a bread oven, a granary on staddle stones.
+  /* A workshop, facing the square: its kind (`TRADES`, `SHOPS`) by its event's name, a woodshed
+     with its logs, a well, a forge with its anvil, a windmill, a bread oven, a granary on staddle
+     stones, a cart broken down at a lean-to, a hot-drinks cart, a notice board, a row of flags.
      Its lantern is the event's colour, lit when it was done today, and its crates stand in front.
      Nobody did it today: dark, no crate. */
   function workshop(M, s, w, dark) {
     var e = w.e, rot = -w.a - Math.PI / 2, x = w.pos[0], z = w.pos[2], P = G.frame(x, z, rot), open = e.n > 0, warm = open && dark !== 1, top = 2.6, q, i;
     function V(lx, ly, lz) { var r = P(lx, 0, lz); return [r[0], ly, r[2]]; }
+    w.fx = null;   // where its work shows (`working`), for the trades that say
+    /* A gable roof with its snow showing over it, to the eaves. */
+    function snowRoof(lz, y, L, h, D, col) { var r = P(0, 0, lz); M.roof(r[0], y, r[2], L, h, D, col, rot, .15, null); M.roof(r[0], y + .1, r[2], L - .1, h, D, T.snow, rot, .1, null, G.SNOW); }
     function roof(lz, y, L, h, D, col) { var r = P(0, 0, lz); M.roof(r[0], y, r[2], L, h, D, col, rot, .15, null); M.roof(r[0], y + .12, r[2], L - .2, h - .12, D * .78, T.snow, rot, .05, null, G.SNOW); }
+    /* A block centred at (lx, ly, lz), leaning by `tilt` round its own local axis `ax`. */
+    function tilted(lx, ly, lz, bw, bh, bd, col, tilt, ax, em) {
+      var c = Math.cos(tilt), sn = Math.sin(tilt), hx = bw / 2, hy = bh / 2, hz = bd / 2;
+      function C(px, py, pz) { return ax === 'x' ? V(lx + px, ly + py * c - pz * sn, lz + py * sn + pz * c) : V(lx + px * c - py * sn, ly + px * sn + py * c, lz + pz); }
+      M.quad(C(-hx, hy, hz), C(hx, hy, hz), C(hx, hy, -hz), C(-hx, hy, -hz), col, em);
+      M.quad(C(-hx, -hy, hz), C(hx, -hy, hz), C(hx, hy, hz), C(-hx, hy, hz), col, em);
+      M.quad(C(hx, -hy, -hz), C(-hx, -hy, -hz), C(-hx, hy, -hz), C(hx, hy, -hz), col, em);
+      M.quad(C(hx, -hy, hz), C(hx, -hy, -hz), C(hx, hy, -hz), C(hx, hy, hz), col, em);
+      M.quad(C(-hx, -hy, -hz), C(-hx, -hy, hz), C(-hx, hy, hz), C(-hx, hy, -hz), col, em);
+    }
+    /* A cart wheel standing at (lx, ly, lz), its axle along local z: a rim, two spokes across, a hub. */
+    function wheel(lx, ly, lz, r) {
+      function C(u, v, d) { return V(lx + u, ly + v, lz + d); }
+      for (var k = 0; k < 12; k++) {
+        var a = k / 12 * TAU, b = (k + 1) / 12 * TAU, ca = Math.cos(a), sa = Math.sin(a), cb = Math.cos(b), sb = Math.sin(b), ri = r * .8;
+        [-.05, .05].forEach(function (d) {
+          var p = [C(ca * r, sa * r, d), C(cb * r, sb * r, d), C(cb * ri, sb * ri, d), C(ca * ri, sa * ri, d)];
+          if (d > 0) M.quad(p[0], p[1], p[2], p[3], T.timber); else M.quad(p[3], p[2], p[1], p[0], T.timber);
+        });
+        M.quad(C(ca * r, sa * r, -.05), C(cb * r, sb * r, -.05), C(cb * r, sb * r, .05), C(ca * r, sa * r, .05), T.timber);
+      }
+      [0, Math.PI / 2].forEach(function (a) {
+        var u = Math.cos(a) * r * .82, v = Math.sin(a) * r * .82, pu = -Math.sin(a) * .04, pv = Math.cos(a) * .04;
+        M.quad(C(-u - pu, -v - pv, 0), C(u - pu, v - pv, 0), C(u + pu, v + pv, 0), C(-u + pu, -v + pv, 0), T.trunk);
+        M.quad(C(-u + pu, -v + pv, 0), C(u + pu, v + pv, 0), C(u - pu, v - pv, 0), C(-u - pu, -v - pv, 0), T.trunk);
+      });
+      var hb = C(0, 0, 0); M.box(hb[0], hb[1] - .08, hb[2], .16, .16, .16, T.iron, 0, rot);
+    }
+    /* A flag from the pole at lx, its top at y: four strips, waving, seen from both sides. */
+    function flag(lx, y, fw, fh, col, seed) {
+      for (var k = 0; k < 4; k++) {
+        var u0 = k / 4 * fw, u1 = (k + 1) / 4 * fw, d0 = Math.sin(k * 1.4 + seed) * .07 * k / 4, d1 = Math.sin((k + 1) * 1.4 + seed) * .07 * (k + 1) / 4;
+        var p = [V(lx + u0, y - fh, d0), V(lx + u1, y - fh, d1), V(lx + u1, y, d1), V(lx + u0, y, d0)];
+        M.quad(p[0], p[1], p[2], p[3], col, .25); M.quad(p[3], p[2], p[1], p[0], col, .25);
+      }
+    }
     if (e.kind === 'woodshed') {
       M.box(x, 0, z, 3, .3, 2, T.stoneDark, 0, rot);
       q = P(0, 0, -.85); M.box(q[0], .3, q[2], 2.8, 1.6, .2, T.timber, 0, rot);
@@ -951,6 +1016,47 @@
       q = P(-.3, 0, -.55); M.cyl(q[0], .6, q[2], .14, 1.4, 6, T.stoneDark);
       for (i = 0; i < 6; i++) { q = P(1.45, 0, -.5 + (i % 3) * .42); M.box(q[0], Math.floor(i / 3) * .3, q[2], .9, .28, .36, T.trunk, 0, rot); }
       top = 2.4;
+    } else if (e.kind === 'wreck') {   // a cart broken down at a wheelwright's lean-to, its wheel off in the snow
+      M.box(x, 0, z, 3.2, .25, 2.1, T.stoneDark, 0, rot);
+      q = P(0, 0, -.9); M.box(q[0], .25, q[2], 3, 1.75, .16, T.timber, 0, rot);
+      [-1.4, 1.4].forEach(function (lx) { var r = P(lx, 0, .3); M.box(r[0], .25, r[2], .14, 1.4, .14, T.timber, 0, rot); });
+      tilted(0, 1.78, -.35, 3.2, .12, 1.45, T.roof, .3, 'x'); tilted(0, 1.9, -.35, 3.1, .06, 1.3, T.snow, .3, 'x', G.SNOW);
+      tilted(-.15, .62, .8, 1.7, .34, 1, T.timber, -.3, 'z');                          // its box, down on its broken side
+      tilted(-.15, .82, .8, 1.7, .05, .92, T.snow, -.3, 'z', G.SNOW);
+      q = P(-1.3, 0, .6); M.box(q[0], .6, q[2], .9, .07, .07, T.timber, 0, rot - .5);   // a shaft, snapped
+      wheel(-.85, .48, .25, .46);
+      q = P(.95, 0, 1.6); M.cyl(q[0], 0, q[2], .46, .07, 12, T.timber); M.cyl(q[0], .07, q[2], .33, .02, 12, T.snow, G.SNOW); M.cyl(q[0], .07, q[2], .1, .06, 6, T.iron);   // its wheel, off
+      wheel(.9, .5, -.7, .48);                                                         // a spare against the wall
+      w.fx = [q[0], .6, q[2]]; top = 3;
+    } else if (e.kind === 'cart') {   // a hot-drinks cart, its urn and cups under an awning
+      wheel(.2, .45, .7, .45); wheel(.2, .45, -.7, .45);
+      M.box(x, .55, z, 2.2, .65, 1.25, T.timber, 0, rot);
+      q = P(0, 0, 0); M.box(q[0], 1.2, q[2], 2.3, .06, 1.35, G.mix(T.timber, T.trunk, .4), 0, rot);
+      [.45, -.45].forEach(function (lz) { var r = P(-1.6, 0, lz); M.box(r[0], .55, r[2], 1.1, .06, .06, T.timber, 0, rot); });   // its shafts
+      q = P(.45, 0, -.1); M.cyl(q[0], 1.26, q[2], .32, .62, 12, T.brass, warm ? .15 : 0, .3, true); M.cone(q[0], 1.88, q[2], .3, .2, 12, T.brass, 0, true); M.cyl(q[0], 2.08, q[2], .05, .08, 6, T.iron);
+      var urn = q.slice(); q = P(.45, 0, .25); M.box(q[0], 1.45, q[2], .06, .06, .14, T.iron, 0, rot);
+      [[-.5, .35], [-.2, .4], [-.8, .3]].forEach(function (c) { var r = P(c[0], 0, c[1]); M.cyl(r[0], 1.26, r[2], .07, .13, 8, G.mix(T.snow, T.straw, .35), 0, .085); });
+      [[-1, -1], [1, -1], [-1, 1], [1, 1]].forEach(function (f) { var r = P(f[0] * 1.05, 0, f[1] * .6); M.cyl(r[0], 1.2, r[2], .04, 1.1, 5, T.timber); });
+      snowRoof(0, 2.3, 2.4, .4, 1.3, e.col);
+      w.fx = [urn[0], 2.15, urn[2]]; top = 3;
+    } else if (e.kind === 'board') {   // a notice board under its own roof, bills pinned all over it
+      [-1.25, 1.25].forEach(function (lx) { var r = P(lx, 0, 0); M.box(r[0], 0, r[2], .16, 2.4, .16, T.timber, 0, rot); });
+      M.box(x, .55, z, 2.6, 1.45, .12, G.mix(T.timber, T.trunk, .5), 0, rot);
+      for (i = 0; i < 8; i++) {
+        var bw = .28 + rand(i, w.k) * .18, bh = .36 + rand(w.k, i) * .2;   // pinned askew, some over others, none past the frame
+        q = P(-.85 + (i % 4) * .55 + (rand(i, 3) - .5) * .14, 0, .08 + i * .003); M.box(q[0], .75 + Math.floor(i / 4) * .6 + (rand(3, i) - .5) * .16, q[2], bw, bh, .02, G.mix(T.snow, T.straw, rand(i, 7) * .6), 0, rot + (rand(i, 9) - .5) * .3);
+      }
+      snowRoof(0, 2.35, 2.9, .5, .75, T.roof);
+      q = P(-.6, 0, 1.2); M.box(q[0], 0, q[2], 1, .3, .3, T.timber, 0, rot); M.box(q[0], .3, q[2], 1, .04, .3, T.snow, G.SNOW, rot);
+      top = 3.1;
+    } else if (e.kind === 'flags') {   // flags in a row on a plinth, a colour each
+      M.box(x, 0, z, 3.1, .35, .9, T.stone, 0, rot); M.box(x, .35, z, 3.1, .05, .9, T.snow, G.SNOW, rot);
+      [3.2, 2.7, 3, 2.55].forEach(function (h, k) {
+        var lx = -1.15 + k * .76, r = P(lx, 0, 0);
+        M.cyl(r[0], .35, r[2], .045, h, 6, T.iron); M.cyl(r[0], .35 + h, r[2], .08, .08, 6, T.gold, .2, .02, true);
+        flag(lx, .35 + h - .05, .72, .48, T.awnings[k % T.awnings.length], k);
+      });
+      top = 3.8;
     } else {   // granary
       [[1, 1], [1, -1], [-1, 1], [-1, -1]].forEach(function (f) { var r = P(f[0] * 1, 0, f[1] * .7); M.cyl(r[0], 0, r[2], .09, .62, 6, T.stoneDark); M.cyl(r[0], .62, r[2], .24, .08, 8, T.stone); });
       q = P(0, 0, 0); M.box(q[0], .7, q[2], 2.4, 1.45, 1.7, T.timber, 0, rot);
@@ -970,16 +1076,19 @@
     w.top = top;
   }
   /* A villager at a workshop's door, at work: bending to it, with what the work gives off
-     (sparks at the forge, steam at the well and the oven, dust at the rest). */
+     (sparks at the forge and the broken cart, steam at the well, the oven and the coffee urn,
+     dust at the rest). */
   function working(M, s, w, dt) {
     var so = w.shop, p = so.front, dir = Math.atan2(so.pos[0] - p[0], so.pos[2] - p[2]), k = w.work;
     villager(M, p, dir, w.col, Math.abs(Math.sin(k * 7)) * .1, w.seed, 0);
     if (reduced) return;
     var q = [p[0] + (so.pos[0] - p[0]) * .3, 0, p[2] + (so.pos[2] - p[2]) * .3], kind = so.e.kind;
-    if (kind === 'forge') for (var i = 0; i < 5; i++) {
-      var f = (k * 2.6 + i / 5) % 1, a = i * 2.4 + Math.floor(k * 2.6) * 1.7;
-      W.addGlow(W.glow, [q[0] + Math.cos(a) * f * .8, .7 + f * 1.2 - f * f * 1.3, q[2] + Math.sin(a) * f * .8], T.lamp, (1 - f) * .8, .6);
+    var fx = so.fx || q, i, f, a;
+    if (kind === 'forge' || kind === 'wreck') for (i = 0; i < 5; i++) {
+      f = (k * 2.6 + i / 5) % 1; a = i * 2.4 + Math.floor(k * 2.6) * 1.7;
+      W.addGlow(W.glow, [fx[0] + Math.cos(a) * f * .8, (kind === 'wreck' ? fx[1] : .7) + f * 1.2 - f * f * 1.3, fx[2] + Math.sin(a) * f * .8], T.lamp, (1 - f) * .8, .6);
     }
+    else if (kind === 'cart') { if (Math.random() < 5 * dt) smoke.push({ p: fx.slice(), t: 0, s: Math.random() }); }
     else if (Math.random() < (kind === 'well' || kind === 'oven' ? 5 : 2.5) * dt) smoke.push({ p: [q[0], kind === 'oven' ? 1.3 : .5, q[2]], t: 0, s: Math.random() });
   }
   /* Steps in the snow from a to b: as many as came (up to a few dozen), spread as wide as the way is worn. */
