@@ -94,8 +94,9 @@ and leaves a crate; and a crossing to another of your sites (an event whose `to`
 in this site's colour who skis from that page's door along the avenue to the border, where the
 arch lights a lantern. Someone on Hallownest who follows its link to Pharloom is seen crossing
 the city in two halves: the click in Hallownest's quarter, the arrival in Pharloom's, each about
-three seconds, about as long as the new tab takes to be counted, so one usually picks up where
-the other left. Nothing pairs them: each quarter draws only its own site's hits. Drag the snow to move over it, as on a map; right-drag (or Ctrl-drag) to
+three seconds, about as long as the new tab takes to be counted. Each quarter draws only its
+own site's hits; an arrival counted while a crossing to it is still on its way waits at the
+border for that skier, so one picks up where the other left. Drag the snow to move over it, as on a map; right-drag (or Ctrl-drag) to
 turn and tilt; the wheel comes closer to what is under the pointer; let go moving and the camera
 coasts a moment. Recenter in the dock, or a double click on the snow, flies back to the whole
 view. Hover, or tap, a house, a gate, a stall or a workshop for its numbers. At UTC midnight

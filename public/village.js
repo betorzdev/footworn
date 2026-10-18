@@ -42,8 +42,9 @@
      another of the sites comes in on skis from the border, under the arch, in that site's colour;
      a crossing to another site is one in this site's colour who skis from the page's door along
      the avenue to the border, about three seconds, about as long as the other site takes to
-     count the arrival. Each quarter draws only its own site's hits: nothing pairs a crossing
-     with an arrival, though most of the time one picks up where the other left;
+     count the arrival. Each quarter draws only its own site's hits; an arrival from a site that
+     has a crossing to this one still on its way waits at the border until it gets there, so one
+     picks up where the other left and the same trip never shows twice;
      every view opened live one who leaves that page's house for the stall, in a scarf of the
      lanterns' colour; every other event one who leaves that page's house for its workshop,
      works there a moment and leaves a crate. Each of those moments is also
@@ -512,7 +513,7 @@
     path.push([g.pos[0] + tan[0], 0, g.pos[2] + tan[2]]);
     walkRound(path, s, g.a, h.a, h.ring.street);
     path.push(h.door);
-    if (g.from) s.walkers.push({ path: path, d: 0, speed: skiSpeed(path), ski: true, col: g.from.tint, h: h, seed: Math.random(), cue: c });   // the other site's half of a crossing
+    if (g.from) s.walkers.push({ path: path, d: 0, speed: skiSpeed(path), ski: true, col: g.from.tint, h: h, seed: Math.random(), cue: c, lead: leadOf(g.from, s) });   // the other site's half of a crossing
     else s.walkers.push({ path: path, d: 0, speed: 2.3 + Math.random() * .7, col: g.col, h: h, seed: Math.random(), cue: c });
   }
   /* What just happened, for the ear: the quarter's place in the city, from the left, goes with it. */
@@ -540,6 +541,14 @@
     path.push([b[0] - Math.sin(a) * side, 0, b[2] + Math.cos(a) * side]);
     s.walkers.push({ path: path, d: 0, speed: skiSpeed(path), ski: true, col: s.tint, cross: u, seed: Math.random() });
   }
+  /* An arrival in `s` from `u` while one of u's crossings to `s` is still on its way to the
+     border (the new tab is often counted before the skier gets there): it waits at the border
+     and sets off as that one gets there, so the two halves never show at once. The first one
+     not waited for yet; none, and it sets off at once. */
+  function leadOf(u, s) {
+    for (var i = 0; i < u.walkers.length; i++) { var w = u.walkers[i]; if (w.cross === s && !w.led) { w.led = true; return { s: u, w: w }; } }
+    return null;
+  }
   /* The arch between two quarters is built by the first of them in the list; a "+1" rises on it
      when a crossing gets there. */
   function archOwner(s, u) { return s.idx < u.idx ? s : u; }
@@ -549,7 +558,17 @@
   function nextOn(s, u) { var r = route(s, u); return r && r.length > 1 ? r[1] : null; }
   /* Today's crossings out of `s` that pass its arch with `n`, wherever they go. */
   function outVia(s, n) { var c = 0; for (var k in s.crossOut) { var u = byId[k]; if (u && u !== s && nextOn(s, u) === n) c += s.crossOut[k]; } return c; }
-  function crossed(s, u) { var n = nextOn(s, u), m = n && archOf(s, n); if (m) { m.flash = 1; m.col = s.tint; pop(m.label); } }   // the flash in the colour of the site it left
+  function crossed(s, u) {   // the flash in the colour of the site it left, the "+1" on its count only
+    var n = nextOn(s, u), m = n && archOf(s, n); if (!m) return;
+    m.flash = 1; m.col = s.tint; m.way = s;
+    if (m.label) { write(m.label, archText(archOwner(s, n), m)); pop(m.label); }
+  }
+  /* An arch's label: both counts, the way of the quarter that builds it first. The one that did
+     not move with the last crossing is `still`: no "+1" rises on it. */
+  function archText(s, m) {
+    function n(a, b) { return '<b class="num' + (m.way && m.way !== a ? ' still' : '') + '">' + fmt(outVia(a, b)) + '</b>'; }
+    return '<div><span class="p">' + esc(s.name) + ' ⇄ ' + esc(m.u.name) + '</span> ' + n(s, m.u) + ' · ' + n(m.u, s) + '</div>';
+  }
   /* Onto a walker's path: round the square at radius `r`, the short way from angle `a0` to `a1`. */
   function walkRound(path, s, a0, a1, r) {
     var da = Math.atan2(Math.sin(a1 - a0), Math.cos(a1 - a0)), steps = Math.max(1, Math.ceil(Math.abs(da) / .25));
@@ -1378,7 +1397,7 @@
           if (on) { W.addGlow(s.glow, [q[0], H - .88, q[2]], f[1].tint, .7, 2); s.pools.push([q[0], q[2], 2.2, f[1].tint, .35]); }
         }
       });
-      var mk = { u: u, flash: prev ? prev.flash : 0, col: prev ? prev.col : s.tint, glowAt: [p[0], H - .9, p[2]] };
+      var mk = { u: u, flash: prev ? prev.flash : 0, col: prev ? prev.col : s.tint, way: prev ? prev.way : null, glowAt: [p[0], H - .9, p[2]] };
       mk.label = labelAt('x' + u.id, [p[0], H + 1.4, p[2]], 'v-gate', function () { return !narrow() && (view.mode === 'bay' || view.site === s || view.site === u); });
       mk.label.what = { kind: 'cross', s: s, u: u };
       vie(mk.label, 'gate', function () { return outVia(s, u) + outVia(u, s); });
@@ -1555,7 +1574,7 @@
         if (w.label) write(w.label, '<div><span class="p">' + esc(w.e.label) + '</span> <b class="num">' + fmt(w.e.n) + '</b></div>');
       });
       s.arches.forEach(function (m) {
-        if (m.label) write(m.label, '<div><span class="p">' + esc(s.name) + ' ⇄ ' + esc(m.u.name) + '</span> <b class="num">' + fmt(outVia(s, m.u)) + '</b> · <b class="num">' + fmt(outVia(m.u, s)) + '</b></div>');
+        if (m.label) write(m.label, archText(s, m));
       });
     });
   }
@@ -1671,6 +1690,7 @@
       s.arches.forEach(function (m) { if (m.flash > 0) { busy = true; m.flash = Math.max(0, m.flash - dt * .8); W.addGlow(W.glow, m.glowAt, m.col, m.flash * 1.4, 6); } });
       if (s.walkers.length) busy = true;
       s.walkers = s.walkers.filter(function (w) {
+        if (w.lead && sites.indexOf(w.lead.s) >= 0 && w.lead.s.walkers.indexOf(w.lead.w) >= 0) return true;   // the other half still on its way to the border (`leadOf`)
         w.d += dt * w.speed; var a = G.along(w.path, w.d);
         if (a.done && w.shop) {   // at the workshop: a moment's work, then the crate
           w.work += dt; if (w.work < WORK_S) { working(M, s, w, dt); return true; }
