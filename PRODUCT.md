@@ -113,13 +113,14 @@ URL is a bookmark to a site, the open ledger, its range and an open event.
   per metric, a number beside each), and real rendering craft (light, shadow, outline), because
   flat-shaded boxes read as ugly.
 - Today, one by one (since 2026-10-03; two tabs since the same day, the single list read as
-  confusing): a panel beside the scene (a sheet on a phone). *Visits*: newest first, live, every
-  page load in bold with its referrer's gate colour, and between them, lighter and stepped in, the
-  views opened in a page (`screen` events with a `view`), *Hide views* to hide those; a click
-  unfolds a row with every field it holds and today's counts around it (page, referrer, country,
-  device). *Events*: the same list, one row per event with its properties, under a pill per name
-  with today's count that filters it, an open row linking to the ledger's event detail. Every row
-  names its site. Rounded so a row is not a fingerprint (the minute, the device class, browser and
+  confusing; one list again since 2026-10-18, filtered by pills, which the two tabs became): a
+  panel beside the scene (a sheet on a phone). Newest first, live, every page load in bold with
+  its referrer's gate colour, and between them, lighter and stepped in, the views opened in a page
+  (`screen` events with a `view`), and every other event in its own colour with its properties;
+  every row with its country's flag. A pill per kind with today's count (*Visits*, *Views*, then
+  each event name) picks what is listed, *All* lists everything; a click unfolds a row with every
+  field it holds and today's counts around it (page, referrer, country, device), an open event
+  linking to the ledger's event detail. Every row names its site. Rounded so a row is not a fingerprint (the minute, the device class, browser and
   system families; no width, no second, no id), never joining a view to a visit, empty at UTC midnight.
   Pointing at a row rings its house and gate in the scene, or a view's house and stall.
 - Sound (since 2026-10-05; the owner heard three directions and picked steps and bells, one

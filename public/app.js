@@ -317,7 +317,7 @@
     put('s-visitors', fmt(t.visitors));
     put('s-hits', fmt(t.pageviews));
     put('s-views', fmt(t.views));
-    put('s-events', fmt(t.other));   // `events` counts the views too: the Events tab's number
+    put('s-events', fmt(t.other));   // `events` counts the views too
     var label = (state.site ? siteName(state.site) : 'All sites') + (state.viewDay ? ' on ' + strip.name(state.viewDay) : ' today') + ': ' + fmt(t.visitors) + ' visitors, ' +
       fmt(t.pageviews) + ' pageviews, ' + fmt(t.views) + ' views, ' + fmt(t.other) + ' other events. The ledger has every count as a table.';
     if (label !== shown.scene) { shown.scene = label; $('scene').setAttribute('aria-label', label); }
