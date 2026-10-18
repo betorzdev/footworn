@@ -113,22 +113,23 @@ Not on a phone.
 
 ![Hallownest up close: houses round a clock square, the tallest for the busiest pages, warm windows from the ground up, labels with today's pageviews; street lamps round the square for the hours; gates in the palisade with lanterns in each referrer's colour and their counts; villagers with lanterns walking in.](docs/screenshots/site.png)
 
-**Today, one by one.** A panel beside the scene, in two tabs. *Visits* lists every visit to the
+**Today, one by one.** A panel beside the scene, one list under a row of pills. Every visit to the
 site (a page load) as it comes in, newest first: its referrer's gate colour, the page, where it
 came from, the country and the device. Between them, stepped back, every view opened inside a
-page (a `screen` event with a `view`: "charms", "game"), in the order they came; they sit together
-because they arrived together, never because anything ties them, and *Hide views* leaves the
-visits alone. Point at a row and the scene rings its
+page (a `screen` event with a `view`: "charms", "game"), and every other event in its own colour
+with its properties, in the order they came, each with its country and device too; they sit
+together because they arrived together, never because anything ties them. A pill per kind with
+today's count (*Visits*, *Views*, then each event name) picks what is listed: press one or
+several, *All* for everything again. Point at a row and the scene rings its
 house and its gate; click it and it unfolds with everything it holds (country, device, browser
 and system, language, whether it was the first page of that visitor's day; a view's page and
 properties) and today's counts around it: its page's pageviews and used share, its referrer or
-how often that view was opened, its country and its device. *Events* is the same list, one row
-per event in its own colour with its properties, under a pill per event name with today's count
-(press one or several to list only those); an open event links to its detail in the ledger.
+how often that view was opened, its country and its device; an open event links to its detail
+in the ledger.
 Every row names its site. Rounded on purpose, so a row is never a fingerprint (no width, no
 second, nothing joining two rows, so a view is never hung under a visit), and gone at UTC midnight.
 
-![The panel beside a village, on its Visits tab: visits in bold with a dot in their referrer's gate colour, the page, the referrer, a flag and a device mark; views in a lighter, lower row with a hollow dot.](docs/screenshots/visits.png)
+![The panel beside a village: visits in bold with a dot in their referrer's gate colour, the page, the referrer, a flag and a device mark; views in a lighter, lower row with a hollow dot.](docs/screenshots/visits.png)
 
 **Another day.** *History* in the dock brings up a strip of the last 60 days over it, a bar per
 day as tall as its visitors (today's hollow: still being counted). Press a bar, step with `‹ ›`
@@ -171,7 +172,7 @@ footworn.count('/other-page/');                              // a pageview by ha
 
 An app that changes view without loading a page (tabs, screens) can send
 `footworn.event('screen', { view: 'charms' })`: an event named `screen` with a `view` is listed in
-the dashboard's Visits tab as a view opened in a page, between the visits.
+the dashboard's list of today as a view opened in a page, between the visits.
 
 A link to another site counted by the same Footworn can say so: `footworn.event('sister', { to:
 'other-site' })`, with that site's id, is a crossing (whatever the event is called). It is no
