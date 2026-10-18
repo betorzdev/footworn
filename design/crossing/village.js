@@ -283,7 +283,7 @@
     T.shutters = [1, 2, 3].map(function (i) { return col('shutter-' + i); });
     T.walls = []; T.sites = [];
     for (var i = 1; i <= 8; i++) { T.walls.push(col('wall-' + i)); T.sites.push(col('site-' + i)); }
-    T.lanes = [1, 2, 3, 4, 5].map(function (i) { return col('lane-' + i); });
+    T.lanes = ['search', 'reddit', 'social', 'youtube', 'discord'].map(function (k) { return col('src-' + k); });   // the lane tokens became one per source (tokens.css)
     T.mote = col('mote');
     Object.keys(KIT).forEach(function (name) {   // each kit's own colours: what tokens.css has for it
       if (name === 'alpine') return;
@@ -294,7 +294,7 @@
       if (has('shutter-1')) o.shutters = [1, 2, 3].map(function (i) { return col('shutter-' + i + '-' + name); });
       if (has('awning-1')) o.awnings = [1, 2, 3, 4].map(function (i) { return col('awning-' + i + '-' + name); });
     });
-    T.direct = col('lane-direct');
+    T.direct = col('src-direct');
   }
   function css(c) { return 'rgb(' + c.map(function (v) { return Math.round(v * 255); }).join(',') + ')'; }
 
