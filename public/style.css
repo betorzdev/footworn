@@ -66,6 +66,7 @@ input {
 .scene-labels .v-event > div { background: none; border-color: transparent; padding: 0 var(--s-1); text-shadow: 0 1px 2px var(--village-sky-top), 0 0 5px var(--village-sky-top), 0 0 9px var(--village-sky-top); }
 .scene-labels .v-event .p { color: var(--lane); }
 .scene-labels .pop .num::after { content: "+1"; display: inline-block; margin-left: var(--s-1); color: var(--village-up); animation: plus 3s steps(12) var(--pop-in, 0ms) both; }   /* a visit just reached it; twelve steps, not the screen's rate; a count written meanwhile goes on from where it was */
+.scene-labels .pop .num.still::after { content: none; }   /* an arch's count the crossing did not add to */
 @keyframes plus { from { opacity: 0; transform: translateY(var(--s-1)); } 15% { opacity: 1; transform: none; } 70% { opacity: 1; transform: translateY(calc(var(--s-1) / -2)); } to { opacity: 0; transform: translateY(calc(var(--s-1) * -1.5)); } }
 .scene-labels .hl > div, .scene-labels .hl .vsign { border-color: var(--village-hover); box-shadow: 0 0 0 1px var(--village-hover); }
 .vsign { pointer-events: auto; cursor: pointer; font: inherit; font-size: var(--fs-s); padding: var(--s-2) var(--s-3); border-left: var(--s-1) solid var(--site); text-align: left; touch-action: manipulation; user-select: none; }

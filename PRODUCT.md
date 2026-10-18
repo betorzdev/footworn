@@ -76,7 +76,8 @@ URL is a bookmark to a site, the open ledger, its range and an open event.
   side, skis, the scarf of the site it leaves, an arch): an event whose `to` is another site's id, whatever its
   name, is no workshop; its villager skis from the page's door along the avenue to the border in its site's
   colour, about three seconds, and the arrival on the other site (its referrer, as before) skis in from the
-  border to its house in the same colour, so most crossings read as one trip though nothing pairs them; over the
+  border to its house in the same colour, waiting there while a crossing to it is still on its way (since
+  2026-10-18: the new tab is often counted first, and the trip showed twice), so a crossing reads as one trip; over the
   avenue where two quarters meet, an arch with six lanterns a face lit for each side's crossings today and
   a label with both counts; a sign per village (visitors, change against
   yesterday, views, other events, used). Clicking a village flies the camera in; drag turns, wheel or pinch
