@@ -72,9 +72,13 @@ Between the lamps and the tower, a market: a stall per view opened inside a page
 event with a `view`; every one of the last 7 days), with a pole beside it whose
 green lanterns light up from the ground with today's opens, on one scale for every site; a stall
 nobody opened today is boarded up. Behind the houses, a workshop per other event of the site
-(every one of the last 7 days that is no view; in the calculators, `lang`): a woodshed, a
-well, a forge, a windmill, a bread oven or a granary, picked by the event's name so it never
-turns into another, its lantern in the event's colour and lit when it was done today, and a
+(every one of the last 7 days that is no view), its trade picked by the words in the event's
+name: a cart broken down at a lean-to for an error (`error`, `import-bad`), a hot-drinks cart
+for a donation (`support`, `donate`, `ko-fi`), a notice board for a share, a row of flags for a
+language (`lang`), a forge for a fight or a run, a well for an import or a read, a granary for
+a save or a sync, a windmill for a download or an export, a woodshed for a search, a bread oven
+for a build; a name with none of those words gets one of the last six by the name itself. It
+never turns into another, its lantern in the event's colour and lit when it was done today, and a
 crate in front for today's (on one scale for every site). Nothing is grouped. Ten stalls
 stand round the tower, the next sixteen in a row behind them, and so on; the houses stand on
 one ring while they fit, then on rings behind it (the week's busiest pages inside), the
@@ -91,7 +95,7 @@ Every pageview is a villager with a scarf in that colour who walks in through th
 from another of your sites, skis in from the border under the arch, in that site's colour),
 across the square and into the house, leaving steps in the snow that fade in a minute; every view opened, one in a green scarf who leaves that page's
 house for the stall; every other event, one in a scarf of the workshop's colour who walks from
-that page's house to its workshop, works there a moment (sparks at the forge, steam at the well)
+that page's house to its workshop, works there a moment (sparks at the forge, steam at the well and the coffee urn)
 and leaves a crate; and a crossing to another of your sites (an event whose `to` is its id), one
 in this site's colour who skis from that page's door along the avenue to the border, where the
 arch lights a lantern. Someone on Hallownest who follows its link to Pharloom is seen crossing
