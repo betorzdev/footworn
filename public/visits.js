@@ -274,6 +274,8 @@
       clear: function () { state.rows = []; state.row = null; o.onHover(null); paint(); },
       /* The village is on a past day (its name, for the title), or back on today (null). */
       past: function (label) { state.past = label || null; state.row = null; o.onHover(null); paint(); },
+      /* A site's colour changed (the Sites panel): the dots of the visits it sent elsewhere follow. */
+      recolor: function () { paint(); },
       /* The panel is on screen again. */
       shown: function () { if (stale) paint(); },
       remembered: function () { try { return localStorage.getItem(STORE) !== '0'; } catch (e) { return true; } },

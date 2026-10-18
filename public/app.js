@@ -145,7 +145,7 @@
       $('gate').hidden = true; $('ui').hidden = false; paintPanel();
       if (!state.started) {
         state.started = true;
-        scene.init($('scene'), { tip: $('tip'), insets: insets, onEnter: go, onLeave: leave, onCue: sound.cue, onFree: function (on) { $('recenter').hidden = !on; } });
+        scene.init($('scene'), { tip: $('tip'), insets: insets, onEnter: go, onLeave: leave, onCue: sound.cue, onFree: function (on) { $('recenter').hidden = !on; }, onRecolor: function () { visits.recolor(); } });
         /* The scene measures the panels' room when it is told it changed, not in every frame. */
         if (window.ResizeObserver) {
           var ro = new ResizeObserver(function () {

@@ -61,12 +61,13 @@ clockwise from midnight at the top: each as tall as that hour's pageviews, with 
 yesterday's, the current one glowing. In the wall, where the quarter faces the valley, a gate
 per referrer (every one of the last 7 days, then *direct*), as wide as today's arrivals, its
 lanterns in the colour of where it comes from, the same in every village (Google and other
-search engines blue, Reddit orange, YouTube red, Discord blurple, GitHub green, any other web
-sand, direct white: `--village-src-*` in `tokens.css`). A referrer that is another of your sites (one of its
-origins) is no gate: it is the avenue from that site's quarter, with lanterns in its colour
-where it comes in. Where two quarters meet, an arch stands over their avenue: under its lintel
-six lanterns on each face, lit for today's crossings out of the quarter it faces (in that
-site's colour), and a label with both counts ("Pharloom ⇄ Hallownest 3 · 2"). The clock on the tower tells the UTC time on a
+search engines blue, Reddit orange, YouTube red, Discord blurple, GitHub green, email and
+newsletters ochre, any other web sand, direct white: `--village-src-*` in `tokens.css`). A
+referrer that is another of your sites (one of its origins) is no gate: it is the avenue from
+that site's quarter, with lanterns in that site's own colour where it comes in, the colour its
+skiers wear and its rows in the visits panel show. Where two quarters meet, an arch stands
+over their avenue: under its lintel six lanterns on each face, lit for today's crossings out
+of the quarter it faces (in that site's colour), and a label with both counts ("Pharloom ⇄ Hallownest 3 · 2"). The clock on the tower tells the UTC time on a
 24-hour dial, like the ring of lamps: midnight at the top.
 Between the lamps and the tower, a market: a stall per view opened inside a page (a `screen`
 event with a `view`; every one of the last 7 days), with a pole beside it whose

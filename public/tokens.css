@@ -156,12 +156,12 @@
   --village-site-1: #8fb8ff; --village-site-2: #ff8d6b; --village-site-3: #b9a8ff; --village-site-4: #7fe0b0;
   --village-site-5: #ffd36b; --village-site-6: #ff9ed0; --village-site-7: #a6e36f; --village-site-8: #9ad6ff;
   /* One colour per source of a visit, the same in every village: each hints at where the visit
-     came from (`SOURCES` in village.js says which hosts are which). Another of your sites is gold,
-     any other web sand, direct white. The lanterns, the banner, a villager's scarf, the label of
-     a gate, and the dot of a visit row in the panel. */
+     came from (`SOURCES` in village.js says which hosts are which). Any other web is sand, direct
+     white; another of your sites comes in its own colour (--village-site-*). The lanterns, the
+     banner, a villager's scarf, the label of a gate, and the dot of a visit row in the panel. */
   --village-src-search: #4f86ff; --village-src-reddit: #ff5a1f; --village-src-youtube: #ff2e4a; --village-src-discord: #8a7dff;
   --village-src-twitch: #c06bff; --village-src-steam: #a9c6e3; --village-src-social: #3ccfff; --village-src-meta: #ff5fae;
-  --village-src-github: #6fd468; --village-src-ai: #2fe0c4; --village-src-mine: #ffd36b; --village-src-other: #c8b497;
+  --village-src-github: #6fd468; --village-src-ai: #2fe0c4; --village-src-mail: #e8a33d; --village-src-other: #c8b497;
   --village-src-direct: #e6ebf7;
 }
 @media (pointer: coarse) { :root { --ctl: 44px; } }   /* a finger gets the whole --tap */

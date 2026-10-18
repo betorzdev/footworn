@@ -441,10 +441,11 @@
      site sends. The `Of` forms look one up (null when there is none); the `For` forms build it
      when the village already stands, which may make the village bigger. */
   function addTower(s, path, total) { var t = { path: path, label: path, total: total, pv: 0, ypv: 0, loads: 0, engaged: 0, events: 0, seed: s.idx * 97 + s.towers.length * 13 }; s.towers.push(t); s.towerBy['p:' + path] = t; return t; }
-  function addLane(s, ref) { var l = { key: 'ref:' + ref, ref: ref, label: ref, from: sisterOf(s, ref), color: sourceColor(ref), count: 0 }; s.lanes.push(l); s.laneBy[l.key] = l; return l; }
+  function addLane(s, ref) { var f = sisterOf(s, ref), l = { key: 'ref:' + ref, ref: ref, label: ref, from: f, color: toneOf(f, ref), count: 0 }; s.lanes.push(l); s.laneBy[l.key] = l; return l; }
   /* Where a visit came from, the same in every village: the referrer (a host, "www." dropped, or
-     a ?ref= channel) read against these, first match wins; another of the sites is `mine`, any
-     other host `other`. Each has its colour in tokens.css (--village-src-*). */
+     a ?ref= channel) read against these, first match wins; any other host is `other`. Each has its
+     colour in tokens.css (--village-src-*). Another of the sites is none of these: it comes in
+     that site's own colour, the one its skiers and its arches wear (`toneOf`). */
   var SOURCES = [
     ['ai', /^(chatgpt\.com|chat\.openai\.com|perplexity\.ai|claude\.ai|gemini\.google\.com|copilot\.microsoft\.com)$/],
     ['youtube', /(^|\.)youtube\.com$|^youtu\.be$|^com\.google\.android\.youtube|^youtube$/],
@@ -456,15 +457,16 @@
     ['social', /^(t\.co|x\.com|twitter\.com|mobile\.twitter\.com|bsky\.app|threads\.net|mastodon\.social|t\.me|web\.telegram\.org)$|^(twitter|x|bsky|mastodon|threads|telegram)$/],
     ['meta', /(^|\.)(facebook|instagram|whatsapp|tiktok)\.com$|^(fb\.me|wa\.me)$|^(facebook|instagram|whatsapp|tiktok)$/],
     ['github', /(^|\.)github\.(com|io)$|^github$/],
+    ['mail', /^(email|newsletter|mail\.google\.com|outlook\.(live|office|office365)\.com|mail\.(yahoo|aol|proton|zoho)\.[a-z.]+|mail\.yandex\.[a-z.]+|app\.fastmail\.com)$/],
   ];
-  var SOURCE_KEYS = SOURCES.map(function (r) { return r[0]; }).concat(['mine', 'other', 'direct']);
+  var SOURCE_KEYS = SOURCES.map(function (r) { return r[0]; }).concat(['other', 'direct']);
   function sourceOf(ref) {
     if (ref == null) return 'direct';
-    for (var i = 0; i < sites.length; i++) if (sites[i].hosts.indexOf(ref) >= 0) return 'mine';
     for (var j = 0; j < SOURCES.length; j++) if (SOURCES[j][1].test(ref)) return SOURCES[j][0];
     return 'other';
   }
-  function sourceColor(ref) { return T.src[sourceOf(ref)]; }
+  /* A referrer's colour in a village: the sister it comes from (`sisterOf`), or its source. */
+  function toneOf(from, ref) { return from ? from.tint : T.src[sourceOf(ref)]; }
   /* Another of the sites, when a referrer is one of its hosts (`hosts`, from /api/sites, read as
      the referrer filter reads them): its visits come from that quarter, along the avenues. */
   function sisterOf(s, ref) { if (ref == null) return null; for (var i = 0; i < sites.length; i++) if (sites[i] !== s && sites[i].hosts.indexOf(ref) >= 0) return sites[i]; return null; }
@@ -1787,7 +1789,7 @@
   }
 
   window.FootwornCity = {
-    /* canvas, { tip, insets() -> {top, bottom, right}, onEnter(id), onLeave(), onCue(name, cue), onFree(on) } */
+    /* canvas, { tip, insets() -> {top, bottom, right}, onEnter(id), onLeave(), onCue(name, cue), onFree(on), onRecolor() } */
     init: function (canvas, o) {
       cv = canvas; opts = o || {}; tip = opts.tip || null;
       readTokens();
@@ -1849,7 +1851,7 @@
       var was = view.site && view.site.id, old = byId;
       sites = list.map(function (s, i) { var k = old[s.id]; if (k) { k.idx = i; k.name = s.name; k.draft = !!s.draft; k.hosts = s.hosts || []; dress(k, s); return k; } return makeSite(s, i); });
       byId = {}; sites.forEach(function (s) { byId[s.id] = s; });
-      sites.forEach(function (s) { s.lanes.forEach(function (l) { if (l.key !== 'direct') { l.from = sisterOf(s, l.ref); l.color = sourceColor(l.ref); } }); });   // a sister added or taken away
+      sites.forEach(function (s) { s.lanes.forEach(function (l) { if (l.key !== 'direct') { l.from = sisterOf(s, l.ref); l.color = toneOf(l.from, l.ref); } }); });   // a sister added or taken away, or its colour moved with its place
       if (was && !byId[was]) { view.site = null; view.mode = 'bay'; }
       sizeAll();   // the order between the villages, for the list as it is now
       if (!W) return;
@@ -1875,7 +1877,11 @@
     restyle: function (id, look) {
       var s = byId[id]; if (!s) return;
       if (look.name) s.name = look.name;
-      dress(s, look);
+      var was = s.tint; dress(s, look);
+      if (s.tint !== was) {   // its colour is also the one of its avenues into the other quarters, and of their rows in the visits panel
+        sites.forEach(function (x) { x.lanes.forEach(function (l) { if (l.from === s) { l.color = s.tint; x.sig = null; } }); });
+        if (opts.onRecolor) opts.onRecolor();
+      }
       if (!W) return;
       refresh(true); W.relabel(); W.wake();
     },
@@ -1921,9 +1927,10 @@
     /* Rings one visit's house and gate ({ site, path, ref }), a view's house and stall
        ({ site, path, view }), or nothing (null). */
     highlight: function (h) { view.hl = h || null; paintHl(); if (W) { W.relabel(); W.wake(); } },   // a marked label shows even where it had no room
-    /* The colour the visits panel shares with the scene: the visit's source (direct for none),
-       the same in every site. As CSS rgb(). */
-    laneColor: function (id, ref) { return css(sourceColor(ref)); },
+    /* The colour the visits panel shares with the scene: the visit's gate in its village, or the
+       colour it would have (its source, the same in every site, or the sister it came from). As
+       CSS rgb(). */
+    laneColor: function (id, ref) { var s = byId[id], l = s && laneOf(s, ref); return css(l ? l.color : toneOf(s ? sisterOf(s, ref) : null, ref)); },
     /* One page's counts today, from its house: { pv, loads, engaged }, or null for a page with no house. */
     pageStats: function (id, path) { var s = byId[id], t = s && s.loaded ? towerOf(s, path) : null; return t ? { pv: t.pv, loads: t.loads, engaged: t.engaged } : null; },
     stats: function (id) {
