@@ -2,6 +2,7 @@
    cut to what the dashboard shows and nothing identifying survives (docs/privacy.md). */
 
 import { isBot, parseUA } from './ua.js';
+import { dayOf } from './clock.js';
 
 const MAX_PATH = 200, MAX_REF = 100, MAX_EVENT = 60, MAX_PROPS = 10, MAX_PROP_KEY = 32, MAX_PROP_VAL = 64, MAX_LANG = 8;
 /* What an event may carry, as the Sites panel's wiring prompt tells a site's developer (public/wire.js). */
@@ -101,12 +102,11 @@ export function makeHit(body, { site, ua, country, now }) {
   const width = w > 0 && w <= MAX_WIDTH ? w : null;
   const { browser, os } = parseUA(ua);
   const tag = (str(body.l, MAX_LANG) || '').split('-')[0].toLowerCase();
-  const date = new Date(now * 1000);
   return {
     hit: {
       site: site.id,
       ts: now,
-      day: date.toISOString().slice(0, 10),
+      day: dayOf(now),   // Madrid's (src/clock.js)
       path: path.split('?')[0].split('#')[0],
       event,
       props: event && event !== ENGAGED ? cleanProps(body.props) : null,

@@ -33,9 +33,11 @@ class_name = "Live"
 tag = "v1"
 new_sqlite_classes = ["Live"]
 
-# Nightly: rotate the salt, forget today's visitor hashes, drop hits past the retention.
+# Nightly, at Madrid's midnight: rotate the salt, forget the day's visitor hashes, drop hits past
+# the retention. Crons run on UTC, so both 22:00 (summer) and 23:00 (winter); the one that is not
+# midnight in Madrid changes nothing (src/index.js, nightly()).
 [triggers]
-crons = ["0 0 * * *"]
+crons = ["0 22,23 * * *"]
 
 # Secrets (`npx wrangler secret put <NAME>`): ADMIN_TOKEN, the dashboard's password; and, optional,
 # ANTHROPIC_API_KEY, for Claude's suggested look in the Sites panel (src/look.js).

@@ -5,6 +5,7 @@ import { spawn, spawnSync } from 'node:child_process';
 import { rmSync } from 'node:fs';
 import assert from 'node:assert/strict';
 import { fileURLToPath } from 'node:url';
+import { dayOf, dayStart } from '../src/clock.js';
 
 const PORT = 8799, PERSIST = '.wrangler/smoke', TOKEN = 'smoke-token';
 const BASE = `http://127.0.0.1:${PORT}`;
@@ -53,7 +54,7 @@ function post(body, { origin = 'https://one.example', ua = UA, ip = '203.0.113.1
     headers: { 'Content-Type': 'text/plain', Origin: origin, 'User-Agent': ua, 'CF-Connecting-IP': ip } });
 }
 const api = (path) => fetch(BASE + path, { headers: { Authorization: 'Bearer ' + TOKEN } }).then(r => r.json());
-const today = new Date().toISOString().slice(0, 10);
+const today = dayOf(Math.floor(Date.now() / 1000));   // Madrid's, as the API's
 
 let mine = [];
 try {
@@ -103,9 +104,9 @@ try {
   assert.deepEqual(st.events, [{ value: 'screen', hits: 2 }, { value: 'share', hits: 1 }], 'events');
   assert.equal(st.hours.reduce((n, h) => n + h.hits, 0), 4, 'hours sum to the pageviews');
   assert.ok(st.hours.every(h => h.hour >= 0 && h.hour < 24), 'hours are 0-23');
-  assert.deepEqual(st.weekdays, [{ weekday: new Date().getUTCDay(), hits: 4 }], 'weekdays');
+  assert.deepEqual(st.weekdays, [{ weekday: new Date(Date.parse(today)).getUTCDay(), hits: 4 }], 'weekdays');
   assert.deepEqual(st.widths, [{ bucket: 300, hits: 1 }, { bucket: 1000, hits: 1 }, { bucket: 1400, hits: 2 }], 'widths');
-  const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+  const yesterday = new Date(Date.parse(today) - 86400000).toISOString().slice(0, 10);
   assert.deepEqual(st.previous, { from: yesterday, to: yesterday, hits: 0, visitors: 0, events: 0, loads: 0, engaged: 0 }, 'previous period');
 
   const ev = await api(`/api/event?site=one&name=screen&from=${today}&to=${today}`);
@@ -239,9 +240,15 @@ try {
   assert.equal(home.headers.get('x-content-type-options'), 'nosniff', 'nosniff everywhere');
   assert.equal((await fetch(BASE + '/_headers')).status, 404, '_headers is not an asset');
 
-  // The cron forgets today's visitors: the same visitor is new again.
-  const cron = await fetch(BASE + '/cdn-cgi/local/scheduled');
-  assert.equal(cron.status, 200, 'cron ran');
+  // The cron that is not Madrid's midnight (22:00 UTC in winter, 23:00 in summer) forgets nothing.
+  assert.equal((await fetch(BASE + '/cdn-cgi/local/scheduled?time=' + Date.now())).status, 200, 'cron ran');
+  await post({ s: 'one', p: '/', rl: 1, w: 1440, l: 'es-ES' });
+  st = await api(`/api/stats?site=one`);
+  assert.deepEqual(st.totals, { hits: 4, visitors: 3, events: 3, loads: 4, engaged: 1 }, 'a cron within the day');
+  // Past Madrid's midnight it forgets the day's visitors: the same visitor is new again. (This post,
+  // still today's, rotates the salt back on its own; test/visitor.test.js holds the cron to it.)
+  const midnight = dayStart(new Date(Date.parse(today) + 86400000).toISOString().slice(0, 10)) * 1000;
+  assert.equal((await fetch(BASE + '/cdn-cgi/local/scheduled?time=' + midnight)).status, 200, 'cron ran');
   // A reloads the next day (a tab left open overnight): the day's first pageview, so it counts.
   await post({ s: 'one', p: '/', rl: 1, w: 1440, l: 'es-ES' });
   st = await api(`/api/stats?site=one`);

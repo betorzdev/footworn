@@ -17,7 +17,7 @@
   function save(key, v) { try { if (v === null) localStorage.removeItem(key); else localStorage.setItem(key, v); } catch (e) { /* no storage */ } }
   function esc(s) { return String(s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
   function fmt(n) { return (n || 0).toLocaleString('en'); }
-  function utcDay() { return new Date().toISOString().slice(0, 10); }
+  var madridDay = window.FootwornClock.day;   // Madrid's, as the API's days
   function isDay(s) { if (!/^\d{4}-\d{2}-\d{2}$/.test(s || '')) return false; var t = Date.parse(s); return !isNaN(t) && new Date(t).toISOString().slice(0, 10) === s; }   // a real day: no 31st of February
 
   /* A read, or with `init` ({ method, body, headers }) one of the Sites panel's writes: a string
@@ -219,7 +219,7 @@
       scene.setDay(null);
       answers.forEach(function (a) { scene.load(a.id, a.scene); sceneAt[a.id] = a.scene.now; listAt[a.id] = a.visits.now; });
       visits.set(answers.map(function (a) { return a.visits; }));
-      state.buffer = null; state.day = utcDay();
+      state.buffer = null; state.day = madridDay();
       held.forEach(function (m) {
         if (sceneAt[m.site] !== undefined && m.t > sceneAt[m.site]) scene.live(m);
         if (listAt[m.site] !== undefined && m.t >= listAt[m.site]) visits.live(m, m.t === listAt[m.site]);
@@ -241,7 +241,7 @@
       if (mine !== generation) return;
       scene.setDay(day);
       answers.forEach(function (a) { scene.load(a.id, a.scene); });
-      state.day = state.day || utcDay();
+      state.day = state.day || madridDay();
       showError(null); paintView();
     }).catch(function (e) {
       if (mine !== generation) return;
@@ -265,11 +265,11 @@
     paintView();
   }
 
-  /* The day's cut, as the API makes it: at UTC midnight the windows go dark and the day starts
+  /* The day's cut, as the API makes it: at midnight in Madrid the windows go dark and the day starts
      again. On a past day nothing goes dark: only today moved on, in the strip. */
   setInterval(function () {
-    if (!state.day || utcDay() === state.day) return;
-    state.day = utcDay();
+    if (!state.day || madridDay() === state.day) return;
+    state.day = madridDay();
     if (state.viewDay) { strip.refresh(); return; }
     visits.clear(); scene.dayCut(reloadAll);
   }, 15000);
@@ -303,8 +303,8 @@
     paintPanel();
     $('title').textContent = inSite ? siteName(state.site) : 'Your sites';
     var past = state.viewDay;
-    $('sub').textContent = past ? strip.name(past) + ' · ' + past + ' UTC · a past day, as it ended'
-      : 'Today · ' + (state.day || utcDay()) + ' UTC · ' + (inSite ? (touch ? 'tap' : 'hover') + ' the houses, gates and stalls · drag to look round' : 'pick a quarter');
+    $('sub').textContent = past ? strip.name(past) + ' · ' + past + ' Madrid time · a past day, as it ended'
+      : 'Today · ' + (state.day || madridDay()) + ' Madrid time · ' + (inSite ? (touch ? 'tap' : 'hover') + ' the houses, gates and stalls · drag to look round' : 'pick a quarter');
     $('ui').classList.toggle('past', !!past);
     $('s-when').textContent = past ? ' that day' : ' today';
     $('stats').setAttribute('aria-label', past ? strip.name(past) : 'Today');
@@ -449,7 +449,7 @@
   });
 
   /* --- boot --- */
-  function pastDay(s) { return isDay(s) && s < utcDay() ? s : null; }
+  function pastDay(s) { return isDay(s) && s < madridDay() ? s : null; }
   function params(s) {
     var out = {};
     s.split('&').forEach(function (kv) {

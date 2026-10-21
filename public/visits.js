@@ -11,7 +11,7 @@
    as the API rounds it (src/stats.js, `visits`): the minute, the device class, browser and system
    families; nothing joins two rows, so a view is never hung under a visit. Over the valley it
    lists every site, in a village that site alone. Hovering or focusing a row asks the scene to
-   ring the house and the gate of that visit. Empties at UTC midnight, when the windows go dark.
+   ring the house and the gate of that visit. Empties at midnight in Madrid, when the windows go dark.
    While the village is turned back to a past day (`past`) there is no list: earlier days are only
    counts (docs/privacy.md), so the panel says so and offers that day in the ledger. */
 (function () {
@@ -36,7 +36,7 @@
     function esc(s) { return String(s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
     function flag(c) { return /^[A-Z]{2}$/.test(c || '') ? String.fromCodePoint(127397 + c.charCodeAt(0), 127397 + c.charCodeAt(1)) : ''; }
     function pad(n) { return (n < 10 ? '0' : '') + n; }
-    function clock(minute) { var d = new Date(minute * 1000); return pad(d.getHours()) + ':' + pad(d.getMinutes()); }
+    function clock(minute) { var d = window.FootwornClock.wall(minute * 1000); return pad(d.getUTCHours()) + ':' + pad(d.getUTCMinutes()); }   // Madrid's
     function fmt(n) { return (n || 0).toLocaleString('en'); }
     /* A small mark per device class: a bare foot for a phone, a trainer for a tablet, a boot for a desktop. */
     var FOOT = {
@@ -138,7 +138,7 @@
       list = rows;
       var html = '', hour = null, n = Math.min(list.length, state.shown);
       for (var i = 0; i < n; i++) {
-        var h = new Date(list[i].minute * 1000).getHours();
+        var h = window.FootwornClock.wall(list[i].minute * 1000).getUTCHours();   // Madrid's, as each row's time
         if (h !== hour) { hour = h; html += '<li class="hour" aria-hidden="true">' + pad(h) + ':00</li>'; }
         html += list[i].event && !isView(list[i]) ? eventRow(list[i], i) : row(list[i], i);
       }

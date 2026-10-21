@@ -35,7 +35,7 @@
   shadows, sky) in that one drawing; while only the snow moves the dashboard shows 30 light
   frames a second and runs the sky's passes again once every four seconds, so the sky moves on;
   with reduced motion on, no frames at all until a visit comes or the light has changed.
-- **A sky that follows your clock.** A polar winter day: a low golden sun at midday, dusk, the
+- **A sky that follows Madrid's clock**, as the days do. A polar winter day: a low golden sun at midday, dusk, the
   blue hour, the night and its aurora, dawn. The sun never gets high, so the lit windows always
   read. `?hour=13.5` in the address holds the clock there.
 - **It never breaks the host page.** Everything the tracker does is inside `try/catch`;
@@ -56,7 +56,7 @@ are lit warm from the ground up for the share of loads where the page was *used*
 or 10 s in view); the label over the roof gives the pageviews, pointing at it gives both. A brass band on its front marks
 yesterday's storeys up to this time (a rod over the roof when yesterday was taller), and the way
 to its door is as wide and worn as today's visits, with their footprints. A page nobody opened
-today is shuttered, its lamp out. Round the square, 24 street lamps, one per UTC hour
+today is shuttered, its lamp out. Round the square, 24 street lamps, one per hour (Madrid's)
 clockwise from midnight at the top: each as tall as that hour's pageviews, with a brass ring at
 yesterday's, the current one glowing. In the wall, where the quarter faces the valley, a gate
 per referrer (every one of the last 7 days, then *direct*), as wide as today's arrivals, its
@@ -67,7 +67,7 @@ referrer that is another of your sites (one of its origins) is no gate: it is th
 that site's quarter, with lanterns in that site's own colour where it comes in, the colour its
 skiers wear and its rows in the visits panel show. Where two quarters meet, an arch stands
 over their avenue: under its lintel six lanterns on each face, lit for today's crossings out
-of the quarter it faces (in that site's colour), and a label with both counts ("Pharloom ⇄ Hallownest 3 · 2"). The clock on the tower tells the UTC time on a
+of the quarter it faces (in that site's colour), and a label with both counts ("Pharloom ⇄ Hallownest 3 · 2"). The clock on the tower tells Madrid's time on a
 24-hour dial, like the ring of lamps: midnight at the top.
 Between the lamps and the tower, a market: a stall per view opened inside a page (a `screen`
 event with a `view`; every one of the last 7 days), with a pole beside it whose
@@ -106,14 +106,14 @@ own site's hits; an arrival counted while a crossing to it is still on its way w
 border for that skier, so one picks up where the other left. Drag the snow to move over it, as on a map; right-drag (or Ctrl-drag) to
 turn and tilt; the wheel comes closer to what is under the pointer; let go moving and the camera
 coasts a moment. Recenter in the dock, or a double click on the snow, flies back to the whole
-view. Hover, or tap, a house, a gate, a stall or a workshop for its numbers. At UTC midnight
+view. Hover, or tap, a house, a gate, a stall or a workshop for its numbers. At midnight in Madrid
 (the day's cut) the windows go dark from the top down and the day starts again.
 
 **Sound**, off until its button in the dock asks for it, says the same for the ear, for a
 dashboard left on a second screen: two steps in the snow when a villager comes through a gate
 (each gate has its own, darker or brighter), a hand bell when they reach the house (the page is
 the pitch, the top page the lowest; a new visitor's bell is answered an octave up), a wind chime
-at the stall, three knocks of work at a workshop, and one stroke of the tower at UTC midnight. Each quarter
+at the stall, three knocks of work at a workshop, and one stroke of the tower at midnight in Madrid. Each quarter
 sounds from its side of the city. All of it is synthesised in the browser (Web Audio, no
 files); nothing plays between visits, and the audio goes to sleep a few seconds after the last
 one. With sound on, point at the button, or reach it with Tab, and its volume slider comes up.
@@ -135,7 +135,7 @@ properties) and today's counts around it: its page's pageviews and used share, i
 how often that view was opened, its country and its device; an open event links to its detail
 in the ledger.
 Every row names its site. Rounded on purpose, so a row is never a fingerprint (no width, no
-second, nothing joining two rows, so a view is never hung under a visit), and gone at UTC midnight.
+second, nothing joining two rows, so a view is never hung under a visit), and gone at midnight in Madrid.
 
 ![The panel beside a village: visits in bold with a dot in their referrer's gate colour, the page, the referrer, a flag and a device mark; views in a lighter, lower row with a hollow dot.](docs/screenshots/visits.png)
 
@@ -272,7 +272,8 @@ npm run dev                           # http://localhost:8787
   `/?site=<id>&ledger=1&from=…&to=…&event=<name>` is a link to it. Keep `/demo` open in another
   tab to watch the hits come in.
 - `/privacy` is the public notice.
-- `curl http://localhost:8787/cdn-cgi/local/scheduled` runs the nightly cron by hand.
+- `curl 'http://localhost:8787/cdn-cgi/local/scheduled?time=<ms>'` runs the nightly cron by hand: at a
+  `time` past Madrid's midnight it rotates the salt; within the day it only drops old hits.
 
 `npm test` is the unit suite, `npm run smoke` the end-to-end run (a throwaway local D1 through
 `wrangler dev`); `.github/workflows/ci.yml` runs both on every push. `.claude/` holds the hooks
@@ -323,7 +324,7 @@ the width, no id), live and as the day's history; earlier days are only counts. 
 
 ## API
 
-`Authorization: Bearer <ADMIN_TOKEN>`; dates `YYYY-MM-DD`, UTC; default range the last 30 days.
+`Authorization: Bearer <ADMIN_TOKEN>`; dates `YYYY-MM-DD`, Madrid's days (`Europe/Madrid`, summer time included: `src/clock.js`); default range the last 30 days.
 
 | | |
 |---|---|
@@ -334,12 +335,12 @@ the width, no id), live and as the day's history; earlier days are only counts. 
 | `POST /api/icon?site=` | an image body (`Content-Type: image/…`, 40 KB at most, its bytes must say PNG, ICO or JPEG) is kept as the icon; any other body (`{ page? }`, JSON) has the Worker fetch it from that page or the site's first origin, as `site:icon` does; `422` when none is usable |
 | `DELETE /api/icon?site=` | forgets the icon: the pennant again |
 | `POST /api/look` | `{ page, palette? }` (JSON): the site's page read for a look, stored nowhere: `{ hints: { title, description, lang, themeColor, scheme, ogImage }, icon: { type, data (base64), url } \| null, ai: { look: { style, hue, shade, tint, pieces }, why } \| null, aiError? }`; `ai` only with an `ANTHROPIC_API_KEY` and the dashboard's `palette` (`{ tints: [8 × #rrggbb], roofs: { kit: #rrggbb } }`) |
-| `GET /api/scene?site=` | what the village draws, all counts: `pages`, `refs` and `views` (every one of the last 7 days, busiest first, each list cut at 200, `[{ value, hits }]`), `events` (every other event of the 7 days, by name, `[{ value, hits }]`), `week: { hits, views }` (the 7 days' pageviews and views opened: the village's size), `today: { hits, visitors, events, viewsTotal, loads, engaged, pages: [{ path, hits, loads, engaged, events }], refs: [{ ref, hits }], views: [{ view, hits }], viewPages: [{ path, view, hits }], byEvent: [{ event, hits }], eventPages: [{ path, event, hits }] }` (the used rate is `engaged / loads`, as in `/api/stats`; a view is a `screen` event with a `view`, so `viewsTotal` is inside `events`), `yesterday: { visitors, pages: [{ path, hits }] }` up to this time of day, and `hours: [{ hour, today, yesterday }]`, pageviews by UTC hour. With `&day=` before today (`past: true` in the answer) it is the village as that day ended: `today` is that day, the 7 days end on it, `yesterday` is the whole day before |
+| `GET /api/scene?site=` | what the village draws, all counts: `pages`, `refs` and `views` (every one of the last 7 days, busiest first, each list cut at 200, `[{ value, hits }]`), `events` (every other event of the 7 days, by name, `[{ value, hits }]`), `week: { hits, views }` (the 7 days' pageviews and views opened: the village's size), `today: { hits, visitors, events, viewsTotal, loads, engaged, pages: [{ path, hits, loads, engaged, events }], refs: [{ ref, hits }], views: [{ view, hits }], viewPages: [{ path, view, hits }], byEvent: [{ event, hits }], eventPages: [{ path, event, hits }] }` (the used rate is `engaged / loads`, as in `/api/stats`; a view is a `screen` event with a `view`, so `viewsTotal` is inside `events`), `yesterday: { visitors, pages: [{ path, hits }] }` up to this time of day, and `hours: [{ hour, today, yesterday }]`, pageviews by Madrid hour. With `&day=` before today (`past: true` in the answer) it is the village as that day ended: `today` is that day, the 7 days end on it, `yesterday` is the whole day before |
 | `GET /api/days?site=&from=&to=` | `{ days: [{ day, visitors, hits }] }`, visitors and pageviews per day (a day with none has no row): the bars of the history strip |
-| `GET /api/visits?site=` | today's visits (UTC), newest first, at most 2000, rounded: `{ day, now, visits: [{ minute, path, ref, device, browser, os, lang, country, first, event, props }] }`. Never the width, the second or an id |
+| `GET /api/visits?site=` | today's visits (Madrid's day), newest first, at most 2000, rounded: `{ day, now, visits: [{ minute, path, ref, device, browser, os, lang, country, first, event, props }] }`. Never the width, the second or an id |
 | `GET /api/live-ticket` | `{ ticket }`, good for 60 s, to open the live socket |
 | `GET /live?ticket=` | WebSocket: one JSON message per counted hit, `{ site, t, path, ref, device, browser, os, lang, first, country, event, props }`; send `ping`, get `pong` |
-| `GET /api/stats?site=&from=&to=` | `{ totals: { hits, visitors, events, loads, engaged }, days: [{ day, hits, visitors, events, engaged }], path, ref, browser, os, device, country, lang, events }`, each dimension `[{ value, hits, visitors }]` (`path` adds `loads` and `engaged`), top 30. `events` never counts `$engaged`; `loads` are the pageviews since the site's first `$engaged`, what the *used* rate divides by. Also `hours: [{ hour, hits }]` (UTC), `weekdays: [{ weekday, hits }]` (0 is Sunday), `widths: [{ bucket, hits }]` (100 px buckets, pageviews only) and `previous: { from, to, hits, visitors, events, loads, engaged }`, the totals of the period of the same length just before. |
+| `GET /api/stats?site=&from=&to=` | `{ totals: { hits, visitors, events, loads, engaged }, days: [{ day, hits, visitors, events, engaged }], path, ref, browser, os, device, country, lang, events }`, each dimension `[{ value, hits, visitors }]` (`path` adds `loads` and `engaged`), top 30. `events` never counts `$engaged`; `loads` are the pageviews since the site's first `$engaged`, what the *used* rate divides by. Also `hours: [{ hour, hits }]` (Madrid hours), `weekdays: [{ weekday, hits }]` (0 is Sunday), `widths: [{ bucket, hits }]` (100 px buckets, pageviews only) and `previous: { from, to, hits, visitors, events, loads, engaged }`, the totals of the period of the same length just before. |
 | `GET /api/event?site=&name=&from=&to=` | `{ totals, days, paths, props: { key: [{ value, hits }] } }` |
 | `POST /c` | what the tracker sends: `{ s, p, r, w, l, e?, props? }`, under 8 KB; always `204` |
 

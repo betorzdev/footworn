@@ -45,3 +45,19 @@ test('salt lives for a day and rotation forgets the hashes', async () => {
   assert.equal(db.seen.size, 0);
   assert.equal(await firstToday(db, { ...v, day: '2026-10-02' }), 1);
 });
+
+test("the nightly cron rotates the salt at Madrid's midnight only", async () => {
+  const { nightly } = await import('../src/index.js');
+  const db = fakeDb(), base = db.prepare;
+  db.prepare = sql => (sql.startsWith('DELETE FROM hits') ? { bind: () => ({ run: async () => ({}) }) } : base(sql));
+  const env = { DB: db, RETENTION_MONTHS: '25' };
+  const s1 = await saltFor(db, '2026-12-01');
+  await firstToday(db, { day: '2026-12-01', site: 'x', ip: '1.2.3.4', ua: 'UA' });
+  await nightly(env, new Date(Date.UTC(2026, 11, 1, 22)));   // 23:00 in Madrid, winter: still the day
+  assert.equal(db.meta.get('salt'), s1);
+  assert.equal(db.seen.size, 1);
+  await nightly(env, new Date(Date.UTC(2026, 11, 1, 23)));   // midnight in Madrid
+  assert.notEqual(db.meta.get('salt'), s1);
+  assert.equal(db.meta.get('salt_day'), '2026-12-02');
+  assert.equal(db.seen.size, 0);
+});

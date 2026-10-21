@@ -14,7 +14,7 @@
   window.FootwornHistory = function (o) {
     /* o: { api(path) -> Promise<json>, sites() -> [{ id }], failed(e, again), onDay(day | null), onToggle() } */
     var $ = function (id) { return document.getElementById(id); };
-    function utcDay() { return new Date().toISOString().slice(0, 10); }
+    var madridDay = window.FootwornClock.day;   // Madrid's, as the API's days
     function addDays(iso, n) { return new Date(Date.parse(iso) + n * DAY_MS).toISOString().slice(0, 10); }
     function isDay(s) { if (!/^\d{4}-\d{2}-\d{2}$/.test(s || '')) return false; var t = Date.parse(s); return !isNaN(t) && new Date(t).toISOString().slice(0, 10) === s; }   // a real day: no 31st of February
     function fmt(n) { return (n || 0).toLocaleString('en'); }
@@ -28,7 +28,7 @@
 
     /* `day`: the day on screen, null for today. `to`: the last day of the bars. `by`: per site,
        per day, the row /api/days gave. */
-    var state = { open: remembered(), day: null, view: null, to: utcDay(), today: utcDay(), by: Object.create(null), n: 0 };
+    var state = { open: remembered(), day: null, view: null, to: madridDay(), today: madridDay(), by: Object.create(null), n: 0 };
     function count() { return window.innerWidth < 760 ? 30 : 60; }
     function shown() { return state.open || !!state.day; }
     function val(day) {
@@ -56,12 +56,12 @@
     }
 
     function readout(day) {
-      var v = val(day), today = day === utcDay();
+      var v = val(day), today = day === madridDay();
       $('strip-n').textContent = (today ? 'Today' : SHORT.format(new Date(Date.parse(day)))) + ' · ' + plural(v.visitors, 'visitor', 'visitors') + (today ? ' so far' : '') + ' · ' + plural(v.hits, 'pageview', 'pageviews');
     }
     function paint() {
       if ($('strip').hidden) return;
-      var n = state.n = count(), today = utcDay(), sel = state.day || today, max = 1, html = '', k, d;
+      var n = state.n = count(), today = madridDay(), sel = state.day || today, max = 1, html = '', k, d;
       for (k = 0; k < n; k++) max = Math.max(max, val(addDays(state.to, -k)).visitors);
       for (k = n - 1; k >= 0; k--) {
         d = addDays(state.to, -k);
@@ -96,13 +96,13 @@
     /* The bars hold the day on screen: one outside them comes to their middle, today brings them
        back to their end. */
     function fit() {
-      var today = utcDay(), n = count(), day = state.day;
+      var today = madridDay(), n = count(), day = state.day;
       if (!day) state.to = today;
       else if (day < addDays(state.to, -(n - 1)) || day > state.to) { state.to = addDays(day, n >> 1); if (state.to > today) state.to = today; }
     }
     /* A day asked for: a day to come is today, and today is no past day. */
     function pick(day) {
-      var today = utcDay();
+      var today = madridDay();
       if (isDay(day)) o.onDay(day >= today ? null : day);
       paint();   // a day refused, or the same one: the field shows the day on screen again
     }
@@ -110,13 +110,13 @@
     /* One stop for Tab; ← and → walk the days. */
     $('strip-bars').addEventListener('keydown', function (e) {
       if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
-      e.preventDefault(); pick(addDays(state.day || utcDay(), e.key === 'ArrowLeft' ? -1 : 1));
+      e.preventDefault(); pick(addDays(state.day || madridDay(), e.key === 'ArrowLeft' ? -1 : 1));
     });
-    $('strip-bars').addEventListener('mouseover', function (e) { var b = e.target.closest('.day'); readout(b ? b.dataset.day : state.day || utcDay()); });
-    $('strip-bars').addEventListener('mouseleave', function () { readout(state.day || utcDay()); });
-    $('strip-earlier').addEventListener('click', function () { pick(addDays(state.day || utcDay(), -1)); });
-    $('strip-later').addEventListener('click', function () { pick(addDays(state.day || utcDay(), 1)); });
-    $('strip-today').addEventListener('click', function () { pick(utcDay()); $('strip-earlier').focus({ preventScroll: true }); });   // the button hides: the focus stays in the strip
+    $('strip-bars').addEventListener('mouseover', function (e) { var b = e.target.closest('.day'); readout(b ? b.dataset.day : state.day || madridDay()); });
+    $('strip-bars').addEventListener('mouseleave', function () { readout(state.day || madridDay()); });
+    $('strip-earlier').addEventListener('click', function () { pick(addDays(state.day || madridDay(), -1)); });
+    $('strip-later').addEventListener('click', function () { pick(addDays(state.day || madridDay(), 1)); });
+    $('strip-today').addEventListener('click', function () { pick(madridDay()); $('strip-earlier').focus({ preventScroll: true }); });   // the button hides: the focus stays in the strip
     /* The date field: a browser says `change` at every key that leaves a date, so the day is taken
        once the typing rests (or the field is left), and only a day inside the field's own range. */
     var typing = null;
@@ -157,7 +157,7 @@
       view: function (site) { site = site || null; if (site !== state.view) { state.view = site; paint(); } },
       /* The counts moved on (a reload, midnight): bars that ended today still end today. */
       refresh: function () {
-        var today = utcDay();
+        var today = madridDay();
         if (state.to === state.today) state.to = today;
         state.today = today; load();
       },
