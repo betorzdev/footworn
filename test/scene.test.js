@@ -76,8 +76,8 @@ test('a past day: the village as that day ended', async () => {
   /* The houses, gates and stalls of the 7 days that end on it; the counts of that day alone. */
   assert.deepEqual(batch[0].args, ['one', '2026-09-14', '2026-09-20']);
   assert.deepEqual(batch[2].args, ['one', '2026-09-20']);
-  /* The day before, whole: up to its last second, not up to this time of day. */
-  assert.deepEqual(batch[5].args, ['one', '2026-09-19', Date.UTC(2026, 8, 20) / 1000 - 1]);
+  /* The day before, whole: up to its last second in Madrid, not up to this time of day. */
+  assert.deepEqual(batch[5].args, ['one', '2026-09-19', Date.UTC(2026, 8, 19, 22) / 1000 - 1]);
   assert.deepEqual(batch[6].args, ['one', '2026-09-20', '2026-09-19']);
 });
 
@@ -165,7 +165,11 @@ test('yesterday by page: the pageviews of each page up to this time yesterday', 
   /* a past day: the whole day before it */
   const past = fakeDb([]);
   await scene(past, { site: 'one', day: '2026-09-20', now: NOW });
-  assert.deepEqual(yesterdayPages(past).args, ['one', '2026-09-19', Date.parse('2026-09-20') / 1000 - 1]);
+  assert.deepEqual(yesterdayPages(past).args, ['one', '2026-09-19', Date.UTC(2026, 8, 19, 22) / 1000 - 1]);
+  /* the day after the clocks go forward: 10:00 yesterday on the wall clock, though only 23 hours ago */
+  const spring = fakeDb([]);
+  await scene(spring, { site: 'one', now: Date.UTC(2026, 2, 30, 8) });
+  assert.deepEqual(yesterdayPages(spring).args, ['one', '2026-03-29', Date.UTC(2026, 2, 29, 8) / 1000]);
 });
 
 test('the crossings: today, per other site its `to` names, out of the workshops', async () => {

@@ -4,7 +4,8 @@
    (GET /live, relayed to the `Live` Durable Object) and the nightly cron. */
 
 import { makeHit, originAllowed, ENGAGED } from './collect.js';
-import { firstToday, rotateSalt } from './visitor.js';
+import { firstToday, saltFor } from './visitor.js';
+import { dayOf } from './clock.js';
 import { authorized } from './auth.js';
 import { sites, stats, eventStats, scene, days, visits, icon } from './stats.js';
 import { publish } from './live.js';
@@ -73,7 +74,7 @@ async function collect(request, env, ctx) {
 }
 
 function range(url) {
-  const today = new Date().toISOString().slice(0, 10);
+  const today = dayOf(Math.floor(Date.now() / 1000));
   let from = url.searchParams.get('from'), to = url.searchParams.get('to');
   if (!DAY.test(to || '')) to = today;
   if (!DAY.test(from || '')) from = new Date(Date.parse(to) - 29 * 86400000).toISOString().slice(0, 10);
@@ -173,12 +174,15 @@ async function api(request, env, url) {
   return json({ error: 'not found' }, 404);
 }
 
-/* Drops hits older than RETENTION_MONTHS, rotates the salt and forgets today's hashes. */
+/* Drops hits older than RETENTION_MONTHS and, once Madrid's day has turned, rotates the salt and
+   forgets the day's hashes. The cron fires at 22:00 and 23:00 UTC, one of which is Madrid's
+   midnight (summer and winter): the other finds the salt already the day's, and keeps it. */
 export async function nightly(env, now = new Date()) {
-  const day = now.toISOString().slice(0, 10);
-  await rotateSalt(env.DB, day);
+  const day = dayOf(Math.floor(now.getTime() / 1000));
+  await saltFor(env.DB, day);
   const months = parseInt(env.RETENTION_MONTHS, 10) || 25;
-  const cutoff = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - months, now.getUTCDate())).toISOString().slice(0, 10);
+  const d = new Date(Date.parse(day));
+  const cutoff = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() - months, d.getUTCDate())).toISOString().slice(0, 10);
   await env.DB.prepare('DELETE FROM hits WHERE day < ?').bind(cutoff).run();
 }
 
@@ -210,6 +214,6 @@ export default {
   },
 
   async scheduled(event, env, ctx) {
-    ctx.waitUntil(nightly(env));
+    ctx.waitUntil(nightly(env, new Date(event.scheduledTime)));
   },
 };

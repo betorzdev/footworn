@@ -18,7 +18,8 @@ Everything runs on a throwaway local D1 under `.wrangler/`; nothing touches the 
    (always `204`, even when dropped: check the API, not the status).
 4. Read the numbers with the token from `.dev.vars`:
    `curl -s http://localhost:8787/api/stats?site=demo -H "Authorization: Bearer $(sed -n 's/^ADMIN_TOKEN=//p' .dev.vars)"`.
-5. The nightly cron by hand: `curl -s http://localhost:8787/cdn-cgi/local/scheduled`.
+5. The nightly cron by hand: `curl -s 'http://localhost:8787/cdn-cgi/local/scheduled?time=<ms>'`; it
+   rotates the salt only at a `time` past Madrid's midnight (the days are Madrid's: `src/clock.js`).
 6. The dashboard is `http://localhost:8787/#token=<token>`; a screenshot there is the visual check.
 7. Stop the server when done. `npm run smoke` is the end-to-end check on its own port (8799)
    and does not need the dev server.

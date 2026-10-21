@@ -74,7 +74,7 @@
     /* --- range --- */
     function setRange(days) {
       state.days = days;
-      state.to = day(new Date());
+      state.to = window.FootwornClock.day();
       state.from = addDays(state.to, -(days - 1));
       $('from').value = state.from; $('to').value = state.to;
       paintRange(); refresh();
@@ -267,15 +267,12 @@
 
     /* --- the rhythm row: when people come, and on what screens --- */
     function pad(n) { return (n < 10 ? '0' : '') + n; }
-    /* The API's 24 UTC buckets turned to the viewer's clock. Whole hours, by today's offset: a
-       half-hour zone lands on the nearest hour, and a range across a clock change is off by one.
-       The range itself is still cut on UTC days (the API's key), which the subtitle says. */
+    /* The API's 24 buckets, Madrid's hours, as its days are. */
     function hourList(hours) {
-      var utc = [], i; for (i = 0; i < 24; i++) utc[i] = 0;
-      hours.forEach(function (h) { utc[h.hour] = h.hits; });
-      var shift = Math.round(-new Date().getTimezoneOffset() / 60), list = [];
+      var by = [], list = [], i; for (i = 0; i < 24; i++) by[i] = 0;
+      hours.forEach(function (h) { by[h.hour] = h.hits; });
       for (i = 0; i < 24; i++) {
-        var n = utc[((i - shift) % 24 + 24) % 24];
+        var n = by[i];
         list.push({ label: i % 6 ? '' : pad(i) + 'h', hits: n, title: pad(i) + ':00–' + pad(i) + ':59: ' + n + ' pageviews', row: [pad(i) + ':00', fmt(n)] });
       }
       return list;
@@ -318,7 +315,7 @@
     /* Hours on a week or less, weekdays on more; widths always. The device cut-offs (600, 1024) are the collector's. */
     function rhythm(st) {
       var hours = span(st) <= 7, none = !st.totals.hits;
-      $('rhythm').innerHTML = (hours ? panel('when', 'By hour', 'pageviews, your local time · days cut at UTC midnight') : panel('when', 'By weekday', 'pageviews a day')) +
+      $('rhythm').innerHTML = (hours ? panel('when', 'By hour', 'pageviews, Madrid time') : panel('when', 'By weekday', 'pageviews a day')) +
         panel('widths', 'Screen widths', 'pageviews, 100 px buckets · tablet from 600, desktop from 1024');
       if (hours) profile('when', hourList(st.hours), 'Pageviews by hour of the day', null, ['Hour', 'Pageviews'], none);
       else profile('when', weekdayList(st.weekdays, st.from, st.to), 'Pageviews a day by weekday', null, ['Weekday', 'Pageviews a day'], none);

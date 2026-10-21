@@ -3,6 +3,7 @@
    visits one by one, rounded so that a row is not a fingerprint (docs/privacy.md). */
 
 import { hostsOf } from './collect.js';
+import { offsetAt, dayOf, dayStart, fromWall, HOUR_SQL } from './clock.js';
 
 const TOP = 30;
 const SCENE = 200;   // the village draws every page, referrer, view and event, of the week and of today: each list is cut here for safety
@@ -56,7 +57,7 @@ const realDay = iso => { const t = Date.parse(iso); return !isNaN(t) && new Date
 
 /* Totals, by day, each dimension's top values (pages with how many of their loads were used),
    the events, and three profiles the dashboard
-   draws as columns: hour of the day (UTC; the dashboard shifts it), weekday (SQLite's %w, 0 is
+   draws as columns: hour of the day (Madrid's, as the days), weekday (SQLite's %w, 0 is
    Sunday) and screen width in 100 px buckets. `previous` is the same totals for the period of
    the same length just before, for the change under each total. */
 export async function stats(db, { site, from, to }) {
@@ -83,7 +84,7 @@ export async function stats(db, { site, from, to }) {
     ...DIMS.map(dim),
     q(`SELECT event AS value, COUNT(*) AS hits FROM hits
        WHERE ${where} AND ${USER} GROUP BY event ORDER BY hits DESC LIMIT ${TOP}`),
-    q(`SELECT CAST(strftime('%H', ts, 'unixepoch') AS INTEGER) AS hour, COUNT(*) AS hits FROM hits
+    q(`SELECT ${HOUR_SQL} AS hour, COUNT(*) AS hits FROM hits
        WHERE ${where} AND event IS NULL GROUP BY hour ORDER BY hour`),
     q(`SELECT CAST(strftime('%w', day) AS INTEGER) AS weekday, COUNT(*) AS hits FROM hits
        WHERE ${where} AND event IS NULL GROUP BY weekday ORDER BY weekday`),
@@ -138,16 +139,17 @@ export async function eventStats(db, { site, name, from, to }) {
      the two quarters (inside `events` too);
    - `yesterday`: visitors yesterday up to this time of day, for the change on the sign, and
      the pageviews of each page up to then (`pages`, cut at 200), for the mark on its house;
-   - `hours`: pageviews by UTC hour, today and yesterday, for the day's rhythm;
+   - `hours`: pageviews by Madrid hour, today and yesterday, for the day's rhythm;
    - `week`: the pageviews (`hits`) and views opened (`views`) of the 7 days, uncut: the
      village is as big as they are.
    With a `day` before today (`past` in the answer) it is the village as that day ended: "today"
    is that day, the 7 days are the ones that end on it, and "yesterday" the whole day before. */
 export async function scene(db, { site, day, now = Date.now() }) {
-  const utc = new Date(now).toISOString().slice(0, 10), past = !!day && realDay(day) && day < utc;   // a day that is no date is today
-  const today = past ? day : utc, from = addDays(today, -6), yesterday = addDays(today, -1);
-  const secs = Math.floor(now / 1000), LOADS = await loadsSince(db, site);
-  const until = past ? Date.parse(today) / 1000 - 1 : secs - 86400;   // yesterday's last second, or this time yesterday
+  const secs = Math.floor(now / 1000), current = dayOf(secs), past = !!day && realDay(day) && day < current;   // a day that is no date is today
+  const today = past ? day : current, from = addDays(today, -6), yesterday = addDays(today, -1);
+  const LOADS = await loadsSince(db, site);
+  /* yesterday's last second, or this time of day yesterday on the wall clock (a day can be 23 or 25 hours long) */
+  const until = past ? dayStart(today) - 1 : Math.min(fromWall(secs + offsetAt(secs) - 86400), dayStart(today) - 1);
   const week = 'site = ?1 AND day BETWEEN ?2 AND ?3 AND event IS NULL';
   const VIEW = "event = 'screen' AND json_type(props, '$.view') = 'text'";  // a `view` that is not text is no view
   /* A crossing: an event (no view) whose `to` is the id of another of the sites, whatever it is called. */
@@ -165,7 +167,7 @@ export async function scene(db, { site, day, now = Date.now() }) {
        WHERE site = ?1 AND day = ?2 GROUP BY path HAVING hits > 0 OR events > 0 ORDER BY hits DESC LIMIT ${SCENE}`),
     d(`SELECT ref, COUNT(*) AS hits FROM hits WHERE site = ?1 AND day = ?2 AND event IS NULL GROUP BY ref ORDER BY hits DESC LIMIT ${SCENE}`),
     db.prepare(`SELECT SUM(first) AS visitors FROM hits WHERE site = ?1 AND day = ?2 AND ts <= ?3 AND event IS NULL`).bind(site, yesterday, until),
-    db.prepare(`SELECT day, CAST(strftime('%H', ts, 'unixepoch') AS INTEGER) AS hour, COUNT(*) AS hits FROM hits
+    db.prepare(`SELECT day, ${HOUR_SQL} AS hour, COUNT(*) AS hits FROM hits
                 WHERE site = ?1 AND day IN (?2, ?3) AND event IS NULL GROUP BY day, hour`).bind(site, today, yesterday),
     m(`SELECT json_extract(props, '$.view') AS value, COUNT(*) AS hits FROM hits
        WHERE site = ?1 AND day BETWEEN ?2 AND ?3 AND ${VIEW} GROUP BY value ORDER BY hits DESC, value LIMIT ${SCENE}`),
@@ -210,10 +212,10 @@ export async function days(db, { site, from, to }) {
 /* Today's visits, newest first: the one list the API gives. Rounded on the way out, so a row does
    not single anyone out: the minute, not the second; the device class, not the width; browser and
    system families; no id, so nothing joins two rows into a journey (which is why `$engaged`,
-   seconds after its own pageview, is left out). Today only (UTC): at
+   seconds after its own pageview, is left out). Today only (Madrid's): at
    midnight the list empties, as the snowfield does. */
 export async function visits(db, { site, now = Date.now() }) {
-  const today = new Date(now).toISOString().slice(0, 10);
+  const today = dayOf(Math.floor(now / 1000));
   const r = await db.prepare(`SELECT (ts / 60) * 60 AS minute, path, ref, device, browser, os, lang, country, first, event, props
                               FROM hits WHERE site = ?1 AND day = ?2 AND (event IS NULL OR ${USER})
                               ORDER BY ts DESC LIMIT 2000`).bind(site, today).all();

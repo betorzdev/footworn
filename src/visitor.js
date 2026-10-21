@@ -1,7 +1,7 @@
 /* "Is this the visitor's first hit today?" without storing anyone. The hash of salt + site +
-   IP + User-Agent goes into `seen`; the salt is random, lives in `meta` for one UTC day and is
-   replaced by the nightly cron, which also empties `seen`. After that nothing can be recomputed.
-   The same idea as GoatCounter's 8-hour memory, with nothing kept past the day. */
+   IP + User-Agent goes into `seen`; the salt is random, lives in `meta` for one Madrid day
+   (src/clock.js) and is replaced by the nightly cron, which also empties `seen`. After that
+   nothing can be recomputed. The same idea as GoatCounter's 8-hour memory, with nothing kept past the day. */
 
 const SALT_KEY = 'salt', DAY_KEY = 'salt_day';
 

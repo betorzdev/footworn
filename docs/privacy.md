@@ -72,8 +72,8 @@ one person.
 `first` is decided at write time, for pageviews only (an event is an action on a page already
 counted and is never a visitor): SHA-256 of `salt | site | ip | user-agent` goes into `seen`
 with `INSERT OR IGNORE`; a new row means the first pageview of the day. The salt is random, lives in
-`meta` for one UTC day and is replaced by the nightly cron (`src/index.js`, `nightly()`), which
-also empties `seen`. A reload (the tracker marks it `rl`, read from the browser's own navigation
+`meta` for one day, Madrid's (`src/clock.js`), and is replaced by the nightly cron at Madrid's
+midnight (`src/index.js`, `nightly()`), which also empties `seen`. A reload (the tracker marks it `rl`, read from the browser's own navigation
 type, nothing stored) goes through the same check and is kept only when it comes out first: a
 tab left open overnight counts as that day's visit, a refresh within the day counts nothing. The hash is never written to `hits`, the IP and the User-Agent are never
 written anywhere, and after midnight nothing can be recomputed. GoatCounter keeps the same
@@ -92,10 +92,10 @@ width (a row says phone, tablet or desktop), the second (a row says the minute),
 anything that would join two rows. There is no journey: nothing tells that two rows are the same
 person.
 
-- **The history** (`GET /api/visits`, `visits` in `src/stats.js`): today's rows (UTC), newest
+- **The history** (`GET /api/visits`, `visits` in `src/stats.js`): today's rows (Madrid's day), newest
   first, at most 2000 per site: the minute, `path`, `ref` (hostname), `device`, the `browser` and
-  `os` families, `lang`, `country`, `first`, and for an event its name and properties. At UTC
-  midnight the list empties, as the village's windows go dark; earlier days are only counts.
+  `os` families, `lang`, `country`, `first`, and for an event its name and properties. At midnight
+  in Madrid the list empties, as the village's windows go dark; earlier days are only counts.
   The dashboard can turn the village back to any of them (`GET /api/scene` with a `day`, and
   `GET /api/days` for its strip of days): counts again, per day, with no list of visits.
 - **The live view** (`/live`, `liveMessage` in `src/live.js`): the same fields, the moment each

@@ -19,7 +19,7 @@
    - where two quarters meet, an arch over their avenue: under its lintel six lanterns on each
      face, lit for today's crossings out of that quarter (an event whose `to` names the other
      site: a click on a link to it), in that site's colour;
-   - every hour of the day (UTC) is a street lamp round the square, clockwise from midnight at the
+   - every hour of the day (Madrid's) is a street lamp round the square, clockwise from midnight at the
      top: its height is that hour's pageviews, the brass ring yesterday's, the bright one now;
    - every view opened inside a page (a `screen` event with a `view`) is a stall in the market
      round the clock tower (in the 7-day order, in rows: ten round the tower, the next behind
@@ -31,7 +31,7 @@
      well, a granary, a windmill, a woodshed or an oven for the rest, and one of the last six by
      the name itself when no word says, so it never changes): its lantern lit and a crate in
      front for today's, dark when nobody did it today;
-   - the clock tells the time on a dial of 24 hours, like the ring of lamps (UTC, midnight at the
+   - the clock tells the time on a dial of 24 hours, like the ring of lamps (Madrid's, midnight at the
      top; a past day stops at its end), and flies a pennant in the village's colour;
    Nothing is grouped, and a village is as big as its site's visits: its wall opens a step for
    every three times as many pageviews and views in the 7 days (`STEPS`), and a village with
@@ -54,7 +54,7 @@
    A label rides over what had visits today only, and of two that would overlap the busier one
    stays (`vie`); a hidden one still answers the pointer, and a live visit lifts a "+1" on its
    gate and on what it walked to (`pop`).
-   Click a quarter (or its sign) and the camera flies in. At UTC midnight the windows go dark and
+   Click a quarter (or its sign) and the camera flies in. At midnight in Madrid the windows go dark and
    the day starts again. Turned back to a past day (`setDay`, from the history strip) a village
    is that day as it ended: every lamp lit, nobody walking in. A classic script over gl.js (WebGL2), no dependencies; every colour comes
    from tokens.css. app.js feeds it (/api/scene, the live socket) through the same interface the
@@ -72,7 +72,7 @@
 (function () {
   'use strict';
 
-  var G = window.FootwornGL, TAU = Math.PI * 2;
+  var G = window.FootwornGL, CLOCK = window.FootwornClock, TAU = Math.PI * 2;   // CLOCK: Madrid's, as the API's days
   var BLACKOUT_MS = 4200;
   var REBUILD_MS = 2000;   // a village that keeps changing is drawn again this often at most
   var NOW_LOW = .5;        // the lamp of the hour breathes between this and 1
@@ -243,7 +243,7 @@
   var DAY = [[5.5, 'night', -1], [7, 'blue', -1], [8.5, 'dusk', -1], [10.5, 'gold', -1], [14.5, 'gold', 1], [16.25, 'dusk', 1], [18.5, 'blue', 1], [20, 'night', 1], [29.5, 'night', -1]];
   /* `?hour=13.5` holds the clock there: any light, without waiting for it. */
   var hourFixed = (function () { var m = /[?&]hour=([0-9.]+)/.exec(location.search); return m ? clamp(parseFloat(m[1]) || 0, 0, 24) : null; })();
-  function clockHour() { var d = new Date(); return hourFixed != null ? hourFixed : d.getHours() + d.getMinutes() / 60; }
+  function clockHour() { var d = CLOCK.wall(); return hourFixed != null ? hourFixed : d.getUTCHours() + d.getUTCMinutes() / 60; }
   function lightOf(k) {
     var L = LIGHTS[k[1]], C = T.sky[k[1]], o = { sun: [L.sun[0] * k[2], L.sun[1], L.sun[2]], disc: [L.disc[0] * k[2], L.disc[1], L.disc[2]] }, n;
     for (n in L) if (!(n in o)) o[n] = L[n];
@@ -549,7 +549,7 @@
     var l = laneFor(s, msg.ref);
     s.pageviews++; if (msg.first) s.visitors++; t.pv++; l.count++;
     if (s.loads) { s.loads++; t.loads++; }
-    var hr = s.hours[new Date().getUTCHours()]; if (hr) hr.today++;
+    var hr = s.hours[CLOCK.wall().getUTCHours()]; if (hr) hr.today++;
     rebuild(s);
     var g = gateOf(s, l);
     if (!h || !g || !W) return;
@@ -1381,7 +1381,7 @@
      again for them: the hour hand goes round once a day, like the lamps (midnight at the top);
      the minute hand once an hour, in steps of five. A past day stands at its end. */
   function hands(M, s) {
-    var o = s.o, d = new Date(), hr = state.past ? 0 : (d.getUTCHours() + d.getUTCMinutes() / 60) / 24 * TAU, mn = state.past ? 0 : Math.floor(d.getUTCMinutes() / 5) * 5 / 60 * TAU;
+    var o = s.o, d = CLOCK.wall(), hr = state.past ? 0 : (d.getUTCHours() + d.getUTCMinutes() / 60) / 24 * TAU, mn = state.past ? 0 : Math.floor(d.getUTCMinutes() / 5) * 5 / 60 * TAU;
     function hand(c, u, th, len, wd) {
       var dir = [Math.sin(th) * u[0], Math.cos(th), Math.sin(th) * u[2]], pr = [Math.cos(th) * u[0] * wd, -Math.sin(th) * wd, Math.cos(th) * u[2] * wd], tip = [c[0] + dir[0] * len, c[1] + dir[1] * len, c[2] + dir[2] * len];
       M.quad([c[0] - pr[0], c[1] - pr[1], c[2] - pr[2]], [c[0] + pr[0], c[1] + pr[1], c[2] + pr[2]], [tip[0] + pr[0], tip[1] + pr[1], tip[2] + pr[2]], [tip[0] - pr[0], tip[1] - pr[1], tip[2] - pr[2]], T.iron, 0);
@@ -1414,7 +1414,7 @@
      element. */
   function village(s, dark) {
     if (!s.layer) s.layer = W.layer();
-    var M = s.layer.mesh, o = s.o, hourNow = state.past ? 24 : new Date().getUTCHours(), old = s.labels, pines = [];   // a day that ended has every lamp lit, none of them the hour's
+    var M = s.layer.mesh, o = s.o, hourNow = state.past ? 24 : CLOCK.wall().getUTCHours(), old = s.labels, pines = [];   // a day that ended has every lamp lit, none of them the hour's
     M.clear(); s.pools = []; s.occ = []; s.glow = []; s.labels = {}; s.decals = []; var K = s.kit;
     function labelAt(key, p, cls, show) {
       var L = old[key];
@@ -1619,7 +1619,7 @@
      when `force`), then what they share: the pools of light, the footprints, the glows. */
   function refresh(force) {
     if (!W) return;
-    var now = performance.now(), hour = new Date().getUTCHours(), changed = false;
+    var now = performance.now(), hour = CLOCK.wall().getUTCHours(), changed = false;
     if (!force && hour === state.hour && !sites.some(function (s) { return s.pending && (s.sig == null || now - s.builtAt > REBUILD_MS); })) return;
     state.hour = hour; measure();
     sites.forEach(function (s) {
