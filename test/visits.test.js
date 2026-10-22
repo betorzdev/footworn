@@ -35,5 +35,5 @@ test('props come parsed, and bad JSON becomes null', async () => {
 test('$engaged rows stay out of the list: they would join two rows', async () => {
   const db = fakeDb([]);
   await visits(db, { site: 'one' });
-  assert.match(db.seen.sql, /event IS NULL OR \(event IS NOT NULL AND event NOT LIKE '\$%'\)/);
+  assert.match(db.seen.sql, /event IS NULL OR \(\+event IS NOT NULL AND event NOT LIKE '\$%'\)/);
 });

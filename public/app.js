@@ -273,9 +273,20 @@
     if (state.viewDay) { strip.refresh(); return; }
     visits.clear(); scene.dayCut(reloadAll);
   }, 15000);
-  /* The used share and the hours come only with /api/scene (`$engaged` never reaches the live
-     socket), so the dashboard left open refreshes them every five minutes. */
-  setInterval(function () { if (state.started && state.token && $('gate').hidden && !document.hidden && !state.viewDay) reloadAll(); }, 5 * 60 * 1000);   // a past day does not change
+  /* What the live socket never brings, the used share (`$engaged` stays out of it) and yesterday
+     up to this time of day, the dashboard left open asks for every five minutes, from
+     /api/used: a few hundred rows read, where the whole scene of every site is thousands.
+     Everything else comes live, and the whole scene is read again when the socket comes back
+     after missing hits. */
+  setInterval(function () {
+    if (!state.started || !state.token || !$('gate').hidden || document.hidden || state.viewDay || state.buffer) return;   // a past day does not change; a reload on its way brings it
+    var mine = generation;
+    state.sites.forEach(function (s) {
+      api('/api/used?site=' + encodeURIComponent(s.id)).then(function (u) {
+        if (mine === generation && !state.viewDay && u.day === state.day) scene.used(s.id, u);
+      }).catch(function () { /* the next one, or the next reload, brings it */ });
+    });
+  }, 5 * 60 * 1000);
 
   /* --- the view --- */
   function go(id, instant) {

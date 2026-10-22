@@ -7,7 +7,7 @@ import { makeHit, originAllowed, ENGAGED } from './collect.js';
 import { firstToday, saltFor } from './visitor.js';
 import { dayOf } from './clock.js';
 import { authorized } from './auth.js';
-import { sites, stats, eventStats, scene, days, visits, icon } from './stats.js';
+import { sites, stats, eventStats, scene, used, days, visits, icon } from './stats.js';
 import { publish } from './live.js';
 import { makeTicket, checkTicket } from './ticket.js';
 import { readCapped } from './body.js';
@@ -158,6 +158,7 @@ async function api(request, env, url) {
     const day = url.searchParams.get('day');   // a day before today: the village as it was; anything else is today
     return json(await scene(env.DB, { site, day: DAY.test(day || '') ? day : undefined }));
   }
+  if (url.pathname === '/api/used') return json(await used(env.DB, { site }));
   if (url.pathname === '/api/icon') {
     const ic = await icon(env.DB, site);
     if (!ic) return json({ error: 'not found' }, 404);
