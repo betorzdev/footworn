@@ -297,7 +297,11 @@ locally for `/verify`.
 Free plan room: 100 000 requests/day and 100 000 D1 writes/day; a pageview costs two writes and
 an event one, so about 50 000 pageviews a day. The live view adds one Durable Object request per
 counted hit (100 000 a day on the free plan, the same ceiling); an open dashboard's socket
-hibernates between hits and costs nothing while idle. The first `npm run deploy` creates the
+hibernates between hits and costs nothing while idle. D1 reads (5 million rows a day) go to the
+dashboard: it reads every village once when it opens, comes back or misses hits (a few thousand
+rows per site), then only what never comes live every five minutes (`/api/used`: today's and
+yesterday's pageviews); every read of `hits` stays on its days through an index
+(`test/plans.test.js`). The first `npm run deploy` creates the
 Durable Object (the `[[migrations]]` in `wrangler.toml`). Retention is `RETENTION_MONTHS` in
 `wrangler.toml` (25, the AEPD’s cap).
 
@@ -336,6 +340,7 @@ the width, no id), live and as the day's history; earlier days are only counts. 
 | `DELETE /api/icon?site=` | forgets the icon: the pennant again |
 | `POST /api/look` | `{ page, palette? }` (JSON): the site's page read for a look, stored nowhere: `{ hints: { title, description, lang, themeColor, scheme, ogImage }, icon: { type, data (base64), url } \| null, ai: { look: { style, hue, shade, tint, pieces }, why } \| null, aiError? }`; `ai` only with an `ANTHROPIC_API_KEY` and the dashboard's `palette` (`{ tints: [8 × #rrggbb], roofs: { kit: #rrggbb } }`) |
 | `GET /api/scene?site=` | what the village draws, all counts: `pages`, `refs` and `views` (every one of the last 7 days, busiest first, each list cut at 200, `[{ value, hits }]`), `events` (every other event of the 7 days, by name, `[{ value, hits }]`), `week: { hits, views }` (the 7 days' pageviews and views opened: the village's size), `today: { hits, visitors, events, viewsTotal, loads, engaged, pages: [{ path, hits, loads, engaged, events }], refs: [{ ref, hits }], views: [{ view, hits }], viewPages: [{ path, view, hits }], byEvent: [{ event, hits }], eventPages: [{ path, event, hits }] }` (the used rate is `engaged / loads`, as in `/api/stats`; a view is a `screen` event with a `view`, so `viewsTotal` is inside `events`), `yesterday: { visitors, pages: [{ path, hits }] }` up to this time of day, and `hours: [{ hour, today, yesterday }]`, pageviews by Madrid hour. With `&day=` before today (`past: true` in the answer) it is the village as that day ended: `today` is that day, the 7 days end on it, `yesterday` is the whole day before |
+| `GET /api/used?site=` | `{ day, loads, engaged, pages: [{ path, loads, engaged }], yesterday: { visitors, pages: [{ path, hits }] } }`: what the live socket never brings, today's loads and used loads (in all and per page) and yesterday up to this time of day; the open dashboard asks for it every five minutes instead of the whole scene |
 | `GET /api/days?site=&from=&to=` | `{ days: [{ day, visitors, hits }] }`, visitors and pageviews per day (a day with none has no row): the bars of the history strip |
 | `GET /api/visits?site=` | today's visits (Madrid's day), newest first, at most 2000, rounded: `{ day, now, visits: [{ minute, path, ref, device, browser, os, lang, country, first, event, props }] }`. Never the width, the second or an id |
 | `GET /api/live-ticket` | `{ ticket }`, good for 60 s, to open the live socket |

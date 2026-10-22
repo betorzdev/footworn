@@ -1,13 +1,13 @@
 /* The live socket: a ticket from /api/live-ticket (the admin token never goes in a URL), then
    /live, which relays every counted hit. Reconnects with backoff; a ping every 30 s keeps
    proxies from dropping it. While the tab is hidden the socket is closed, and `onResume` lets
-   app.js reload the counts it missed. */
+   app.js reload the counts it missed; so does a socket that opens again after it dropped. */
 (function () {
   'use strict';
 
   window.FootwornLive = function (o) {
     /* o: { ticket() -> Promise<string>, onMessage(msg), onState('connecting'|'open'|'closed'|'unauthorized'), onResume() } */
-    var ws = null, timer = null, ping = null, backoff = 1000, stopped = true;
+    var ws = null, timer = null, ping = null, backoff = 1000, stopped = true, dropped = false;
 
     function open() {
       clearTimeout(timer);
@@ -19,6 +19,7 @@
         var sock = ws = new WebSocket(url);
         sock.onopen = function () {
           backoff = 1000; o.onState('open');
+          if (dropped) { dropped = false; o.onResume(); }   // the hits counted while it was down never came
           ping = setInterval(function () { try { sock.send('ping'); } catch (e) { /* closing */ } }, 30000);
         };
         sock.onmessage = function (e) {
@@ -29,12 +30,12 @@
         sock.onclose = function () {
           clearInterval(ping);
           if (ws === sock) ws = null;
-          o.onState('closed');
+          dropped = true; o.onState('closed');
           retry();
         };
       }).catch(function (e) {
         if (e && e.message === 'unauthorized') { stopped = true; o.onState('unauthorized'); return; }
-        o.onState('closed');
+        dropped = true; o.onState('closed');
         retry();
       });
     }
@@ -54,11 +55,11 @@
     document.addEventListener('visibilitychange', function () {
       if (stopped && !ws && document.hidden) return;
       if (document.hidden) { if (!stopped) { close(); stopped = 'hidden'; } }
-      else if (stopped === 'hidden') { stopped = false; backoff = 1000; o.onResume(); open(); }
+      else if (stopped === 'hidden') { stopped = false; backoff = 1000; dropped = false; o.onResume(); open(); }
     });
 
     return {
-      start: function () { stopped = document.hidden ? 'hidden' : false; open(); },
+      start: function () { stopped = document.hidden ? 'hidden' : false; dropped = false; open(); },   // the caller reads the counts as it starts
       stop: function () { stopped = true; close(); },
     };
   };

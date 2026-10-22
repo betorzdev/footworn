@@ -1997,6 +1997,16 @@
       refresh(true); share(); resized(); frameView(true);
     },
     load: function (id, data) { var s = byId[id]; if (s) load(s, data); },
+    /* What never comes live, again (app.js, from /api/used): today's used share, the village's
+       and each house's, and yesterday up to this time of day, its visitors and each brass band. */
+    used: function (id, data) {
+      var s = byId[id]; if (!s || !s.loaded || s.draft || state.past) return;
+      s.loads = data.loads || 0; s.engaged = data.engaged || 0; s.yesterday = data.yesterday.visitors || 0;
+      s.towers.forEach(function (t) { t.loads = 0; t.engaged = 0; t.ypv = 0; });
+      data.pages.forEach(function (p) { var t = towerOf(s, p.path); if (t) { t.loads = p.loads || 0; t.engaged = p.engaged || 0; } });
+      data.yesterday.pages.forEach(function (p) { var t = towerOf(s, p.path); if (t) t.ypv = p.hits; });
+      rebuild(s);
+    },
     /* The kits a village can be built in (the Sites panel's Surprise me picks among them). */
     styles: function () { return Object.keys(KIT); },
     /* The pieces and their options, for the Sites panel's selects and its Surprise me. */

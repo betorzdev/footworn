@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { scene, days } from '../src/stats.js';
+import { scene, used, days } from '../src/stats.js';
 
 /* A D1 stand-in that records every statement and answers the batch with the rows given, in order. */
 function fakeDb(answers) {
@@ -121,11 +121,11 @@ test('the other events: the workshops of the 7 days by name, and today by name a
   assert.deepEqual(out.events, answers[12]);
   assert.deepEqual(out.today.byEvent, answers[13]);
   assert.deepEqual(out.today.eventPages, answers[14]);
-  const named = db.seen.filter(st => st.sql.includes('GROUP BY event') || st.sql.includes('GROUP BY path, event'));
+  const named = db.seen.filter(st => st.sql.includes('GROUP BY +event') || st.sql.includes('GROUP BY path, event'));
   assert.equal(named.length, 3);
   const [week, today, pages] = named;
   assert.deepEqual(week.args, ['one', '2026-09-29', '2026-10-05']);
-  assert.match(week.sql, /GROUP BY event ORDER BY hits DESC, event LIMIT 200\) ORDER BY value/);   // the busiest 200, then by name: a workshop never trades places with another
+  assert.match(week.sql, /GROUP BY \+event ORDER BY hits DESC, event LIMIT 200\) ORDER BY value/);   // the busiest 200, then by name: a workshop never trades places with another
   assert.deepEqual(today.args, ['one', '2026-10-05']);
   assert.match(pages.sql, /GROUP BY path, event ORDER BY hits DESC, path, event LIMIT 200/);
   for (const st of named) {
@@ -189,4 +189,20 @@ test('the crossings: today, per other site its `to` names, out of the workshops'
   for (const w of db.seen.filter(s => s.sql.includes('GROUP BY event') || s.sql.includes('GROUP BY path, event')))
     assert.match(w.sql, /NOT COALESCE\(json_type\(props, '\$\.to'\) = 'text' AND json_extract\(props, '\$\.to'\) IN \(SELECT id FROM sites WHERE id <> \?1\), 0\)/);
   assert.deepEqual((await scene(fakeDb([]), { site: 'one', now: NOW })).today.crossings, []);
+});
+
+test('what never comes live: today\'s loads and used loads, and yesterday up to this time of day', async () => {
+  const pages = [{ path: '/', loads: 10, engaged: 6 }, { path: '/es/', loads: 3, engaged: 1 }, { path: '/old/', loads: 0, engaged: 1 }];
+  const before = [{ path: '/', hits: 7, visitors: 4 }, { path: '/es/', hits: 2, visitors: 1 }];
+  const db = fakeDb([pages, before]);
+  db.prepare = (sql) => ({ bind: (...args) => { const st = { sql, args, first: async () => ({ day: '2026-10-01' }) }; db.seen.push(st); return st; } });
+  const out = await used(db, { site: 'one', now: NOW });
+  assert.deepEqual(out, { site: 'one', day: '2026-10-05', now: Math.floor(NOW / 1000), loads: 13, engaged: 8, pages,
+    yesterday: { visitors: 5, pages: [{ path: '/', hits: 7 }, { path: '/es/', hits: 2 }] } });
+  const [since, today, yesterday] = db.seen;
+  assert.match(since.sql, /MIN\(day\)/);
+  assert.deepEqual(today.args, ['one', '2026-10-05']);
+  assert.match(today.sql, /day >= '2026-10-01'/);   // loads since the tracker first sent `$engaged`, as `scene` counts them
+  assert.deepEqual(yesterday.args, ['one', '2026-10-04', Date.UTC(2026, 9, 4, 12, 0, 30) / 1000]);   // up to this time of day
+  for (const st of [today, yesterday]) for (const bad of ['country', 'browser', 'width', 'props']) assert.ok(!st.sql.includes(bad), bad);
 });

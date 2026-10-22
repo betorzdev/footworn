@@ -38,8 +38,11 @@ export async function icon(db, site) {
 const DIMS = ['path', 'ref', 'browser', 'os', 'device', 'country', 'lang'];
 
 /* The site's own events, and the tracker's `$engaged` (a load where the page was used, not just
-   opened: src/collect.js). `$engaged` is never an event on the dashboard, only the "used" rate. */
-const USER = "(event IS NOT NULL AND event NOT LIKE '$%')";
+   opened: src/collect.js). `$engaged` is never an event on the dashboard, only the "used" rate.
+   `+event`: the unary plus keeps SQLite off the (site, event, day) index, here and in every
+   `GROUP BY +event`: a range on `event` there, or its order, reads every event the site ever
+   had, whatever the days asked (test/plans.test.js). */
+const USER = "(+event IS NOT NULL AND event NOT LIKE '$%')";
 const ENGAGED = "(event IS '$engaged')";  // IS, not =: 0 on a pageview, never NULL
 
 /* The "used" rate counts only pageviews since the tracker first sent `$engaged` for this site:
@@ -72,7 +75,7 @@ export async function stats(db, { site, from, to }) {
                       WHERE ${where} AND event IS NULL AND ${d} IS NOT NULL
                       GROUP BY ${d} ORDER BY hits DESC LIMIT ${TOP}`);
   const pages = `SELECT COUNT(*) AS hits, SUM(first) AS visitors, SUM(${LOADS}) AS loads FROM hits WHERE ${where} AND event IS NULL`;
-  const events = `SELECT SUM(${USER}) AS events, SUM(${ENGAGED}) AS engaged FROM hits WHERE ${where} AND event IS NOT NULL`;
+  const events = `SELECT SUM(${USER}) AS events, SUM(${ENGAGED}) AS engaged FROM hits WHERE ${where} AND +event IS NOT NULL`;
   const len = Math.round((Date.parse(to) - Date.parse(from)) / DAY_MS) + 1;
   const previous = { from: addDays(from, -len), to: addDays(from, -1) };
   const pq = sql => db.prepare(sql).bind(site, previous.from, previous.to);
@@ -83,7 +86,7 @@ export async function stats(db, { site, from, to }) {
        FROM hits WHERE ${where} GROUP BY day ORDER BY day`),
     ...DIMS.map(dim),
     q(`SELECT event AS value, COUNT(*) AS hits FROM hits
-       WHERE ${where} AND ${USER} GROUP BY event ORDER BY hits DESC LIMIT ${TOP}`),
+       WHERE ${where} AND ${USER} GROUP BY +event ORDER BY hits DESC LIMIT ${TOP}`),
     q(`SELECT ${HOUR_SQL} AS hour, COUNT(*) AS hits FROM hits
        WHERE ${where} AND event IS NULL GROUP BY hour ORDER BY hour`),
     q(`SELECT CAST(strftime('%w', day) AS INTEGER) AS weekday, COUNT(*) AS hits FROM hits
@@ -149,7 +152,7 @@ export async function scene(db, { site, day, now = Date.now() }) {
   const today = past ? day : current, from = addDays(today, -6), yesterday = addDays(today, -1);
   const LOADS = await loadsSince(db, site);
   /* yesterday's last second, or this time of day yesterday on the wall clock (a day can be 23 or 25 hours long) */
-  const until = past ? dayStart(today) - 1 : Math.min(fromWall(secs + offsetAt(secs) - 86400), dayStart(today) - 1);
+  const until = past ? dayStart(today) - 1 : sameTimeYesterday(secs, today);
   const week = 'site = ?1 AND day BETWEEN ?2 AND ?3 AND event IS NULL';
   const VIEW = "event = 'screen' AND json_type(props, '$.view') = 'text'";  // a `view` that is not text is no view
   /* A crossing: an event (no view) whose `to` is the id of another of the sites, whatever it is called. */
@@ -179,8 +182,8 @@ export async function scene(db, { site, day, now = Date.now() }) {
                 GROUP BY path ORDER BY hits DESC, path LIMIT ${SCENE}`).bind(site, yesterday, until),
     m(`SELECT SUM(event IS NULL) AS hits, SUM(${VIEW}) AS views FROM hits WHERE site = ?1 AND day BETWEEN ?2 AND ?3`),
     m(`SELECT value, hits FROM (SELECT event AS value, COUNT(*) AS hits FROM hits WHERE site = ?1 AND day BETWEEN ?2 AND ?3 AND ${OTHER}
-       GROUP BY event ORDER BY hits DESC, event LIMIT ${SCENE}) ORDER BY value`),   // the busiest 200, by name
-    d(`SELECT event, COUNT(*) AS hits FROM hits WHERE site = ?1 AND day = ?2 AND ${OTHER} GROUP BY event ORDER BY hits DESC, event LIMIT ${SCENE}`),
+       GROUP BY +event ORDER BY hits DESC, event LIMIT ${SCENE}) ORDER BY value`),   // the busiest 200, by name
+    d(`SELECT event, COUNT(*) AS hits FROM hits WHERE site = ?1 AND day = ?2 AND ${OTHER} GROUP BY +event ORDER BY hits DESC, event LIMIT ${SCENE}`),
     d(`SELECT path, event, COUNT(*) AS hits FROM hits WHERE site = ?1 AND day = ?2 AND ${OTHER}
        GROUP BY path, event ORDER BY hits DESC, path, event LIMIT ${SCENE}`),
     d(`SELECT json_extract(props, '$.to') AS "to", COUNT(*) AS hits FROM hits WHERE site = ?1 AND day = ?2 AND ${CROSS}
@@ -199,6 +202,31 @@ export async function scene(db, { site, day, now = Date.now() }) {
     hours,
     week: { hits: wk.hits || 0, views: wk.views || 0 },
   };
+}
+
+/* This time of day yesterday on the wall clock (a day can be 23 or 25 hours long), and never
+   past yesterday's last second. */
+function sameTimeYesterday(secs, today) { return Math.min(fromWall(secs + offsetAt(secs) - 86400), dayStart(today) - 1); }
+
+/* What the dashboard left open asks for every five minutes instead of the whole scene: what the
+   live socket never brings. `$engaged`, so today's loads and used loads, in all and per page;
+   and yesterday up to this time of day, which moves with the clock: its visitors and each
+   page's pageviews. As `scene` counts them, uncut (each house finds its own), so the totals are
+   the sum of the pages. It reads today's pageviews and yesterday's, nothing else. */
+export async function used(db, { site, now = Date.now() }) {
+  const secs = Math.floor(now / 1000), today = dayOf(secs);
+  const LOADS = await loadsSince(db, site);
+  const rows = await db.batch([
+    db.prepare(`SELECT path, SUM(${LOADS}) AS loads, SUM(${ENGAGED}) AS engaged FROM hits
+                WHERE site = ?1 AND day = ?2 AND (event IS NULL OR ${ENGAGED})
+                GROUP BY path HAVING loads > 0 OR engaged > 0`).bind(site, today),
+    db.prepare(`SELECT path, COUNT(*) AS hits, SUM(first) AS visitors FROM hits WHERE site = ?1 AND day = ?2 AND ts <= ?3 AND event IS NULL
+                GROUP BY path`).bind(site, addDays(today, -1), sameTimeYesterday(secs, today)),
+  ]);
+  const [pages, before] = rows.map(r => r.results || []);
+  const sum = (list, k) => list.reduce((n, p) => n + (p[k] || 0), 0);
+  return { site, day: today, now: secs, loads: sum(pages, 'loads'), engaged: sum(pages, 'engaged'), pages,
+    yesterday: { visitors: sum(before, 'visitors'), pages: before.map(p => ({ path: p.path, hits: p.hits })) } };
 }
 
 /* Visitors and pageviews day by day: the bars of the dashboard's history strip. A day with no
